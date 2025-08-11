@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster';
+import MarkerClusterGroup from '@changey/react-leaflet-markercluster';
+import '@changey/react-leaflet-markercluster/dist/styles.min.css';
 import L from 'leaflet';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
 import 'leaflet/dist/leaflet.css';
 
 // Fix untuk icon default Leaflet - gunakan CDN atau icon bawaan
 delete L.Icon.Default.prototype._getIconUrl;
+// Gabungkan pengaturan ikon baru
 L.Icon.Default.mergeOptions({
-// Solusi CDN (lebih stabil)
-iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconRetinaUrl: '/marker-icon-2x.png',
+  iconUrl: '/marker-icon.png',
+  shadowUrl: '/marker-shadow.png',
 });
 
 // Custom icon untuk marker dengan sumber yang dapat diakses
@@ -33,16 +31,16 @@ export default function Map() {
 
   useEffect(() => {
     setSekolah([
-      { id: 1, name: "SDN Contoh 1", lat: -6.9, lng: 107.6, alamat: "Jalan A" },
-      { id: 2, name: "SDN Contoh 2", lat: -6.91, lng: 107.61, alamat: "Jalan B" },
-      { id: 3, name: "SMP Contoh 3", lat: -6.92, lng: 107.62, alamat: "Jalan C" },
+      { id: 1, name: "SDN Contoh 1", lat: -7.2155, lng: 107.8932, alamat: "Jalan A" },
+      { id: 2, name: "SDN Contoh 2", lat: -7.2170, lng: 107.8900, alamat: "Jalan B" },
+      { id: 3, name: "SMP Contoh 3", lat: -7.2200, lng: 107.8925, alamat: "Jalan C" },
     ]);
   }, []);
 
   return (
     <MapContainer
-      center={[-6.914744, 107.609811]}
-      zoom={11}
+      center={[-7.2170, 107.8930]}  // pusat peta di Garut
+      zoom={13}                    // zoom level yang pas untuk Garut
       style={{ height: '100vh', width: '100%' }}
       scrollWheelZoom={true}
     >
