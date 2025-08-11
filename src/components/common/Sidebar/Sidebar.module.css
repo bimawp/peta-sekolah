@@ -248,7 +248,7 @@
 /* Desktop Responsive */
 @media (min-width: 1024px) {
   .sidebar {
-    position: static;
+    position: fixed; /* Tetap fixed, jangan static */
     transform: translateX(0);
     height: calc(100vh - 64px);
     border-right: 1px solid var(--color-border);
