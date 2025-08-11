@@ -38,12 +38,12 @@ export default function Map() {
   }, []);
 
   return (
-    <MapContainer
-      center={[-7.2170, 107.8930]}  // pusat peta di Garut
-      zoom={13}                    // zoom level yang pas untuk Garut
-      style={{ height: '100vh', width: '100%' }}
-      scrollWheelZoom={true}
-    >
+      <MapContainer
+        center={[-7.2170, 107.8930]}
+        zoom={13}
+        style={{ height: '100%', width: '100%' }} // ganti dari '100vh'
+        scrollWheelZoom={true}
+      >
       <TileLayer
         attribution='&copy; OpenStreetMap contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

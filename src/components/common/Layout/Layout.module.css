@@ -34,6 +34,27 @@
   width: 100%;
 }
 
+.contentArea {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 64px);
+  overflow: hidden;  /* Supaya container ini tidak scroll */
+}
+
+.mainContent {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto; /* Scroll hanya di mainContent */
+  display: flex;          /* Agar anak bisa stretch */
+  flex-direction: column; /* Atur anak secara vertikal */
+}
+
+/* Supaya Map bisa tumbuh penuh dalam mainContent */
+.map {
+  flex: 1;        /* Isi ruang penuh */
+  min-height: 0;  /* Penting supaya flex container menghitung tinggi dengan benar */
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .mainShifted {
@@ -50,4 +71,3 @@
     padding: var(--spacing-sm);
   }
 }
-

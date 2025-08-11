@@ -1,6 +1,6 @@
 import React from 'react';
-import Header from '../Header/Header'; // pastikan ada file Header.jsx
-import Sidebar from '../Sidebar/Sidebar'; // pastikan ada file Sidebar.jsx
+import Header from '../Header/Header';
+import Sidebar from '../Sidebar/Sidebar';
 import styles from './Layout.module.css';
 
 const Layout = ({ children }) => {
