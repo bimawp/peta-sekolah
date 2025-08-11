@@ -1,58 +1,65 @@
-import React from 'react';
-import { MapContainer, TileLayer, Marker, Popup, LayerGroup } from 'react-leaflet';
+import React, { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
 import 'leaflet/dist/leaflet.css';
 
-// Custom icons per jenis sekolah (ubah url ikon sesuai folder public/icons)
-const icons = {
-  PAUD: new L.Icon({
-    iconUrl: '/icons/school.svg',
-    iconSize: [25, 25],
-  }),
-  SD: new L.Icon({
-    iconUrl: '/icons/school.svg',
-    iconSize: [25, 25],
-  }),
-  SMP: new L.Icon({
-    iconUrl: '/icons/school.svg',
-    iconSize: [25, 25],
-  }),
-  PKBM: new L.Icon({
-    iconUrl: '/icons/school.svg',
-    iconSize: [25, 25],
-  }),
-};
+// Fix untuk icon default Leaflet - gunakan CDN atau icon bawaan
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+// Solusi CDN (lebih stabil)
+iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
-// Contoh data sekolah di Garut
-const locations = [
-  { id: 1, name: 'PAUD Melati', type: 'PAUD', position: [-7.2155, 107.8932] },
-  { id: 2, name: 'SD Negeri 1 Garut', type: 'SD', position: [-7.2170, 107.8900] },
-  { id: 3, name: 'SMP Negeri 2 Garut', type: 'SMP', position: [-7.2200, 107.8925] },
-  { id: 4, name: 'PKBM Garut', type: 'PKBM', position: [-7.2190, 107.8950] },
-];
+// Custom icon untuk marker dengan sumber yang dapat diakses
+const customIcon = new L.Icon({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
 
-const Map = () => {
-  const center = [-7.2170, 107.8930]; // pusat peta di Garut
-  const zoomLevel = 13;
+export default function Map() {
+  const [sekolah, setSekolah] = useState([]);
+
+  useEffect(() => {
+    setSekolah([
+      { id: 1, name: "SDN Contoh 1", lat: -6.9, lng: 107.6, alamat: "Jalan A" },
+      { id: 2, name: "SDN Contoh 2", lat: -6.91, lng: 107.61, alamat: "Jalan B" },
+      { id: 3, name: "SMP Contoh 3", lat: -6.92, lng: 107.62, alamat: "Jalan C" },
+    ]);
+  }, []);
 
   return (
-    <MapContainer center={center} zoom={zoomLevel} style={{ height: '100vh', width: '100%' }}>
+    <MapContainer
+      center={[-6.914744, 107.609811]}
+      zoom={11}
+      style={{ height: '100vh', width: '100%' }}
+      scrollWheelZoom={true}
+    >
       <TileLayer
+        attribution='&copy; OpenStreetMap contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution="&copy; OpenStreetMap contributors"
       />
-      <LayerGroup>
-        {locations.map(({ id, name, type, position }) => (
-          <Marker key={id} position={position} icon={icons[type]}>
+      <MarkerClusterGroup>
+        {sekolah.map((sk) => (
+          <Marker key={sk.id} position={[sk.lat, sk.lng]} icon={customIcon}>
             <Popup>
-              <strong>{name}</strong><br />
-              Jenis: {type}
+              <strong>{sk.name}</strong><br />
+              {sk.alamat}
             </Popup>
           </Marker>
         ))}
-      </LayerGroup>
+      </MarkerClusterGroup>
     </MapContainer>
   );
-};
-
-export default Map;
+}

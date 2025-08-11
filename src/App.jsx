@@ -1,3 +1,8 @@
+// di src/index.js atau App.jsx
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+
 import React from 'react';
 import 'leaflet/dist/leaflet.css';
 import { BrowserRouter } from 'react-router-dom';
