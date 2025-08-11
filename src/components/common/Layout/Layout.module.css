@@ -71,3 +71,17 @@
     padding: var(--spacing-sm);
   }
 }
+
+.sidebar {
+  position: fixed;
+  top: 64px; /* tinggi header */
+  left: 0;
+  width: 280px;
+  height: calc(100vh - 64px);
+  background-color: var(--color-bg-primary);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto; /* supaya sidebar bisa scroll sendiri */
+  z-index: var(--z-fixed);
+  transition: transform 0.3s ease;
+  transform: translateX(0); /* tampilkan sidebar */
+}
