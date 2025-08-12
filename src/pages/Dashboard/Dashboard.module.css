@@ -1,320 +1,371 @@
 .dashboard {
-  padding: 0;
-  max-width: none;
+  overflow-x: hidden; /* cegah scroll horizontal halaman */
+  max-width: 100vw;
+  box-sizing: border-box;
+  padding: 20px;
+  background-color: #f8fafc;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Loading State */
-.loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 50vh;
-  gap: var(--spacing-lg);
+.chartWrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto; /* scroll horizontal di dalam chart kalau dibutuhkan */
+  height: 400px; /* tinggi chart tetap */
+  border: 1px solid #e5e7eb; /* opsional supaya kelihatan batasnya */
+  border-radius: 12px;
 }
 
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--color-bg-tertiary);
-  border-top: 3px solid var(--color-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+/* Tambahan styling agar scroll horizontal chart nyaman */
+.chartWrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.chartWrapper::-webkit-scrollbar-thumb {
+  background-color: rgba(59, 130, 246, 0.5);
+  border-radius: 4px;
+}
+
+.chartWrapper::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 /* Header */
 .header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border);
+  align-items: center;
+  margin-bottom: 30px;
 }
 
-.headerContent h1 {
-  font-size: var(--text-3xl);
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-sm) 0;
-}
-
-.subtitle {
-  color: var(--color-text-secondary);
-  font-size: var(--text-base);
+.header h1 {
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: #1f2937;
   margin: 0;
 }
 
-.headerActions {
-  display: flex;
-  gap: var(--spacing-md);
-}
-
-.exportButton {
+.adminProfile {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md) var(--spacing-lg);
-  background-color: var(--color-primary);
+  gap: 10px;
+}
+
+.adminAvatar {
+  width: 40px;
+  height: 40px;
+  background-color: #3b82f6;
   color: white;
-  border: none;
-  border-radius: var(--radius);
-  font-size: var(--text-sm);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.adminProfile span {
   font-weight: 500;
+  color: #1f2937;
+}
+
+/* Summary Cards */
+.summaryCards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+
+  /* Tambahan efek hover animasi */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
   cursor: pointer;
-  transition: all 0.15s ease;
 }
 
-.exportButton:hover {
-  background-color: var(--color-primary-hover);
-  transform: translateY(-1px);
-}
-
-/* Stats Grid */
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-2xl);
-}
-
-/* Charts Section */
-.chartsSection {
-  margin-bottom: var(--spacing-2xl);
-}
-
-.chartsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: var(--spacing-lg);
-}
-
-.chartCard {
-  min-height: 400px;
-}
-
-.fullWidth {
-  grid-column: 1 / -1;
+.card:hover {
+  transform: translateY(-8px) scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 .cardHeader {
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
-.cardHeader h3 {
-  font-size: var(--text-lg);
+.cardTitle {
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-sm) 0;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.cardHeader p {
-  color: var(--color-text-secondary);
-  font-size: var(--text-sm);
-  margin: 0;
-}
-
-.chartContainer {
-  padding: var(--spacing-lg);
-  height: 300px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Bottom Section */
-.bottomSection {
-  margin-bottom: var(--spacing-2xl);
-}
-
-.bottomGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-lg);
-}
-
-.rankingCard,
-.activityCard {
-  min-height: 400px;
-}
-
-/* Activity List */
-.activityList {
-  padding: var(--spacing-lg);
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.activityItem {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.activityItem:last-child {
-  border-bottom: none;
-}
-
-.activityIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.cardIcon {
   width: 32px;
   height: 32px;
-  background-color: var(--color-bg-tertiary);
-  border-radius: var(--radius);
-  color: var(--color-primary);
-  flex-shrink: 0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
 }
 
-.activityContent {
+.cardIcon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cardValue {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #3b82f6;
+  line-height: 1;
+}
+
+/* Filter Section */
+.filterSection {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: center;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterGroup label {
+  font-weight: 500;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.filterGroup select,
+.filterGroup input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 14px;
+  min-width: 120px;
+}
+
+.filterGroup select:focus,
+.filterGroup input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Chart Container */
+.chartContainer {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.chartContainer h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0 0 20px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.chartWrapper {
+  width: 100%;
+  height: 400px;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.legendColor {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+/* Charts Grid */
+.chartsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* Custom Bar Charts */
+.barChartContainer {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 250px; /* pastikan cukup tinggi */
+  padding: 20px 0;
+  overflow-y: auto; /* scroll vertical kalau kepotong */
+  box-sizing: border-box;
+}
+
+.barGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   flex: 1;
 }
 
-.activityMessage {
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-xs) 0;
-  line-height: 1.4;
-}
-
-.activityTime {
-  font-size: var(--text-xs);
-  color: var(--color-text-tertiary);
-}
-
-/* Quick Actions */
-.quickActions {
-  margin-bottom: var(--spacing-xl);
-}
-
-.quickActionsCard {
-  padding: var(--spacing-lg);
-}
-
-.quickActionsCard h3 {
-  font-size: var(--text-lg);
+.barLabel {
   font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-lg) 0;
+  margin-bottom: 10px;
+  color: #1f2937;
 }
 
-.actionButtons {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
-}
-
-.actionButton {
+.barsContainer {
   display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 250px;
+}
+
+.barItem {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-lg);
-  background-color: var(--color-bg-secondary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-size: var(--text-sm);
-  font-weight: 500;
-  text-align: left;
+  min-width: 40px;
 }
 
-.actionButton:hover {
-  background-color: var(--color-bg-tertiary);
-  border-color: var(--color-primary);
+.bar {
+  width: 35px;
+  min-height: 20px;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.bar:hover {
+  opacity: 0.8;
   transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
 }
 
-.actionButton:hover {
-  color: var(--color-primary);
+.barValue {
+  position: absolute;
+  top: -25px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1f2937;
+  white-space: nowrap;
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
   .chartsGrid {
     grid-template-columns: 1fr;
   }
   
-  .bottomGrid {
-    grid-template-columns: 1fr;
+  .summaryCards {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .header {
+  .dashboard {
+    padding: 15px;
+  }
+  
+  .header h1 {
+    font-size: 2rem;
+  }
+  
+  .summaryCards {
+    grid-template-columns: 1fr;
+  }
+  
+  .filterSection {
     flex-direction: column;
     align-items: flex-start;
-    gap: var(--spacing-lg);
   }
   
-  .headerContent h1 {
-    font-size: var(--text-2xl);
+  .filterGroup {
+    width: 100%;
+    justify-content: space-between;
   }
   
-  .statsGrid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
+  .filterGroup select,
+  .filterGroup input {
+    flex: 1;
+    min-width: auto;
   }
   
-  .chartsGrid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
+  .barChartContainer {
+    flex-direction: column;
+    height: auto;
+    gap: 20px;
   }
   
-  .chartCard {
-    min-height: 300px;
+  .barGroup {
+    flex-direction: row;
+    width: 100%;
   }
   
-  .chartContainer {
-    height: 250px;
-    padding: var(--spacing-md);
-  }
-  
-  .bottomGrid {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
-  }
-  
-  .actionButtons {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-sm);
+  .barsContainer {
+    height: 100px;
+    flex: 1;
+    margin-left: 20px;
   }
 }
 
 @media (max-width: 480px) {
-  .headerContent h1 {
-    font-size: var(--text-xl);
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
   }
   
-  .subtitle {
-    font-size: var(--text-sm);
+  .adminProfile {
+    align-self: flex-end;
   }
   
-  .exportButton {
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: var(--text-xs);
+  .legend {
+    justify-content: center;
   }
   
-  .chartContainer {
-    height: 200px;
-    padding: var(--spacing-sm);
-  }
-  
-  .cardHeader {
-    padding: var(--spacing-md);
-  }
-  
-  .activityList {
-    padding: var(--spacing-md);
-  }
-  
-  .quickActionsCard {
-    padding: var(--spacing-md);
+  .chartWrapper {
+    height: 300px;
   }
 }

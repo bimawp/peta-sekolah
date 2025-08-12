@@ -1,166 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
+
 import { 
   LayoutDashboard, 
-  School, 
-  DollarSign, 
-  Building, 
-  MapPin,
-  BarChart3,
-  Users,
-  Settings,
-  X
+  Building,         // Ganti BuildingLibrary dengan Building
+  Wallet,
+  MoreHorizontal,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import MenuItem from './MenuItem';
 import styles from './Sidebar.module.css';
 
 const menuItems = [
-  {
-    id: 'dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
-    path: '/',
-    badge: null
-  },
-  {
-    id: 'schools',
-    label: 'Data Sekolah',
-    icon: School,
-    path: '/schools',
-    badge: null,
-    submenu: [
-      { label: 'Semua Sekolah', path: '/schools' },
-      { label: 'SD/MI', path: '/schools/sd' },
-      { label: 'SMP/MTs', path: '/schools/smp' },
-      { label: 'SMA/SMK/MA', path: '/schools/sma' }
-    ]
-  },
-  {
-    id: 'map',
-    label: 'Peta Sekolah',
-    icon: MapPin,
-    path: '/map',
-    badge: null
-  },
-  {
-    id: 'budget',
-    label: 'Anggaran',
-    icon: DollarSign,
-    path: '/budget',
-    badge: 'New'
-  },
-  {
-    id: 'facilities',
-    label: 'Fasilitas',
-    icon: Building,
-    path: '/facilities',
-    badge: null
-  },
-  {
-    id: 'analytics',
-    label: 'Analitik',
-    icon: BarChart3,
-    path: '/analytics',
-    badge: null
-  },
-  {
-    id: 'users',
-    label: 'Pengguna',
-    icon: Users,
-    path: '/users',
-    badge: null
-  },
-  {
-    id: 'settings',
-    label: 'Pengaturan',
-    icon: Settings,
-    path: '/settings',
-    badge: null
-  }
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/' },
+  { id: 'detail', label: 'Detail Sekolah', icon: <Building size={20} />, path: '/detail-sekolah' }, // ganti icon juga
+  { id: 'anggaran', label: 'Anggaran', icon: <Wallet size={20} />, path: '/anggaran' },
+  { id: 'lainnya', label: 'Lainnya', icon: <MoreHorizontal size={20} />, path: '/lainnya' }
 ];
 
-const Sidebar = ({ isOpen, onClose }) => {
+const Sidebar = () => {
   const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const toggleSidebar = () => setCollapsed(!collapsed);
 
   return (
-    <>
-      {/* Overlay for mobile */}
-      {isOpen && (
-        <div 
-          className={styles.overlay}
-          onClick={onClose}
-        />
-      )}
-      
-      {/* Sidebar */}
-      <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
-        {/* Mobile Close Button */}
-        <div className={styles.mobileHeader}>
-          <button 
-            className={styles.closeButton}
-            onClick={onClose}
-            aria-label="Close menu"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+      <div className={styles.header}>
+        {!collapsed && <h1 className={styles.logo}>Disdik Garut</h1>}
+        <button onClick={toggleSidebar} className={styles.toggleBtn} aria-label="Toggle sidebar">
+          {collapsed ? <ChevronRight size={24} /> : <ChevronLeft size={24} />}
+        </button>
+      </div>
 
-        {/* Navigation */}
-        <nav className={styles.nav}>
-          <div className={styles.menuSection}>
-            <h3 className={styles.sectionTitle}>Menu Utama</h3>
-            <ul className={styles.menuList}>
-              {menuItems.slice(0, 3).map((item) => (
-                <MenuItem
-                  key={item.id}
-                  item={item}
-                  isActive={location.pathname === item.path}
-                  onItemClick={onClose}
-                />
-              ))}
-            </ul>
-          </div>
-
-          <div className={styles.menuSection}>
-            <h3 className={styles.sectionTitle}>Manajemen</h3>
-            <ul className={styles.menuList}>
-              {menuItems.slice(3, 7).map((item) => (
-                <MenuItem
-                  key={item.id}
-                  item={item}
-                  isActive={location.pathname === item.path}
-                  onItemClick={onClose}
-                />
-              ))}
-            </ul>
-          </div>
-
-          <div className={styles.menuSection}>
-            <h3 className={styles.sectionTitle}>Sistem</h3>
-            <ul className={styles.menuList}>
-              {menuItems.slice(7).map((item) => (
-                <MenuItem
-                  key={item.id}
-                  item={item}
-                  isActive={location.pathname === item.path}
-                  onItemClick={onClose}
-                />
-              ))}
-            </ul>
-          </div>
-        </nav>
-
-        {/* Footer */}
-        <div className={styles.footer}>
-          <div className={styles.footerContent}>
-            <p className={styles.version}>v1.0.0</p>
-            <p className={styles.copyright}>
-              © 2024 Dinas Pendidikan
-            </p>
-          </div>
-        </div>
-      </aside>
-    </>
+      <nav className={styles.menu}>
+        {menuItems.map(({ id, label, icon, path }) => (
+          <MenuItem 
+            key={id}
+            icon={icon}
+            label={label}
+            to={path}
+            active={location.pathname === path}
+            collapsed={collapsed}
+          />
+        ))}
+      </nav>
+    </aside>
   );
 };
 

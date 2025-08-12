@@ -1,0 +1,39 @@
+/* MenuItem.module.css */
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  color: #374151;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
+  -webkit-user-select: none; /* Safari 3+, iOS Safari 3+ */
+  user-select: none;
+  cursor: pointer;
+  border-left: 4px solid transparent;
+}
+
+.menuItem:hover {
+  background-color: #eff6ff;
+  color: #3b82f6;
+}
+
+.menuItem.active {
+  background-color: #bfdbfe;
+  color: #1e40af;
+  border-left-color: #3b82f6;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  color: inherit;
+}
+
+.label {
+  font-size: 1rem;
+}

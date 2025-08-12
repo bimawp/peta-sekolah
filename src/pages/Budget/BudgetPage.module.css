@@ -1,0 +1,266 @@
+/* BudgetPage.module.css */
+
+:root {
+  --color-primary: #1e40af; /* warna biru utama */
+  --color-secondary: #f5c542; /* warna kuning aksen */
+  --color-accent: #fc4c57; /* warna merah aksen */
+  --color-text-primary: #333;
+  --color-text-secondary: #666;
+  --color-bg: #fff;
+  --color-bg-alt: #f9f9f9;
+  --color-border: #ddd;
+  --font-family: 'Inter', sans-serif;
+}
+
+.pageWrapper {
+  padding: 20px 30px;
+  font-family: var(--font-family);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  border-bottom: 2px solid var(--color-border);
+  padding-bottom: 12px;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}
+
+.userBtn {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 14px;
+}
+
+.userBtn:hover {
+  background-color: #153d91;
+}
+
+.filters {
+  display: flex;
+  gap: 25px;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+}
+
+.filterGroup label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.filterGroup select {
+  padding: 8px 12px;
+  font-size: 14px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+}
+
+.filterGroup select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 4px var(--color-primary);
+}
+
+.chartsRow {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+  justify-content: center;
+}
+
+/* Chart container */
+.chartContainer {
+  background-color: var(--color-bg-alt);
+  padding: 16px 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.07);
+  width: 400px;
+  box-sizing: border-box;
+}
+
+.chartTitle {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 12px;
+  color: var(--color-primary);
+  text-align: center;
+}
+
+/* SVG styling */
+.chartSVG {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Label sumbu X dibuat miring dan dekat grafik */
+.chartLabel {
+  font-size: 12px;
+  fill: var(--color-text-secondary);
+  -webkit-user-select: none; /* Safari */
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  /* Transformasi miring ke kanan -45 derajat */
+  transform-origin: center top;
+  transform: rotate(-45deg);
+
+  dominant-baseline: hanging;
+  pointer-events: none;
+}
+/* Label sumbu Y */
+.chartYAxisLabel {
+  font-size: 11px;
+  fill: var(--color-text-secondary);
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.tableSection {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Wrapper for each table block */
+.tableWrapper {
+  background-color: var(--color-bg-alt);
+  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.05);
+  min-width: 320px;
+  max-width: 480px;
+  box-sizing: border-box;
+  flex: 1 1 320px;
+}
+
+.tableTitle {
+  font-weight: 700;
+  font-size: 18px;
+  margin-bottom: 14px;
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-primary);
+  padding-bottom: 6px;
+}
+
+/* Common table styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  color: var(--color-text-primary);
+}
+
+thead tr {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+thead th {
+  font-weight: 600;
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 2px solid #1565c0;
+}
+
+tbody tr {
+  background-color: white;
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.3s ease;
+}
+
+tbody tr:hover {
+  background-color: #f0f7ff;
+}
+
+tbody td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+
+/* Footer row styling */
+tfoot tr.totalRow {
+  background-color: var(--color-primary);
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+tfoot td {
+  padding: 12px 14px;
+  border-top: 2px solid #1565c0;
+}
+
+/* Specific tables with custom styles if needed */
+.budgetTable tbody tr td:nth-child(2),
+.budgetTable tbody tr td:nth-child(3),
+.budgetTable tbody tr td:nth-child(4),
+.yearlyTable tbody tr td,
+.annualPlanTable tbody tr td {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.budgetTable tbody tr td:first-child,
+.yearlyTable tbody tr td:first-child,
+.annualPlanTable tbody tr td:first-child {
+  text-align: left;
+}
+
+.annualPlanTable thead th {
+  padding: 12px 14px;
+}
+
+.annualPlanTable tfoot td[colspan="3"] {
+  text-align: right;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .chartsRow {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .tableSection {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .tableWrapper {
+    max-width: 100%;
+  }
+}

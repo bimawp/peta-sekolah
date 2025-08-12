@@ -5,70 +5,39 @@
   background-color: var(--color-bg-secondary);
 }
 
-.authLayout {
-  min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-primary) 0%, #1e40af 100%);
-}
-
-.body {
-  display: flex;
-  flex: 1;
-  position: relative;
-}
-
-.main {
-  flex: 1;
-  transition: margin-left 0.3s ease;
-  min-height: calc(100vh - 64px);
-  margin-left: 0;
-}
-
-.mainShifted {
-  margin-left: 280px;
-}
-
-.content {
-  padding: var(--spacing-lg);
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-}
-
 .contentArea {
   display: flex;
   flex: 1;
   height: calc(100vh - 64px);
-  overflow: visible;  /* Agar sidebar fixed tidak terpengaruh scroll */
+  overflow: visible; /* supaya sidebar fixed tidak terpengaruh scroll */
 }
 
 .mainContent {
   flex: 1;
   height: 100%;
-  overflow-y: auto; /* Scroll hanya di mainContent (konten peta) */
+  overflow-y: auto; /* scroll hanya di mainContent */
   display: flex;
   flex-direction: column;
-  margin-left: 280px; /* Memberi ruang untuk sidebar */
+  margin-left: 280px; /* margin sidebar default */
+  transition: margin-left 0.3s ease;
 }
 
-/* Supaya Map bisa tumbuh penuh dalam mainContent */
+.mainContentCollapsed {
+  margin-left: 64px; /* margin sidebar saat collapse */
+}
+
+/* Supaya map bisa tumbuh penuh di mainContent */
 .map {
   flex: 1;
   min-height: 0;
 }
 
-/* Mobile Responsive */
+/* Mobile responsive */
 @media (max-width: 768px) {
-  .mainShifted {
+  .mainContent {
     margin-left: 0;
   }
-  
-  .content {
-    padding: var(--spacing-md);
-  }
-}
-
-@media (max-width: 480px) {
-  .content {
-    padding: var(--spacing-sm);
+  .mainContentCollapsed {
+    margin-left: 0;
   }
 }
