@@ -1,24 +1,16 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { 
   User, 
   Settings, 
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
-
 import styles from './Header.module.css';
 
 const Header = ({ onMenuClick, sidebarOpen }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { user, logout } = useAuth();
-
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const { user } = useAuth();
 
   return (
     <header className={styles.header}>
@@ -27,7 +19,7 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
         <div className={styles.left}>
           <Link to="/" className={styles.brand}>
             <img 
-              src="/assets/logo-disdik.jpg" 
+              src="/assets/logo-disdik.png" 
               alt="Logo Disdik"
               className={styles.logo}
             />
@@ -40,22 +32,6 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
 
         {/* Right Section */}
         <div className={styles.right}>
-          {/* Theme Toggle */}
-          {/* <button 
-            className={styles.themeToggle}
-            onClick={toggleTheme}
-            aria-label="Toggle theme"
-          >
-            {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button> */}
-
-          {/* Notifications */}
-          {/* <button className={styles.notificationButton}>
-            <Bell size={20} />
-            <span className={styles.badge}>3</span>
-          </button> */}
-
-          {/* User Menu */}
           <div className={styles.userMenu}>
             <button 
               className={styles.userButton}
@@ -65,39 +41,26 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
                 <User size={20} />
               </div>
               <div className={styles.userInfo}>
-                <span className={styles.userName}>{user?.name || 'Admin'}</span>
-                <span className={styles.userRole}>{user?.role || 'Administrator'}</span>
+                <span className={styles.userName}>{user?.name || 'Admin User'}</span>
+                <span className={styles.userRole}>{user?.email || 'admin@disdik.co.id'}</span>
               </div>
             </button>
 
             {dropdownOpen && (
               <div className={styles.dropdown}>
-                <div className={styles.dropdownHeader}>
-                  <div className={styles.userDetails}>
-                    <strong>{user?.name || 'Admin User'}</strong>
-                    <span>{user?.email || 'admin@example.com'}</span>
-                  </div>
-                </div>
-                
                 <div className={styles.dropdownBody}>
-                  <Link to="/profile" className={styles.dropdownItem}>
+                  <Link to="/user/profile" className={styles.dropdownItem}>
                     <User size={16} />
                     <span>Profile</span>
                   </Link>
-                  <Link to="/settings" className={styles.dropdownItem}>
+                  <Link to="/user/settings" className={styles.dropdownItem}>
                     <Settings size={16} />
                     <span>Settings</span>
                   </Link>
-                </div>
-                
-                <div className={styles.dropdownFooter}>
-                  <button 
-                    className={styles.logoutButton}
-                    onClick={handleLogout}
-                  >
+                  <Link to="/user/logout" className={styles.dropdownItem}>
                     <LogOut size={16} />
                     <span>Logout</span>
-                  </button>
+                  </Link>
                 </div>
               </div>
             )}

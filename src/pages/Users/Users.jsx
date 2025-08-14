@@ -1,13 +1,15 @@
+// src/pages/User/User.jsx
 import React from 'react';
-import styles from './Users.module.css';
+import { Outlet } from 'react-router-dom';
+import styles from './User.module.css';
 
-const Users = () => {
+const User = () => {
   return (
-    <div className={styles.users}>
-      <h1>Pengguna</h1>
-      {/* Daftar user dan pengaturan user */}
+    <div className={styles.container}>
+      <h2>User Dashboard</h2>
+      <Outlet /> {/* Tempat render subroute seperti Profile/Settings */}
     </div>
   );
 };
 
-export default Users;
+export default User;

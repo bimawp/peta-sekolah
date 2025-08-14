@@ -7,6 +7,9 @@ import Map from '../pages/Map/Map';
 import Facilities from '../pages/Facilities/FacilitiesPage';
 import SchoolDetailPage from '../pages/SchoolDetail/SchoolDetailPage';
 import Login from '../pages/Auth/Login';
+import Profile from '../pages/Users/Profile';
+import Settings from '../pages/Users/Settings';
+import Logout from '../pages/Users/Logout';
 import { useAuth } from '../contexts/AuthContext';
 
 const AppRoutes = () => {
@@ -15,6 +18,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+
       {/* Semua route lain diproteksi */}
       <Route
         path="/"
@@ -36,6 +40,22 @@ const AppRoutes = () => {
         path="/map"
         element={isAuthenticated ? <Map /> : <Navigate to="/login" replace />}
       />
+
+      {/* Routes untuk user menu */}
+      <Route
+        path="/profile"
+        element={isAuthenticated ? <Profile /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/settings"
+        element={isAuthenticated ? <Settings /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/logout"
+        element={isAuthenticated ? <Logout /> : <Navigate to="/login" replace />}
+      />
+
+      {/* Catch-all */}
       <Route
         path="*"
         element={isAuthenticated ? <NotFound /> : <Navigate to="/login" replace />}
