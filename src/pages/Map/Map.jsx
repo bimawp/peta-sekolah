@@ -41,8 +41,8 @@ export default function Map() {
   }, []);
 
   return (
-    <div style={{ height: '100vh', width: '100vw' }}>
-      <MapContainer center={[-7.217, 107.893]} zoom={13} style={{ height: '100%', width: '100%' }}>
+    <div style={{ height: '450px', maxWidth: '900px', margin: '0 auto' }}>
+       <MapContainer center={[-7.217, 107.893]} zoom={13} style={{ height: '100%', width: '100%' }}>
         <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <MarkerClusterGroup>
           {locations.map((loc) => (

@@ -104,22 +104,6 @@ const Dashboard = () => {
         boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }}>
         <h1 style={{ margin: 0, color: '#1e293b', fontSize: '24px' }}>Dashboard</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            backgroundColor: '#6366f1',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontWeight: 'bold'
-          }}>
-            A
-          </div>
-          <span style={{ fontWeight: '500' }}>Admin</span>
-        </div>
       </div>
 
       {/* Summary Cards */}

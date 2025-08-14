@@ -106,7 +106,7 @@ export default function BudgetPage() {
     <div className={styles.pageWrapper}>
       <header className={styles.header}>
         <h1>Anggaran</h1>
-        <button className={styles.userBtn}>Admin</button>
+        {/* <button className={styles.userBtn}>Admin</button> */}
       </header>
 
       <section className={styles.filters}>

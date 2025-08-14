@@ -1,22 +1,18 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Menu, 
-  Bell, 
   User, 
   Settings, 
   LogOut,
-  Sun,
-  Moon
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { useTheme } from '../../../contexts/ThemeContext';
+
 import styles from './Header.module.css';
 
 const Header = ({ onMenuClick, sidebarOpen }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -29,17 +25,9 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
       <div className={styles.container}>
         {/* Left Section */}
         <div className={styles.left}>
-          <button 
-            className={styles.menuButton}
-            onClick={onMenuClick}
-            aria-label="Toggle menu"
-          >
-            <Menu size={24} />
-          </button>
-          
           <Link to="/" className={styles.brand}>
             <img 
-              src="/images/logo-disdik.png" 
+              src="/assets/logo-disdik.jpg" 
               alt="Logo Disdik"
               className={styles.logo}
             />
@@ -53,19 +41,19 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
         {/* Right Section */}
         <div className={styles.right}>
           {/* Theme Toggle */}
-          <button 
+          {/* <button 
             className={styles.themeToggle}
             onClick={toggleTheme}
             aria-label="Toggle theme"
           >
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
-          </button>
+          </button> */}
 
           {/* Notifications */}
-          <button className={styles.notificationButton}>
+          {/* <button className={styles.notificationButton}>
             <Bell size={20} />
             <span className={styles.badge}>3</span>
-          </button>
+          </button> */}
 
           {/* User Menu */}
           <div className={styles.userMenu}>
