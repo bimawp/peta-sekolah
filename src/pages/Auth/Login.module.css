@@ -7,7 +7,7 @@
 /* Bagian kiri */
 .loginLeft {
   flex: 1;
-  background: linear-gradient(to bottom, #00388b 0%, #00388b 100%);
+  background: linear-gradient(to bottom, #0073ff 0%, #002864 100%);
   color: rgb(255, 255, 255);
   display: flex;
   justify-content: center;  /* Tetap center vertikal */
@@ -26,7 +26,7 @@
   width: 120%;
   height: 120%;
   object-fit: contain;
-  opacity: 0.10;
+  opacity: 0.20;
   z-index: 0;
   pointer-events: none;
 }
@@ -50,19 +50,20 @@
   max-width: 400px;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;    /* Rata kiri */
-  gap: 12px;
+  align-items: flex-start; /* Rata kiri */
+  gap: 4px; /* Rapatkan jarak antar elemen */
 }
 
 .mainTitle {
   font-size: 32px;
   font-weight: bold;
-  margin-bottom: 5px;
+  margin-bottom: 2px; /* Rapatkan */
 }
 
 .subtitle {
   font-size: 14px;
   margin: 0;
+  line-height: 1.2; /* Rapatkan baris */
 }
 
 .selengkapnyaBtn {
@@ -74,7 +75,7 @@
   cursor: pointer;
   font-size: 14px;
   transition: 0.3s ease;
-  margin-top: 25px;
+  margin-top: 10px;
 }
 
 .selengkapnyaBtn:hover {
