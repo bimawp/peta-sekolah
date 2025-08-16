@@ -770,43 +770,47 @@ const Dashboard = () => {
               minWidth: '180px'
             }}
           >
-            <option>Semua Kecamatan</option>
-            <option>Banjarwangi</option>
-            <option>Banyuresmi</option>
-            <option>Bayongbong</option>
-            <option>Blubur Limbangan</option>
-            <option>Caringin</option>
-            <option>Cibalong</option>
-            <option>Cibatu</option>
-            <option>Cibolang</option>
-            <option>Cibuntu</option>
-            <option>Cigalontang</option>
-            <option>Cikajang</option>
-            <option>Cikelet</option>
-            <option>Cilengkrang</option>
-            <option>Cilawu</option>
-            <option>Cisewu</option>
-            <option>Cisompet</option>
-            <option>Cisurupan</option>
-            <option>Garut Kota</option>
-            <option>Karangpawitan</option>
-            <option>Kersamanah</option>
-            <option>Leles</option>
-            <option>Lembang</option>
-            <option>Leuwigoong</option>
-            <option>Malangbong</option>
-            <option>Melong</option>
-            <option>Pamulihan</option>
-            <option>Pameungpeuk</option>
-            <option>Pasirwangi</option>
-            <option>Singajaya</option>
-            <option>Sukaresmi</option>
-            <option>Sukawening</option>
-            <option>Sukawingi</option>
-            <option>Talegong</option>
-            <option>Tarogong Kaler</option>
-            <option>Tarogong Kidul</option>
-            <option>Wanaraja</option>
+              <option>Semua Kecamatan</option>
+              <option>Banjarwangi</option>
+              <option>Banyuresmi</option>
+              <option>Bayongbong</option>
+              <option>Blubur Limbangan</option>
+              <option>Caringin</option>
+              <option>Cibalong</option>
+              <option>Cibatu</option>
+              <option>Cibolang</option>
+              <option>Cibuntu</option>
+              <option>Cigalontang</option>
+              <option>Cikajang</option>
+              <option>Cikelet</option>
+              <option>Cilengkrang</option>
+              <option>Cilawu</option>
+              <option>Cisewu</option>
+              <option>Cisompet</option>
+              <option>Cisurupan</option>
+              <option>Garut Kota</option>
+              <option>Karangpawitan</option>
+              <option>Kersamanah</option>
+              <option>Leles</option>
+              <option>Lembang</option>
+              <option>Leuwigoong</option>
+              <option>Malangbong</option>
+              <option>Melong</option>
+              <option>Pamulihan</option>
+              <option>Pameungpeuk</option>
+              <option>Pasirwangi</option>
+              <option>Peundeuy</option>
+              <option>Samarang</option>
+              <option>Selaawi</option>
+              <option>Singajaya</option>
+              <option>Sucinaraja</option>
+              <option>Sukaresmi</option>
+              <option>Sukawening</option>
+              <option>Sukawingi</option>
+              <option>Talegong</option>
+              <option>Tarogong Kaler</option>
+              <option>Tarogong Kidul</option>
+              <option>Wanaraja</option>
           </select>
         </div>
 

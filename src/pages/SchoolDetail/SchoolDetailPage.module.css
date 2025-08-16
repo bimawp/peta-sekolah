@@ -1,11 +1,27 @@
 /* SchoolDetailPage.module.css */
+.pageHeader {
+  background: white;              /* kotak putih */
+  border-radius: 12px;            /* sudut melengkung */
+  padding: 20px 24px;             /* ruang di dalam kotak */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* bayangan lembut */
+  border: 1px solid #e5e7eb;     /* garis tipis */
+  margin-bottom: 20px;            /* jarak ke konten bawah */
+}
+
+.pageHeader h1 {
+  font-size: 2rem;                /* ukuran judul */
+  font-weight: 700;               /* tebal */
+  color: #1f2937;                 /* warna teks */
+  margin: 0;                       /* hilangkan margin default h1 */
+}
 
 .container {
-  padding: 1.5rem;
-  background-color: #f9fafb; /* abu muda */
+  padding: 20px;
+  background-color: #f8fafc; /* sama dengan dashboard */
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #374151; /* teks abu gelap */
+  box-sizing: border-box;
 }
 
 .title {
@@ -17,16 +33,18 @@
 
 .section {
   background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  border-radius: 12px; /* disamakan dengan dashboard */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
+/* Tabel */
 .tableWrapper {
   overflow-x: auto;
   border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
+  border-radius: 12px;
 }
 
 .table {
@@ -64,8 +82,9 @@
   text-align: center;
 }
 
+/* Tombol detail */
 .detailButton {
-  background-color: #2563eb; /* biru */
+  background-color: #3b82f6; /* biru dashboard */
   color: white;
   border: none;
   padding: 0.375rem 0.75rem;
@@ -73,13 +92,15 @@
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .detailButton:hover {
-  background-color: #1e40af;
+  background-color: #2563eb;
+  transform: translateY(-2px);
 }
 
+/* Pagination */
 .pagination {
   display: flex;
   justify-content: flex-end;
@@ -95,8 +116,9 @@
   padding: 0.5rem 0.75rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .pageButton:disabled {
@@ -106,8 +128,10 @@
 
 .pageButton:hover:not(:disabled) {
   background-color: #2563eb;
+  transform: translateY(-2px);
 }
 
+/* Filter */
 .filterContainer {
   display: flex;
   flex-wrap: wrap;
@@ -119,20 +143,21 @@
 .inputText,
 .selectDropdown {
   border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
+  border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
   width: 200px;
-  transition: border-color 0.2s ease-in-out;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
 
 .inputText:focus,
 .selectDropdown:focus {
   outline: none;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgb(59 130 246 / 0.3);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+/* Tombol reset */
 .resetButton {
   background-color: #3b82f6;
   color: white;
@@ -141,19 +166,22 @@
   border-radius: 0.375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .resetButton:hover {
   background-color: #2563eb;
+  transform: translateY(-2px);
 }
 
+/* Map */
 .mapContainer {
-  height: 16rem; /* 256px, bisa disesuaikan */
+  height: 16rem; /* 256px */
   width: 100%;
-  border-radius: 0.5rem;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
   margin-bottom: 1.5rem;
 }
 

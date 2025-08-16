@@ -90,8 +90,8 @@ const sampleSchoolData = [
 
 // PieChart Component
 const PieChartComponent = ({ title, data }) => (
-  <div style={{ background: 'white', padding: 24, borderRadius: 8, boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
-    <h3 style={{ fontWeight: '600', fontSize: 18, marginBottom: 16, borderBottom: '2px solid #3b82f6', paddingBottom: 8, color: '#1e40af' }}>
+  <div style={{ background: 'white', padding: 24, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+    <h3 style={{ fontWeight: 600, fontSize: 18, marginBottom: 16, borderBottom: '2px solid #3b82f6', paddingBottom: 8, color: '#1e40af' }}>
       {title}
     </h3>
     <div style={{ width: '100%', height: 320 }}>
@@ -103,9 +103,9 @@ const PieChartComponent = ({ title, data }) => (
             cx="50%"
             cy="50%"
             outerRadius={90}
-            label={({ percent }) => `${(percent * 100).toFixed(1)}%`} // cuma tampilkan persen
-            labelPosition="outside" // pindahkan persenan ke luar potongan
-            labelLine={true} // garis penghubung
+            label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+            labelPosition="outside"
+            labelLine={true}
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
@@ -118,12 +118,10 @@ const PieChartComponent = ({ title, data }) => (
   </div>
 );
 
-
-
 // BarChart Component
 const BarChartComponent = ({ title, data, colors }) => (
-  <div style={{ background: 'white', padding: 24, borderRadius: 8, boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
-    <h3 style={{ fontWeight: '600', fontSize: 18, marginBottom: 16, borderBottom: '2px solid #3b82f6', paddingBottom: 8, color: '#1e40af' }}>{title}</h3>
+  <div style={{ background: 'white', padding: 24, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
+    <h3 style={{ fontWeight: 600, fontSize: 18, marginBottom: 16, borderBottom: '2px solid #3b82f6', paddingBottom: 8, color: '#1e40af' }}>{title}</h3>
     <div style={{ width: '100%', height: 300 }}>
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -164,7 +162,7 @@ const DataTable = ({ data }) => {
   };
 
   return (
-    <div style={{ background: 'white', borderRadius: 8, boxShadow: '0 0 10px rgba(0,0,0,0.1)', overflowX: 'auto' }}>
+    <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflowX: 'auto', border: '1px solid #e5e7eb' }}>
       <div style={{ padding: 16, backgroundColor: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <input
           type="text"
@@ -189,6 +187,7 @@ const DataTable = ({ data }) => {
           Reset Filter
         </button>
       </div>
+      {/* Tabel sama seperti sebelumnya */}
       <table
         style={{
           width: '100%',
@@ -196,7 +195,7 @@ const DataTable = ({ data }) => {
           fontSize: 11,
           fontFamily: 'Inter, Arial, sans-serif',
           tableLayout: 'fixed',
-          minWidth: 820, // lebih kecil agar muat di section
+          minWidth: 820,
           background: 'white',
         }}
       >
@@ -206,7 +205,6 @@ const DataTable = ({ data }) => {
             color: '#1e293b',
             fontWeight: 700,
             textTransform: 'uppercase',
-            fontFamily: 'Inter, Arial, sans-serif',
             fontSize: 11,
             borderBottom: '2px solid #3b82f6',
           }}>
@@ -217,38 +215,20 @@ const DataTable = ({ data }) => {
             <th style={{ padding: '6px 3px', textAlign: 'left', width: '7%' }}>TIPE SEKOLAH</th>
             <th style={{ padding: '6px 3px', textAlign: 'left', width: '7%' }}>DESA</th>
             <th style={{ padding: '6px 3px', textAlign: 'left', width: '7%' }}>KECAMATAN</th>
-            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>
-              KELAS BAIK <span style={{ color: '#3b82f6', fontWeight: 900 }}>↑</span>
-            </th>
-            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>
-              KELAS RUSAK SEDANG <span style={{ color: '#3b82f6', fontWeight: 900 }}>↕</span>
-            </th>
-            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>
-              KELAS RUSAK BERAT <span style={{ color: '#3b82f6', fontWeight: 900 }}>↕</span>
-            </th>
-            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>
-              KURANG RKB <span style={{ color: '#3b82f6', fontWeight: 900 }}>↕</span>
-            </th>
-            <th style={{ padding: '6px 3px', textAlign: 'left', width: '7%' }}>
-              REHAB RUANG KELAS <span style={{ color: '#3b82f6', fontWeight: 900 }}>↕</span>
-            </th>
-            <th style={{ padding: '6px 3px', textAlign: 'left', width: '8%' }}>
-              PEMBANGUNAN RKB <span style={{ color: '#3b82f6', fontWeight: 900 }}>↕</span>
-            </th>
-            <th style={{ padding: '6px 3px', textAlign: 'left', width: '8%' }}>
-              INTERVENSI RKB
-            </th>
+            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>KELAS BAIK</th>
+            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>KELAS RUSAK SEDANG</th>
+            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>KELAS RUSAK BERAT</th>
+            <th style={{ padding: '6px 3px', textAlign: 'left', width: '5%' }}>KURANG RKB</th>
+            <th style={{ padding: '6px 3px', textAlign: 'left', width: '7%' }}>REHAB RUANG KELAS</th>
+            <th style={{ padding: '6px 3px', textAlign: 'left', width: '8%' }}>PEMBANGUNAN RKB</th>
+            <th style={{ padding: '6px 3px', textAlign: 'left', width: '8%' }}>INTERVENSI RKB</th>
           </tr>
         </thead>
         <tbody>
           {currentData.map(school => (
             <tr
               key={school.no}
-              style={{
-                borderBottom: '1px solid #e5e7eb',
-                cursor: 'pointer',
-                transition: 'background 0.2s',
-              }}
+              style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer', transition: 'background 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
               onMouseLeave={e => e.currentTarget.style.background = 'white'}
             >
@@ -270,8 +250,7 @@ const DataTable = ({ data }) => {
           ))}
         </tbody>
       </table>
-
-      {/* Pagination */}
+      {/* Pagination sama seperti sebelumnya */}
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: '#f9fafb' }}>
         <button
           disabled={currentPage === 1}
@@ -287,9 +266,7 @@ const DataTable = ({ data }) => {
         >
           Prev
         </button>
-
         <span style={{ lineHeight: '32px' }}>Page {currentPage} of {totalPages}</span>
-
         <button
           disabled={currentPage === totalPages}
           onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
@@ -312,7 +289,6 @@ const DataTable = ({ data }) => {
 const SchoolDetailPage = () => {
   const totalSekolah = sampleSchoolData.length;
 
-  // Hitung agregasi kondisi kelas
   const kondisiSemuaJenjang = sampleSchoolData.reduce(
     (acc, curr) => {
       acc.baik += curr.kondisiKelas.baik;
@@ -326,7 +302,6 @@ const SchoolDetailPage = () => {
   const totalRehab = sampleSchoolData.reduce((acc, curr) => acc + curr.rehabRuangKelas, 0);
   const totalIntervensi = sampleSchoolData.reduce((acc, curr) => acc + curr.intervensiRuangKelas, 0);
 
-  // Data Pie
   const pieDataList = [
     {
       title: "Kondisi Ruang Kelas Semua Jenjang",
@@ -352,7 +327,6 @@ const SchoolDetailPage = () => {
     },
   ];
 
-  // Data Bar
   const barKondisiKelas = [
     { name: "Baik", value: kondisiSemuaJenjang.baik },
     { name: "Rusak Sedang", value: kondisiSemuaJenjang.rusakSedang },
@@ -367,22 +341,23 @@ const SchoolDetailPage = () => {
   const pieColors = ["#4ECDC4", "#FFD93D", "#FF6B6B"];
   const barColors = ["#4ECDC4", "#FFD93D"];
 
-    return (
-      <div style={{
-        padding: 0, // lebih kecil, konten makin dekat ke sidebar
-        backgroundColor: '#f3f4f6',
-        minHeight: '100vh',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px' // isi konten lebih besar
-      }}>
-      <h1 style={{ fontSize: 28, fontWeight: '700', color: '#1e40af', marginBottom: 24 }}>Detail Kondisi Sekolah</h1>
+  return (
+    <div style={{
+      padding: 16,
+      backgroundColor: '#f3f4f6',
+      minHeight: '100vh',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '12px'
+    }}>
+      {/* Header kotak putih */}
+      <div style={{ background: 'white', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb', marginBottom: 24 }}>
+        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#1f2937' }}>Detail Sekolah</h1>
+      </div>
 
       {/* Peta */}
-      <section style={{ marginBottom: 32, backgroundColor: 'white', padding: 16, borderRadius: 8, boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ fontSize: 20, fontWeight: '600', borderBottom: '3px solid #3b82f6', paddingBottom: 8, marginBottom: 16, color: '#1e40af' }}>Peta Lokasi Sekolah</h2>
-        <div style={{ height: 500 }}>
-          <Map />
-        </div>
+      <section style={{ marginBottom: 32, backgroundColor: 'white', padding: 16, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, borderBottom: '3px solid #3b82f6', paddingBottom: 8, marginBottom: 16, color: '#1e40af' }}>Peta Lokasi Sekolah</h2>
+        <div style={{ height: 500 }}><Map /></div>
       </section>
 
       {/* Pie Charts */}

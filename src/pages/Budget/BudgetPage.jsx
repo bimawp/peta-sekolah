@@ -23,10 +23,16 @@ export default function BudgetPage() {
 
   return (
     <div className={styles.pageWrapper}>
-      <header className={styles.header}>
+      {/* Wadah kotak putih untuk H1 Anggaran */}
+      <div style={{
+        background: 'white',
+        padding: '16px 24px',
+        borderRadius: 8,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        marginBottom: 24
+      }}>
         <h1>Anggaran</h1>
-        {/* <button className={styles.userBtn}>Admin</button> */}
-      </header>
+      </div>
 
       <section className={styles.filters}>
         <div className={styles.filterGroup}>
@@ -37,9 +43,11 @@ export default function BudgetPage() {
             onChange={(e) => setJenjang(e.target.value)}
           >
             <option value="">Semua</option>
+            <option value="SMA">PAUD</option>
             <option value="SD">SD</option>
             <option value="SMP">SMP</option>
             <option value="SMA">SMA</option>
+            
           </select>
         </div>
 
@@ -63,9 +71,47 @@ export default function BudgetPage() {
             value={kecamatan}
             onChange={(e) => setKecamatan(e.target.value)}
           >
-            <option value="">Semua Kecamatan</option>
-            <option value="Kec1">Kecamatan 1</option>
-            <option value="Kec2">Kecamatan 2</option>
+                <option value="">Semua Kecamatan</option>
+                <option value="Banjarwangi">Banjarwangi</option>
+                <option value="Banyuresmi">Banyuresmi</option>
+                <option value="Bayongbong">Bayongbong</option>
+                <option value="Balubur Limbangan">Balubur Limbangan</option>
+                <option value="Bungbulang">Bungbulang</option>
+                <option value="Caringin">Caringin</option>
+                <option value="Cibalong">Cibalong</option>
+                <option value="Cibatu">Cibatu</option>
+                <option value="Cibiuk">Cibiuk</option>
+                <option value="Cigedug">Cigedug</option>
+                <option value="Cihurip">Cihurip</option>
+                <option value="Cikajang">Cikajang</option>
+                <option value="Cikelet">Cikelet</option>
+                <option value="Cilawu">Cilawu</option>
+                <option value="Cisewu">Cisewu</option>
+                <option value="Cisompet">Cisompet</option>
+                <option value="Cisurupan">Cisurupan</option>
+                <option value="Garut Kota">Garut Kota</option>
+                <option value="Kadungora">Kadungora</option>
+                <option value="Karangpawitan">Karangpawitan</option>
+                <option value="Karangtengah">Karangtengah</option>
+                <option value="Kersamanah">Kersamanah</option>
+                <option value="Leles">Leles</option>
+                <option value="Leuwigoong">Leuwigoong</option>
+                <option value="Malangbong">Malangbong</option>
+                <option value="Mekarmukti">Mekarmukti</option>
+                <option value="Mekarwangi">Mekarwangi</option>
+                <option value="Pamulihan">Pamulihan</option>
+                <option value="Pakenjeng">Pakenjeng</option>
+                <option value="Selaawi">Selaawi</option>
+                <option value="Sukawening">Sukawening</option>
+                <option value="Sukaresmi">Sukaresmi</option>
+                <option value="Sukawangi">Sukawangi</option>
+                <option value="Sukapura">Sukapura</option>
+                <option value="Sukamukti">Sukamukti</option>
+                <option value="Sukawening">Sukawening</option>
+                <option value="Tarogong Kidul">Tarogong Kidul</option>
+                <option value="Tarogong Kaler">Tarogong Kaler</option>
+                <option value="Wanaraja">Wanaraja</option>
+
           </select>
         </div>
       </section>
@@ -121,6 +167,82 @@ export default function BudgetPage() {
       </section>
 
       <section className={styles.tableSection}>
+        {/* Anggaran PAUD */}
+        <div className={styles.tableWrapper}>
+          <div className={styles.tableTitle}>Anggaran PAUD</div>
+          <table className={styles.budgetTable}>
+            <thead>
+              <tr>
+                <th>JENIS</th>
+                <th>JUMLAH KELAS</th>
+                <th>BIAYA PER KELAS</th>
+                <th>TOTAL BIAYA</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Belum Direhab Rusak Berat</td>
+                <td>175</td>
+                <td>Rp 75.000.000</td>
+                <td>Rp 13.125.000.000</td>
+              </tr>
+              <tr>
+                <td>Belum Direhab Rusak Sedang</td>
+                <td>1088</td>
+                <td>Rp 100.000.000</td>
+                <td>Rp 108.800.000.000</td>
+              </tr>
+              <tr>
+                <td>Belum Dibangun RKB</td>
+                <td>1099</td>
+                <td>Rp 150.000.000</td>
+                <td>Rp 164.850.000.000</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Rencana Anggaran 5 Tahun PAUD */}
+        <div className={styles.tableWrapper}>
+          <div className={styles.tableTitle}>Rencana Anggaran 5 Tahun PAUD</div>
+          <table className={styles.budgetTable}>
+            <thead>
+              <tr>
+                <th>TAHUN</th>
+                <th>RENCANA ANGGARAN</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2025</td>
+                <td>Rp 57.355.000.000</td>
+              </tr>
+              <tr>
+                <td>2026</td>
+                <td>Rp 57.355.000.000</td>
+              </tr>
+              <tr>
+                <td>2027</td>
+                <td>Rp 57.355.000.000</td>
+              </tr>
+              <tr>
+                <td>2028</td>
+                <td>Rp 57.355.000.000</td>
+              </tr>
+              <tr>
+                <td>2029</td>
+                <td>Rp 57.355.000.000</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr className={styles.totalRow}>
+                <td><strong>TOTAL 5 TAHUN</strong></td>
+                <td><strong>RP 286.775.000.000</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
         {/* Rencana Anggaran Tahunan (2025-2029) */}
         <div className={styles.tableWrapper}>
           <div className={styles.tableTitle}>Rencana Anggaran Tahunan (2025-2029)</div>
@@ -177,82 +299,6 @@ export default function BudgetPage() {
                 <td colSpan="3"><strong>RP 286.775.000.000</strong></td>
               </tr>
             </tfoot>
-          </table>
-        </div>
-
-        {/* Rencana Anggaran 5 Tahun PAUD */}
-        <div className={styles.tableWrapper}>
-          <div className={styles.tableTitle}>Rencana Anggaran 5 Tahun PAUD</div>
-          <table className={styles.budgetTable}>
-            <thead>
-              <tr>
-                <th>TAHUN</th>
-                <th>RENCANA ANGGARAN</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>2025</td>
-                <td>Rp 57.355.000.000</td>
-              </tr>
-              <tr>
-                <td>2026</td>
-                <td>Rp 57.355.000.000</td>
-              </tr>
-              <tr>
-                <td>2027</td>
-                <td>Rp 57.355.000.000</td>
-              </tr>
-              <tr>
-                <td>2028</td>
-                <td>Rp 57.355.000.000</td>
-              </tr>
-              <tr>
-                <td>2029</td>
-                <td>Rp 57.355.000.000</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr className={styles.totalRow}>
-                <td><strong>TOTAL 5 TAHUN</strong></td>
-                <td><strong>RP 286.775.000.000</strong></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {/* Anggaran PAUD */}
-        <div className={styles.tableWrapper}>
-          <div className={styles.tableTitle}>Anggaran PAUD</div>
-          <table className={styles.budgetTable}>
-            <thead>
-              <tr>
-                <th>JENIS</th>
-                <th>JUMLAH KELAS</th>
-                <th>BIAYA PER KELAS</th>
-                <th>TOTAL BIAYA</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Belum Direhab Rusak Berat</td>
-                <td>175</td>
-                <td>Rp 75.000.000</td>
-                <td>Rp 13.125.000.000</td>
-              </tr>
-              <tr>
-                <td>Belum Direhab Rusak Sedang</td>
-                <td>1088</td>
-                <td>Rp 100.000.000</td>
-                <td>Rp 108.800.000.000</td>
-              </tr>
-              <tr>
-                <td>Belum Dibangun RKB</td>
-                <td>1099</td>
-                <td>Rp 150.000.000</td>
-                <td>Rp 164.850.000.000</td>
-              </tr>
-            </tbody>
           </table>
         </div>
       </section>
