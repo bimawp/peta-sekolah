@@ -49,15 +49,19 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
             {dropdownOpen && (
               <div className={styles.dropdown}>
                 <div className={styles.dropdownBody}>
-                  <Link to="/user/profile" className={styles.dropdownItem}>
+                  <Link to="/users/profile" className={styles.dropdownItem}>
                     <User size={16} />
                     <span>Profile</span>
                   </Link>
-                  <Link to="/user/settings" className={styles.dropdownItem}>
+                  <Link to="/users/users" className={styles.dropdownItem}>
+                    <User size={16} />
+                    <span>User</span>
+                  </Link>
+                  <Link to="/users/settings" className={styles.dropdownItem}>
                     <Settings size={16} />
                     <span>Settings</span>
                   </Link>
-                  <Link to="/user/logout" className={styles.dropdownItem}>
+                  <Link to="/users/logout" className={styles.dropdownItem}>
                     <LogOut size={16} />
                     <span>Logout</span>
                   </Link>

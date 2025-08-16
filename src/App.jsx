@@ -1,3 +1,4 @@
+// Import CSS eksternal
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -11,6 +12,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { FilterProvider } from './contexts/FilterContext';
 import AppRoutes from './routes/AppRoutes';
 import Layout from './components/common/Layout/Layout';
+
 import './App.css';
 import './styles/globals.css';
 

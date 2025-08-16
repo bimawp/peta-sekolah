@@ -89,30 +89,36 @@
   box-shadow: 0 0 4px var(--color-primary);
 }
 
+/* PERBAIKAN UTAMA: Charts harus tetap sejajar */
 .chartsRow {
   display: flex;
   gap: 40px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* Mencegah wrapping ke baris baru */
   margin-bottom: 40px;
   justify-content: center;
+  align-items: flex-start;
+  min-height: 400px; /* Pastikan tinggi konsisten */
 }
 
-/* Chart container */
+/* Chart container - PERBAIKAN */
 .chartContainer {
-  background-color: var(--color-bg-alt);
-  padding: 16px 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 0.07);
-  width: 400px;
+  background-color: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  flex: 1; /* Membagi ruang secara merata */
+  min-width: 0; /* Memungkinkan shrinking */
+  max-width: 500px; /* Batasi lebar maksimal */
+  height: auto;
   box-sizing: border-box;
 }
 
 .chartTitle {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 18px;
-  margin-bottom: 12px;
-  color: var(--color-primary);
-  text-align: center;
+  margin-bottom: 24px;
+  color: #1f2937;
+  text-align: left;
 }
 
 /* SVG styling */
@@ -124,20 +130,31 @@
 
 /* Label sumbu X dibuat miring dan dekat grafik */
 .chartLabel {
-  font-size: 12px;
+  font-size: 11px;
   fill: var(--color-text-secondary);
   -webkit-user-select: none; /* Safari */
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  dominant-baseline: middle;
+  pointer-events: none;
+  transform-origin: center center;
+  transform: rotate(-15deg);
+}
 
-  /* Transformasi miring ke kanan -45 derajat */
-  transform-origin: center top;
-  transform: rotate(-45deg);
-
-  dominant-baseline: hanging;
+/* Value labels on top of bars */
+.chartValueLabel {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--color-text-primary);
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  dominant-baseline: baseline;
   pointer-events: none;
 }
+
 /* Label sumbu Y */
 .chartYAxisLabel {
   font-size: 11px;
@@ -151,8 +168,9 @@
 .tableSection {
   display: flex;
   gap: 40px;
-  flex-wrap: wrap;
+  flex-direction: column;
   justify-content: center;
+  align-items: center;
 }
 
 /* Wrapper for each table block */
@@ -161,10 +179,10 @@
   padding: 20px 24px;
   border-radius: 12px;
   box-shadow: 0 3px 10px rgb(0 0 0 / 0.05);
-  min-width: 320px;
-  max-width: 480px;
+  width: 100%;
+  max-width: 1200px;
   box-sizing: border-box;
-  flex: 1 1 320px;
+  margin-bottom: 20px;
 }
 
 .tableTitle {
@@ -185,35 +203,52 @@ table {
 }
 
 thead tr {
-  background-color: var(--color-primary);
-  color: white;
+  background-color: #e5e7eb;
+  color: var(--color-text-primary);
 }
 
 thead th {
   font-weight: 600;
   padding: 12px 14px;
-  text-align: left;
-  border-bottom: 2px solid #1565c0;
+  text-align: center;
+  border: 1px solid var(--color-border);
+  background-color: #e5e7eb;
 }
 
 tbody tr {
   background-color: white;
   border-bottom: 1px solid var(--color-border);
-  transition: background-color 0.3s ease;
 }
 
-tbody tr:hover {
-  background-color: #f0f7ff;
+tbody tr:nth-child(even) {
+  background-color: #f9fafb;
 }
 
 tbody td {
   padding: 12px 14px;
   vertical-align: middle;
+  border: 1px solid var(--color-border);
+  text-align: center;
+}
+
+tbody td:first-child {
+  text-align: left;
+}
+
+/* Subtotal row styling */
+.subtotalRow {
+  background-color: #f3f4f6 !important;
+  border-top: 2px solid var(--color-border) !important;
+}
+
+.subtotalRow td {
+  font-weight: 600;
+  color: var(--color-text-primary);
 }
 
 /* Footer row styling */
 tfoot tr.totalRow {
-  background-color: var(--color-primary);
+  background-color: #4f46e5;
   color: white;
   font-weight: 700;
   font-size: 15px;
@@ -221,38 +256,41 @@ tfoot tr.totalRow {
 
 tfoot td {
   padding: 12px 14px;
-  border-top: 2px solid #1565c0;
+  border: 1px solid #4f46e5;
+  text-align: center;
 }
 
 /* Specific tables with custom styles if needed */
 .budgetTable tbody tr td:nth-child(2),
 .budgetTable tbody tr td:nth-child(3),
-.budgetTable tbody tr td:nth-child(4),
-.yearlyTable tbody tr td,
-.annualPlanTable tbody tr td {
+.budgetTable tbody tr td:nth-child(4) {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.budgetTable tbody tr td:first-child,
-.yearlyTable tbody tr td:first-child,
-.annualPlanTable tbody tr td:first-child {
+.budgetTable tbody tr td:first-child {
   text-align: left;
 }
 
-.annualPlanTable thead th {
-  padding: 12px 14px;
+.budgetTable thead th:first-child {
+  text-align: left;
 }
 
-.annualPlanTable tfoot td[colspan="3"] {
-  text-align: right;
+.budgetTable thead th:not(:first-child) {
+  text-align: center;
 }
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .chartsRow {
-    flex-direction: column;
+    flex-direction: column; /* Pada tablet, chart stack vertikal */
     align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .chartContainer {
+    max-width: 100%;
+    width: 100%;
   }
 
   .tableSection {
@@ -262,5 +300,54 @@ tfoot td {
 
   .tableWrapper {
     max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .pageWrapper {
+    padding: 15px 20px;
+  }
+  
+  .filters {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .filterGroup {
+    min-width: 100%;
+  }
+  
+  .chartsRow {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .chartContainer {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  table {
+    font-size: 12px;
+  }
+  
+  thead th,
+  tbody td,
+  tfoot td {
+    padding: 8px 10px;
+  }
+}
+
+/* Untuk layar yang lebih besar dari 1024px, pastikan charts tetap sejajar */
+@media (min-width: 1025px) {
+  .chartsRow {
+    flex-wrap: nowrap !important; /* Paksa tidak wrap */
+    justify-content: space-between;
+  }
+  
+  .chartContainer {
+    flex: 1;
+    min-width: 450px;
+    max-width: 500px;
   }
 }
