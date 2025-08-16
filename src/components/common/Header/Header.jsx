@@ -1,39 +1,40 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  User, 
-  Settings, 
-  LogOut,
-} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import styles from './Header.module.css';
 
-const Header = ({ onMenuClick, sidebarOpen }) => {
+const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout(); // pakai logout dari context
+    navigate('/login'); // redirect ke login
+  };
+
+  const handleProfile = () => navigate('/users/profile');
+  const handleSettings = () => navigate('/users/settings');
 
   return (
     <header className={styles.header}>
       <div className={styles.container}>
-        {/* Left Section */}
+        {/* Left */}
         <div className={styles.left}>
-          <Link to="/" className={styles.brand}>
-            <img 
-              src="/assets/logo-disdik.png" 
-              alt="Logo Disdik"
-              className={styles.logo}
-            />
+          <div className={styles.brand} onClick={() => navigate('/')}>
+            <img src="/assets/logo-disdik.png" alt="Logo" className={styles.logo} />
             <div className={styles.brandText}>
               <h1>Peta Sekolah</h1>
               <span>Dinas Pendidikan</span>
             </div>
-          </Link>
+          </div>
         </div>
 
-        {/* Right Section */}
+        {/* Right */}
         <div className={styles.right}>
           <div className={styles.userMenu}>
-            <button 
+            <button
               className={styles.userButton}
               onClick={() => setDropdownOpen(!dropdownOpen)}
             >
@@ -42,29 +43,25 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
               </div>
               <div className={styles.userInfo}>
                 <span className={styles.userName}>{user?.name || 'Admin User'}</span>
-                <span className={styles.userRole}>{user?.email || 'admin@disdik.co.id'}</span>
+                <span className={styles.userRole}>{user?.email || 'admin@disdik.go.id'}</span>
               </div>
             </button>
 
             {dropdownOpen && (
               <div className={styles.dropdown}>
                 <div className={styles.dropdownBody}>
-                  <Link to="/users/profile" className={styles.dropdownItem}>
+                  <button className={styles.dropdownItem} onClick={handleProfile}>
                     <User size={16} />
                     <span>Profile</span>
-                  </Link>
-                  <Link to="/users/users" className={styles.dropdownItem}>
-                    <User size={16} />
-                    <span>User</span>
-                  </Link>
-                  <Link to="/users/settings" className={styles.dropdownItem}>
+                  </button>
+                  <button className={styles.dropdownItem} onClick={handleSettings}>
                     <Settings size={16} />
                     <span>Settings</span>
-                  </Link>
-                  <Link to="/users/logout" className={styles.dropdownItem}>
+                  </button>
+                  <button className={styles.logoutButton} onClick={handleLogout}>
                     <LogOut size={16} />
                     <span>Logout</span>
-                  </Link>
+                  </button>
                 </div>
               </div>
             )}
@@ -72,13 +69,7 @@ const Header = ({ onMenuClick, sidebarOpen }) => {
         </div>
       </div>
 
-      {/* Overlay for mobile dropdown */}
-      {dropdownOpen && (
-        <div 
-          className={styles.overlay}
-          onClick={() => setDropdownOpen(false)}
-        />
-      )}
+      {dropdownOpen && <div className={styles.overlay} onClick={() => setDropdownOpen(false)} />}
     </header>
   );
 };

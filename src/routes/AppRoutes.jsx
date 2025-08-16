@@ -1,3 +1,4 @@
+// AppRoutes.jsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from '../pages/Dashboard/Dashboard';
@@ -43,15 +44,15 @@ const AppRoutes = () => {
 
       {/* Routes untuk user menu */}
       <Route
-        path="/profile"
+        path="/users/profile"
         element={isAuthenticated ? <Profile /> : <Navigate to="/login" replace />}
       />
       <Route
-        path="/settings"
+        path="/users/settings"
         element={isAuthenticated ? <Settings /> : <Navigate to="/login" replace />}
       />
       <Route
-        path="/logout"
+        path="/users/logout"
         element={isAuthenticated ? <Logout /> : <Navigate to="/login" replace />}
       />
 

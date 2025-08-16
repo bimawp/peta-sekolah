@@ -1,5 +1,6 @@
 // SchoolDetailPage.jsx
 import React, { useState } from 'react';
+import styles from './SchoolDetailPage.module.css';
 import {
   BarChart,
   Bar,
@@ -13,80 +14,6 @@ import {
   Legend
 } from 'recharts';
 import Map from '../Map/Map'; // Pastikan path benar
-
-// Sample Data Sekolah
-const sampleSchoolData = [
-  {
-    no: 1,
-    npsn: "69826911",
-    namaSekolah: "AL-ALIFA",
-    jenjang: "PAUD",
-    tipeSekolah: "KB",
-    desa: "Kadongdong",
-    kecamatan: "Banjarwangi",
-    kondisiKelas: { baik: 0, rusakSedang: 0, rusakBerat: 1 },
-    kurangRKB: 1,
-    rehabRuangKelas: 2,
-    pembangunanRKB: 0,
-    intervensiRuangKelas: 1,
-  },
-  {
-    no: 2,
-    npsn: "70047520",
-    namaSekolah: "KB AINUL MARDIYYAH",
-    jenjang: "PAUD",
-    tipeSekolah: "KB",
-    desa: "Bojong",
-    kecamatan: "Banjarwangi",
-    kondisiKelas: { baik: 0, rusakSedang: 0, rusakBerat: 0 },
-    kurangRKB: 2,
-    rehabRuangKelas: 1,
-    pembangunanRKB: 1,
-    intervensiRuangKelas: 0,
-  },
-  {
-    no: 3,
-    npsn: "70001435",
-    namaSekolah: "KB AL FINNUR",
-    jenjang: "PAUD",
-    tipeSekolah: "KB",
-    desa: "Talagasari",
-    kecamatan: "Banjarwangi",
-    kondisiKelas: { baik: 1, rusakSedang: 0, rusakBerat: 0 },
-    kurangRKB: 1,
-    rehabRuangKelas: 0,
-    pembangunanRKB: 0,
-    intervensiRuangKelas: 2,
-  },
-  {
-    no: 4,
-    npsn: "70034739",
-    namaSekolah: "KB AL ITTIHADIYAH",
-    jenjang: "PAUD",
-    tipeSekolah: "KB",
-    desa: "Tanjungjaya",
-    kecamatan: "Banjarwangi",
-    kondisiKelas: { baik: 0, rusakSedang: 3, rusakBerat: 0 },
-    kurangRKB: 0,
-    rehabRuangKelas: 1,
-    pembangunanRKB: 1,
-    intervensiRuangKelas: 1,
-  },
-  {
-    no: 5,
-    npsn: "70009862",
-    namaSekolah: "KB Al-Barokah",
-    jenjang: "PAUD",
-    tipeSekolah: "KB",
-    desa: "Padahurip",
-    kecamatan: "Banjarwangi",
-    kondisiKelas: { baik: 0, rusakSedang: 2, rusakBerat: 1 },
-    kurangRKB: 0,
-    rehabRuangKelas: 0,
-    pembangunanRKB: 0,
-    intervensiRuangKelas: 0,
-  }
-];
 
 // PieChart Component
 const PieChartComponent = ({ title, data }) => (
@@ -146,8 +73,8 @@ const DataTable = ({ data }) => {
   const [itemsPerPage, setItemsPerPage] = useState(5);
 
   const filteredData = data.filter(school =>
-    school.namaSekolah.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    school.npsn.includes(searchTerm)
+    school.namaSekolah?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    school.npsn?.includes(searchTerm)
   );
 
   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
@@ -187,7 +114,6 @@ const DataTable = ({ data }) => {
           Reset Filter
         </button>
       </div>
-      {/* Tabel sama seperti sebelumnya */}
       <table
         style={{
           width: '100%',
@@ -225,32 +151,31 @@ const DataTable = ({ data }) => {
           </tr>
         </thead>
         <tbody>
-          {currentData.map(school => (
+          {currentData.map((school, index) => (
             <tr
-              key={school.no}
+              key={index}
               style={{ borderBottom: '1px solid #e5e7eb', cursor: 'pointer', transition: 'background 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.background = '#f9fafb'}
               onMouseLeave={e => e.currentTarget.style.background = 'white'}
             >
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.no}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.npsn}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.namaSekolah}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.jenjang}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.tipeSekolah}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.desa}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kecamatan}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kondisiKelas.baik}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kondisiKelas.rusakSedang}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kondisiKelas.rusakBerat}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kurangRKB}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.rehabRuangKelas}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.pembangunanRKB}</td>
-              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.intervensiRuangKelas}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.no || '-'}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.npsn || '-'}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.namaSekolah || '-'}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.jenjang || '-'}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.tipeSekolah || '-'}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.desa || '-'}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kecamatan || '-'}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kondisiKelas?.baik || 0}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kondisiKelas?.rusakSedang || 0}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kondisiKelas?.rusakBerat || 0}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.kurangRKB || 0}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.rehabRuangKelas || 0}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.pembangunanRKB || 0}</td>
+              <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.intervensiRuangKelas || 0}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      {/* Pagination sama seperti sebelumnya */}
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: '#f9fafb' }}>
         <button
           disabled={currentPage === 1}
@@ -287,20 +212,25 @@ const DataTable = ({ data }) => {
 };
 
 const SchoolDetailPage = () => {
-  const totalSekolah = sampleSchoolData.length;
+  const [schoolData, setSchoolData] = useState([]); // Data awal kosong
 
-  const kondisiSemuaJenjang = sampleSchoolData.reduce(
+  const totalSekolah = schoolData.length;
+
+  const kondisiSemuaJenjang = schoolData.reduce(
     (acc, curr) => {
-      acc.baik += curr.kondisiKelas.baik;
-      acc.rusakSedang += curr.kondisiKelas.rusakSedang;
-      acc.rusakBerat += curr.kondisiKelas.rusakBerat;
+      acc.baik += curr.kondisiKelas?.baik || 0;
+      acc.rusakSedang += curr.kondisiKelas?.rusakSedang || 0;
+      acc.rusakBerat += curr.kondisiKelas?.rusakBerat || 0;
       return acc;
     },
     { baik: 0, rusakSedang: 0, rusakBerat: 0 }
   );
 
-  const totalRehab = sampleSchoolData.reduce((acc, curr) => acc + curr.rehabRuangKelas, 0);
-  const totalIntervensi = sampleSchoolData.reduce((acc, curr) => acc + curr.intervensiRuangKelas, 0);
+  const totalRehab = schoolData.reduce((acc, curr) => acc + (curr.rehabRuangKelas || 0), 0);
+  const totalIntervensi = schoolData.reduce((acc, curr) => acc + (curr.intervensiRuangKelas || 0), 0);
+
+  const pieColors = ["#4ECDC4", "#FFD93D", "#FF6B6B"];
+  const barColors = ["#4ECDC4", "#FFD93D"];
 
   const pieDataList = [
     {
@@ -338,9 +268,6 @@ const SchoolDetailPage = () => {
     { name: "Belum Intervensi", value: Math.max(totalSekolah - totalIntervensi, 0) },
   ];
 
-  const pieColors = ["#4ECDC4", "#FFD93D", "#FF6B6B"];
-  const barColors = ["#4ECDC4", "#FFD93D"];
-
   return (
     <div style={{
       padding: 16,
@@ -354,20 +281,53 @@ const SchoolDetailPage = () => {
         <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#1f2937' }}>Detail Sekolah</h1>
       </div>
 
+      {/* === Filter Section === */}
+      <div className={styles.filterContainer}>
+        <h3>Filter Data</h3>
+        <div className={styles.filterGroup}>
+          <label>Filter Jenjang:</label>
+          <select className={styles.selectDropdown}>
+            <option>Semua Jenjang</option>
+            <option>PAUD</option>
+            <option>SD</option>
+            <option>SMP</option>
+            <option>PKBM</option>
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+          <label>Filter Kecamatan:</label>
+          <select className={styles.selectDropdown}>
+            <option>Semua Kecamatan</option>
+            <option>Garut Kota</option>
+            <option>Tarogong Kidul</option>
+            <option>Tarogong Kaler</option>
+            <option>Cisurupan</option>
+            <option>Leles</option>
+            <option>Bayongbong</option>
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+          <label>Filter Desa:</label>
+          <select className={styles.selectDropdown}>
+            <option>Semua Desa</option>
+          </select>
+        </div>
+      </div>
+
       {/* Peta */}
       <section style={{ marginBottom: 32, backgroundColor: 'white', padding: 16, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <h2 style={{ fontSize: 20, fontWeight: 600, borderBottom: '3px solid #3b82f6', paddingBottom: 8, marginBottom: 16, color: '#1e40af' }}>Peta Lokasi Sekolah</h2>
         <div style={{ height: 500 }}><Map /></div>
       </section>
 
-      {/* Pie Charts */}
-      <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
-        {pieDataList.map(({ title, data }) => (
-          <div key={title} style={{ flex: '1 1 320px' }}>
-            <PieChartComponent title={title} data={data} />
-          </div>
-        ))}
-      </section>
+    {/* Pie Charts */}
+    <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
+      {pieDataList.map((pie, idx) => (
+        <div key={idx} style={{ flex: '1 1 30%' }}>
+          <PieChartComponent title={pie.title} data={pie.data} />
+        </div>
+      ))}
+    </section>
 
       {/* Bar Charts */}
       <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
@@ -381,7 +341,7 @@ const SchoolDetailPage = () => {
 
       {/* Data Tabel */}
       <section>
-        <DataTable data={sampleSchoolData} />
+        <DataTable data={schoolData} />
       </section>
     </div>
   );
