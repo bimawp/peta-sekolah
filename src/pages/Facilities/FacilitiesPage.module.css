@@ -823,3 +823,89 @@
   white-space: normal;   /* biar bisa wrap */
   word-break: break-word; /* pecah kata panjang */
 }
+/* Wadah kotak untuk section (judul / filter / charts / tabel) */
+.sectionBox {
+  background-color: #ffffff;
+  padding: 15px 20px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Judul halaman */
+.pageTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #333333;
+}
+
+/* Baris filter */
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: center;
+}
+
+.filterRow label {
+  margin-right: 5px;
+  font-weight: 500;
+  color: #555555;
+}
+
+.filterRow select,
+.filterRow input {
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+
+.filterRow button {
+  padding: 6px 12px;
+  background-color: #4ECDC4;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.filterRow button:hover {
+  background-color: #45b3ad;
+}
+
+/* Spasi antar filter dan charts/tabel */
+.pieChartsGrid,
+.barChartsGrid {
+  display: grid;
+  gap: 20px;
+}
+
+/* Jika ada lebih dari satu chart, jadikan responsive */
+@media (min-width: 768px) {
+  .pieChartsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .barChartsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.chartCard {
+  background-color: #ffffff;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.pieChartTitle,
+.chartTitle {
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #333333;
+}
+

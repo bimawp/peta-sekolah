@@ -121,7 +121,7 @@ const DataTable = ({ data }) => {
           fontSize: 11,
           fontFamily: 'Inter, Arial, sans-serif',
           tableLayout: 'fixed',
-          minWidth: 820,
+          minWidth: 900,
           background: 'white',
         }}
       >
@@ -148,6 +148,7 @@ const DataTable = ({ data }) => {
             <th style={{ padding: '6px 3px', textAlign: 'left', width: '7%' }}>REHAB RUANG KELAS</th>
             <th style={{ padding: '6px 3px', textAlign: 'left', width: '8%' }}>PEMBANGUNAN RKB</th>
             <th style={{ padding: '6px 3px', textAlign: 'left', width: '8%' }}>INTERVENSI RKB</th>
+            <th style={{ padding: '6px 3px', textAlign: 'center', width: '6%' }}>DETAIL</th>
           </tr>
         </thead>
         <tbody>
@@ -172,6 +173,14 @@ const DataTable = ({ data }) => {
               <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.rehabRuangKelas || 0}</td>
               <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.pembangunanRKB || 0}</td>
               <td style={{ padding: '6px 3px', textAlign: 'left' }}>{school.intervensiRuangKelas || 0}</td>
+              <td style={{ textAlign: 'center' }}>
+                <button
+                  className={styles.detailButton}
+                  onClick={() => alert(`Detail sekolah: ${school.namaSekolah}`)}
+                >
+                  Detail
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -320,14 +329,14 @@ const SchoolDetailPage = () => {
         <div style={{ height: 500 }}><Map /></div>
       </section>
 
-    {/* Pie Charts */}
-    <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
-      {pieDataList.map((pie, idx) => (
-        <div key={idx} style={{ flex: '1 1 30%' }}>
-          <PieChartComponent title={pie.title} data={pie.data} />
-        </div>
-      ))}
-    </section>
+      {/* Pie Charts */}
+      <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
+        {pieDataList.map((pie, idx) => (
+          <div key={idx} style={{ flex: '1 1 30%' }}>
+            <PieChartComponent title={pie.title} data={pie.data} />
+          </div>
+        ))}
+      </section>
 
       {/* Bar Charts */}
       <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>

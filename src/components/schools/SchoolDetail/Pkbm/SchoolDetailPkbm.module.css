@@ -1,0 +1,299 @@
+/* Container Utama */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #f5f5f5;
+}
+
+/* Header Section */
+.header {
+  background-color: white;
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.schoolName {
+  color: #C8731F;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 25px;
+  margin-top: 0;
+}
+
+.schoolInfo {
+  margin-bottom: 25px;
+}
+
+.infoRow {
+  display: flex;
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+
+.label {
+  width: 120px;
+  font-weight: 500;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.colon {
+  margin: 0 10px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.value {
+  color: #333;
+  flex: 1;
+}
+
+.locationButton {
+  background-color: #C8731F;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.locationButton:hover {
+  background-color: #B6651B;
+}
+
+/* Section Styling */
+.section {
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  color: #C8731F;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+}
+
+.sectionTitle::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background-color: #C8731F;
+  margin-right: 10px;
+  border-radius: 2px;
+}
+
+/* Card Styling */
+.card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Subsection */
+.subsection {
+  margin-bottom: 20px;
+}
+
+.subsection:last-child {
+  margin-bottom: 0;
+}
+
+.subsectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 10px;
+  margin-top: 0;
+}
+
+/* Data Row */
+.dataRow {
+  margin-bottom: 8px;
+  color: #555;
+  font-size: 14px;
+}
+
+.dataRow:last-child {
+  margin-bottom: 0;
+}
+
+/* Chart Container */
+.chartContainer {
+  padding: 20px 0;
+}
+
+.chart {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  height: 200px;
+  border-bottom: 2px solid #e0e0e0;
+  border-left: 2px solid #e0e0e0;
+  padding: 10px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+/* Y-axis labels */
+.chart::before {
+  content: '';
+  position: absolute;
+  left: -30px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+/* Bar Container */
+.barContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  margin: 0 5px;
+}
+
+/* Bars */
+.bar {
+  background-color: #FF9900;
+  width: 60px;
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  transition: background-color 0.2s;
+  min-height: 20px;
+}
+
+.bar0 {
+  height: 20px;
+  background-color: #e0e0e0;
+}
+
+.bar3 {
+  height: 120px;
+  background-color: #FF9900;
+}
+
+.barLabel {
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+  position: absolute;
+}
+
+.bar0 .barLabel {
+  color: #666;
+}
+
+/* Bar Text */
+.barText {
+  text-align: center;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.2;
+  max-width: 80px;
+  margin-top: 5px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+  }
+  
+  .header,
+  .card {
+    padding: 15px;
+  }
+  
+  .schoolName {
+    font-size: 24px;
+  }
+  
+  .sectionTitle {
+    font-size: 16px;
+  }
+  
+  .infoRow {
+    flex-direction: column;
+    margin-bottom: 12px;
+  }
+  
+  .label {
+    width: auto;
+    margin-bottom: 2px;
+  }
+  
+  .colon {
+    display: none;
+  }
+  
+  .chart {
+    flex-direction: column;
+    height: auto;
+    align-items: stretch;
+  }
+  
+  .barContainer {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin: 5px 0;
+    padding: 10px;
+    background-color: #f8f8f8;
+    border-radius: 4px;
+  }
+  
+  .bar {
+    width: 40px;
+    height: 30px;
+    margin-bottom: 0;
+  }
+  
+  .bar3 {
+    height: 30px;
+  }
+  
+  .barText {
+    max-width: none;
+    margin-top: 0;
+    margin-left: 10px;
+    text-align: left;
+  }
+}
+/* Tombol Kembali */
+.backButton {
+  background-color: #C8731F;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  margin-bottom: 20px;
+}
+
+.backButton:hover {
+  background-color: #B6651B;
+  transform: translateY(-1px);
+}
+
+.backButton:active {
+  transform: translateY(1px);
+}

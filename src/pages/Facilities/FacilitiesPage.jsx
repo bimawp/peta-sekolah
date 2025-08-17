@@ -1,55 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; 
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   PieChart, Pie, Cell, Tooltip, Legend
 } from 'recharts';
 import styles from './FacilitiesPage.module.css';
 
+// Import komponen detail per jenjang
+import SchoolDetailPaud from '../../components/schools/SchoolDetail/Paud/SchoolDetailPaud';
+import SchoolDetailSd from '../../components/schools/SchoolDetail/Sd/SchoolDetailSd';
+import SchoolDetailSmp from '../../components/schools/SchoolDetail/Smp/SchoolDetailSmp';
+import SchoolDetailPkbm from '../../components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm';
+
 const FacilitiesPage = () => {
   const [currentView, setCurrentView] = useState('main');
   const [displayCount, setDisplayCount] = useState(10);
+  const [selectedSchool, setSelectedSchool] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Data sekolah
-  const schoolData = [
-    { no: 1, npsn: '69826911', nama: 'AL-ALIFA', jenjang: 'PAUD', tipe: 'KB', desa: 'Kadonggong', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-    { no: 2, npsn: '70047520', nama: 'KB AINUL MARDIYYAH', jenjang: 'PAUD', tipe: 'KB', desa: 'Bojong', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-    { no: 3, npsn: '70001435', nama: 'KB AL FINNUR', jenjang: 'PAUD', tipe: 'KB', desa: 'Talagasari', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-    { no: 4, npsn: '70034739', nama: 'KB AL ITTIHADIYAH', jenjang: 'PAUD', tipe: 'KB', desa: 'Tanjungjaya', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-    { no: 5, npsn: '70009882', nama: 'KB Al-Barokah', jenjang: 'PAUD', tipe: 'KB', desa: 'Padahurip', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-    { no: 6, npsn: '69890166', nama: 'KB AL-GHIFARI', jenjang: 'PAUD', tipe: 'KB', desa: 'Dangiang', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-    { no: 7, npsn: '69867314', nama: 'KB AL-HIDAYAH', jenjang: 'PAUD', tipe: 'KB', desa: 'Mulyajaya', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-    { no: 8, npsn: '69986674', nama: 'KB AL-IHSAN', jenjang: 'PAUD', tipe: 'KB', desa: 'Padahurip', kecamatan: 'Banjarwangi', toiletBaik: 0, toiletRusakSedang: 0, toiletRusakBerat: 0, totalToilet: 0 },
-  ];
+  // Data sekolah diinisialisasi kosong
+  const [schoolData, setSchoolData] = useState([]);
 
-  const kondisiPieData = [
-    { name: 'Baik', value: 46.1, color: '#4ECDC4' },
-    { name: 'Rusak Sedang', value: 32.4, color: '#FFD93D' },
-    { name: 'Rusak Berat', value: 21.5, color: '#FF6B6B' }
-  ];
-
-  const rehabilitasiPieData = [
-    { name: 'Rusak Berat (Belum Direhab)', value: 60, color: '#FF6B6B' },
-    { name: 'Rehabilitasi (Sudah Direhab)', value: 40, color: '#4CAF50' }
-  ];
-
-  const pembangunanPieData = [
-    { name: 'Kebutuhan Toilet (Belum Dibangun)', value: 99.2, color: '#FFD93D' },
-    { name: 'Pembangunan Dilakukan', value: 0.8, color: '#9B59B6' }
-  ];
-
-  const kondisiToiletData = [
-    { name: 'Total', value: 5626, color: '#4ECDC4' },
-    { name: 'Baik', value: 2594, color: '#4ECDC4' },
-    { name: 'Rusak Sedang', value: 1824, color: '#FFD93D' },
-    { name: 'Rusak Berat', value: 1208, color: '#FF6B6B' },
-    { name: 'Tidak Ada Toilet', value: 1186, color: '#4ECDC4' }
-  ];
-
-  const intervensiToiletData = [
-    { name: 'Total Intervensi', value: 9, color: '#4A90E2' },
-    { name: 'Pembangunan Toilet', value: 9, color: '#9B59B6' },
-    { name: 'Rehab Toilet', value: 0, color: '#95A5A6' }
-  ];
+  // Data Pie/Bar diinisialisasi kosong
+  const [kondisiPieData, setKondisiPieData] = useState([]);
+  const [rehabilitasiPieData, setRehabilitasiPieData] = useState([]);
+  const [pembangunanPieData, setPembangunanPieData] = useState([]);
+  const [kondisiToiletData, setKondisiToiletData] = useState([]);
+  const [intervensiToiletData, setIntervensiToiletData] = useState([]);
 
   const renderLabelInside = ({ cx, cy, midAngle, innerRadius, outerRadius, value }) => {
     const RADIAN = Math.PI / 180;
@@ -65,6 +41,41 @@ const FacilitiesPage = () => {
 
   const renderMainView = () => (
     <div className={styles.facilitiesContainer}>
+
+      {/* Judul Halaman */}
+      <div className={styles.sectionBox}>
+        <h2 className={styles.pageTitle}>Detail Sekolah Lainnya - Kondisi Toilet</h2>
+      </div>
+
+      {/* Filter Diagram */}
+      <div className={styles.sectionBox}>
+        <div className={styles.filterRow}>
+          <div>
+            <label>Filter Jenjang:</label>
+            <select>
+              <option>Semua Jenjang</option>
+              <option>PAUD</option>
+              <option>SD</option>
+              <option>SMP</option>
+              <option>PKBM</option>
+            </select>
+          </div>
+          <div>
+            <label>Filter Kecamatan:</label>
+            <select>
+              <option>Semua Kecamatan</option>
+            </select>
+          </div>
+          <div>
+            <label>Filter Desa:</label>
+            <select>
+              <option>Semua Desa</option>
+            </select>
+          </div>
+          <button>Reset Semua Filter</button>
+        </div>
+      </div>
+
       {/* Pie Charts */}
       <div className={styles.pieChartsGrid}>
         {[{ title: 'Kondisi Toilet', data: kondisiPieData },
@@ -124,6 +135,25 @@ const FacilitiesPage = () => {
         </div>
       </div>
 
+      {/* Filter Tabel */}
+      <div className={styles.sectionBox}>
+        <div className={styles.filterRow}>
+          <div>
+            <label>Cari Sekolah/NPSN:</label>
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="pkbm" />
+          </div>
+          <div>
+            <label>Tampilkan jumlah baris:</label>
+            <select value={displayCount} onChange={(e) => setDisplayCount(Number(e.target.value))}>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+          <button onClick={() => setSearchQuery('')}>Reset Filter</button>
+        </div>
+      </div>
+
       {/* Table */}
       <div className={styles.tableContainer}>
         <table className={styles.table}>
@@ -135,8 +165,11 @@ const FacilitiesPage = () => {
             </tr>
           </thead>
           <tbody>
-            {schoolData.slice(0, displayCount).map((school) => (
-              <tr key={school.no} className={styles.tableRow}>
+            {schoolData
+              .filter(s => s.nama?.toLowerCase().includes(searchQuery.toLowerCase()) || s.npsn?.includes(searchQuery))
+              .slice(0, displayCount)
+              .map((school, index) => (
+              <tr key={index} className={styles.tableRow}>
                 <td className={styles.tableCell}>{school.no}</td>
                 <td className={styles.tableCell}>{school.npsn}</td>
                 <td className={styles.tableCell}>{school.nama}</td>
@@ -149,17 +182,55 @@ const FacilitiesPage = () => {
                 <td className={styles.tableCellCenter}>{school.toiletRusakBerat}</td>
                 <td className={styles.tableCellCenter}>{school.totalToilet}</td>
                 <td className={styles.tableCell}>
-                  <button onClick={() => setCurrentView('detail')} className={styles.detailButton}>Detail</button>
+                  <button
+                    onClick={() => {
+                      setSelectedSchool(school);
+                      setCurrentView('detail');
+                    }}
+                    className={styles.detailButton}
+                  >
+                    Detail
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
     </div>
   );
 
-  return <div>{currentView === 'main' ? renderMainView() : null}</div>;
+  // Render
+  return (
+    <div>
+      {currentView === 'main' && renderMainView()}
+
+      {currentView === 'detail' && selectedSchool && (() => {
+        const jenjang = selectedSchool.jenjang;
+        let DetailComponent = null;
+
+        switch (jenjang) {
+          case 'PAUD':
+            DetailComponent = SchoolDetailPaud;
+            break;
+          case 'SD':
+            DetailComponent = SchoolDetailSd;
+            break;
+          case 'SMP':
+            DetailComponent = SchoolDetailSmp;
+            break;
+          case 'PKBM':
+            DetailComponent = SchoolDetailPkbm;
+            break;
+          default:
+            return null;
+        }
+
+        return <DetailComponent school={selectedSchool} onBack={() => setCurrentView('main')} />;
+      })()}
+    </div>
+  );
 };
 
 export default FacilitiesPage;
