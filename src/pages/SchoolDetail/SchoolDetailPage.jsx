@@ -324,10 +324,14 @@ const SchoolDetailPage = () => {
       </div>
 
       {/* Peta */}
-      <section style={{ marginBottom: 32, backgroundColor: 'white', padding: 16, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, borderBottom: '3px solid #3b82f6', paddingBottom: 8, marginBottom: 16, color: '#1e40af' }}>Peta Lokasi Sekolah</h2>
-        <div style={{ height: 500 }}><Map /></div>
-      </section>
+        <section className={styles.section}>
+          <h2 style={{ fontSize: 20, fontWeight: 600, borderBottom: '3px solid #3b82f6', paddingBottom: 8, marginBottom: 16, color: '#1e40af' }}>
+            Peta Lokasi Sekolah
+          </h2>
+          <div className={styles.mapContainer}>
+            <Map />
+          </div>
+        </section>
 
       {/* Pie Charts */}
       <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>

@@ -4,7 +4,6 @@ import styles from './BudgetPage.module.css';
 
 export default function BudgetPage() {
   const [jenjang, setJenjang] = useState('');
-  const [pkk, setPkk] = useState('');
   const [kecamatan, setKecamatan] = useState('');
 
   // Data untuk charts dikosongkan agar bisa diisi sistem lain
@@ -49,18 +48,6 @@ export default function BudgetPage() {
           </select>
         </div>
 
-        <div className={styles.filterGroup}>
-          <label htmlFor="pkk">PKK</label>
-          <select
-            id="pkk"
-            value={pkk}
-            onChange={(e) => setPkk(e.target.value)}
-          >
-            <option value="">Semua PKK</option>
-            <option value="PKK1">PKK 1</option>
-            <option value="PKK2">PKK 2</option>
-          </select>
-        </div>
 
         <div className={styles.filterGroup}>
           <label htmlFor="kecamatan">Semua Kecamatan</label>
