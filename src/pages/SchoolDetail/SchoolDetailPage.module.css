@@ -187,7 +187,9 @@
 
 /* Map */
 .mapContainer {
-  height: 16rem;
+  position: relative;   /* pastikan positioning anak berpatokan di sini */
+  z-index: 0;           /* pastikan lebih rendah dari header */
+  height: 28rem;
   width: 100%;
   border-radius: 12px;
   overflow: hidden;
@@ -195,6 +197,7 @@
   border: 1px solid #e5e7eb;
   margin-bottom: 1.5rem;
 }
+
 
 /* Responsive */
 @media (max-width: 768px) {
