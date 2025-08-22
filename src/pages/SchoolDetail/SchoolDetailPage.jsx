@@ -37,19 +37,29 @@ const PieChartComponent = ({ title, data }) => (
 );
 
 const BarChartComponent = ({ title, data, colors }) => (
-  <div style={{ background: 'white', padding: 24, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb' }}>
-    <h3 style={{ fontWeight: 600, fontSize: 18, marginBottom: 16, borderBottom: '2px solid #3b82f6', paddingBottom: 8, color: '#1e40af' }}>
-      {title}
-    </h3>
-    <div style={{ width: '100%', height: 300 }}>
-      <ResponsiveContainer>
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+  <div className={styles.container}>
+    <h3 className={styles.title}>{title}</h3>
+    <div className={styles.chartWrapper}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" tick={{ fontSize: 14 }} />
+          <XAxis
+            dataKey="name"
+            tick={{ fontSize: 14 }}
+            interval={0}
+            angle={-20}
+            textAnchor="end"
+          />
           <YAxis />
           <Bar dataKey="value">
             {data.map((entry, index) => (
-              <Cell key={`cell-bar-${index}`} fill={colors[index % colors.length]} />
+              <Cell
+                key={`cell-bar-${index}`}
+                fill={colors[index % colors.length]}
+              />
             ))}
           </Bar>
         </BarChart>
@@ -211,55 +221,176 @@ const SchoolDetailPage = () => {
     const loadAllData = async () => {
       try {
         setLoading(true);
-        
-        // Load semua data secara paralel
-        const [schoolsResponse, kecamatanResponse, desaResponse] = await Promise.all([
-          fetch('https://peta-sekolah.vercel.app/data/schools.json').catch(() => null),
-          fetch('https://peta-sekolah.vercel.app/data/kecamatan.geojson'),
-          fetch('https://peta-sekolah.vercel.app/data/desa.geojson')
-        ]);
+        console.log('Starting to load data from all sources...');
 
-        // Load schools data
-        let schoolsData = [];
-        if (schoolsResponse && schoolsResponse.ok) {
-          schoolsData = await schoolsResponse.json();
-          setSchoolData(schoolsData);
+        // Define all data sources
+        const dataSources = [
+          { url: 'https://peta-sekolah.vercel.app/paud/data/paud.json', jenjang: 'PAUD', type: 'school' },
+          { url: 'https://peta-sekolah.vercel.app/sd/data/sd_new.json', jenjang: 'SD', type: 'school' },
+          { url: 'https://peta-sekolah.vercel.app/smp/data/smp.json', jenjang: 'SMP', type: 'school' },
+          { url: 'https://peta-sekolah.vercel.app/pkbm/data/pkbm.json', jenjang: 'PKBM', type: 'school' },
+          { url: 'https://peta-sekolah.vercel.app/paud/data/data_kegiatan.json', jenjang: 'PAUD', type: 'kegiatan' },
+          { url: 'https://peta-sekolah.vercel.app/sd/data/data_kegiatan.json', jenjang: 'SD', type: 'kegiatan' },
+          { url: 'https://peta-sekolah.vercel.app/smp/data/data_kegiatan.json', jenjang: 'SMP', type: 'kegiatan' },
+          { url: 'https://peta-sekolah.vercel.app/pkbm/data/data_kegiatan.json', jenjang: 'PKBM', type: 'kegiatan' },
+          { url: 'https://peta-sekolah.vercel.app/data/kecamatan.geojson', type: 'geo' },
+          { url: 'https://peta-sekolah.vercel.app/data/desa.geojson', type: 'geo' }
+        ];
+
+        // Load all data with detailed logging
+        let combinedSchoolData = [];
+        let combinedKegiatanData = [];
+        let kecamatanGeoJson = null;
+        let desaGeoJson = null;
+
+        for (const source of dataSources) {
+          try {
+            console.log(`Loading data from: ${source.url}`);
+            const response = await fetch(source.url);
+            
+            if (!response.ok) {
+              console.error(`Failed to fetch ${source.url}: ${response.status} ${response.statusText}`);
+              continue;
+            }
+
+            const data = await response.json();
+            console.log(`Successfully loaded ${source.url}, data type:`, typeof data, 'length:', Array.isArray(data) ? data.length : 'not array');
+
+            if (source.type === 'school' && Array.isArray(data)) {
+              // Add jenjang to school data
+              const schoolsWithJenjang = data.map(school => ({
+                ...school,
+                jenjang: school.jenjang || school.tingkat_pendidikan || source.jenjang,
+                namaSekolah: school.namaSekolah || school.nama_sekolah || school.school_name || school.nama,
+                npsn: school.npsn || school.school_id || school.id
+              }));
+              combinedSchoolData = [...combinedSchoolData, ...schoolsWithJenjang];
+              console.log(`Added ${schoolsWithJenjang.length} schools from ${source.jenjang}`);
+            }
+            
+            else if (source.type === 'kegiatan' && Array.isArray(data)) {
+              const kegiatanWithJenjang = data.map(kegiatan => ({
+                ...kegiatan,
+                jenjang: kegiatan.jenjang || source.jenjang,
+                npsn: kegiatan.npsn || kegiatan.school_id || kegiatan.id
+              }));
+              combinedKegiatanData = [...combinedKegiatanData, ...kegiatanWithJenjang];
+              console.log(`Added ${kegiatanWithJenjang.length} kegiatan from ${source.jenjang}`);
+            }
+            
+            else if (source.type === 'geo') {
+              if (source.url.includes('kecamatan')) {
+                kecamatanGeoJson = data;
+                console.log('Loaded kecamatan GeoJSON with', data.features?.length || 0, 'features');
+              } else if (source.url.includes('desa')) {
+                desaGeoJson = data;
+                console.log('Loaded desa GeoJSON with', data.features?.length || 0, 'features');
+              }
+            }
+
+          } catch (error) {
+            console.error(`Error loading ${source.url}:`, error);
+          }
         }
 
-        // Load kecamatan data dari GeoJSON
-        const kecamatanJson = await kecamatanResponse.json();
-        const kecamatanNames = kecamatanJson.features
-          .map(feature => {
-            const props = feature.properties;
-            // Berdasarkan struktur JSON yang diberikan, field untuk kecamatan adalah "district"
-            return props?.district || props?.NAMOBJ || props?.name || 
-                   props?.kecamatan || props?.nama || props?.KECAMATAN || props?.kec;
-          })
-          .filter(name => name && name.trim() !== '')
-          .sort();
-        
-        // Remove duplicates
-        const uniqueKecamatan = [...new Set(kecamatanNames)];
-        setKecamatanList(uniqueKecamatan);
+        console.log('Total combined school data:', combinedSchoolData.length);
+        console.log('Total combined kegiatan data:', combinedKegiatanData.length);
 
-        // Load desa data dari GeoJSON
-        const desaJson = await desaResponse.json();
+        // Create a map of kegiatan data by NPSN for easy lookup
+        const kegiatanMap = {};
+        combinedKegiatanData.forEach(kegiatan => {
+          const npsn = kegiatan.npsn || kegiatan.school_id || kegiatan.id;
+          if (npsn) {
+            kegiatanMap[npsn] = kegiatan;
+          }
+        });
+
+        // Merge school data with kegiatan data
+        const mergedSchoolData = combinedSchoolData.map((school, index) => {
+          const npsn = school.npsn || school.school_id || school.id;
+          const kegiatanData = kegiatanMap[npsn] || {};
+          
+          return {
+            ...school,
+            no: index + 1,
+            namaSekolah: school.namaSekolah || school.nama_sekolah || school.school_name || school.nama || 'Tidak diketahui',
+            npsn: npsn || 'Tidak ada',
+            jenjang: school.jenjang || school.tingkat_pendidikan || 'Lainnya',
+            tipeSekolah: school.tipeSekolah || school.tipe_sekolah || school.school_type || school.status || 'Negeri',
+            desa: school.desa || school.kelurahan || school.desa_kelurahan || school.village || 'Tidak diketahui',
+            kecamatan: school.kecamatan || school.kec || school.kecamatan_nama || school.subdistrict || 'Tidak diketahui',
+            // Merge classroom condition data dengan default values
+            kondisiKelas: {
+              baik: parseInt(school.kondisiKelas?.baik || kegiatanData.kondisiKelas?.baik || 
+                           school.classroom_condition?.good || kegiatanData.classroom_condition?.good || 0),
+              rusakSedang: parseInt(school.kondisiKelas?.rusakSedang || kegiatanData.kondisiKelas?.rusakSedang || 
+                                  school.classroom_condition?.slightly_damaged || kegiatanData.classroom_condition?.slightly_damaged || 0),
+              rusakBerat: parseInt(school.kondisiKelas?.rusakBerat || kegiatanData.kondisiKelas?.rusakBerat || 
+                                 school.classroom_condition?.heavily_damaged || kegiatanData.classroom_condition?.heavily_damaged || 0)
+            },
+            // Merge intervention data dengan default values
+            rehabRuangKelas: parseInt(school.rehabRuangKelas || kegiatanData.rehabRuangKelas || 
+                                    school.classroom_rehabilitation || kegiatanData.classroom_rehabilitation || 0),
+            pembangunanRKB: parseInt(school.pembangunanRKB || kegiatanData.pembangunanRKB || 
+                                   school.classroom_construction || kegiatanData.classroom_construction || 0),
+            intervensiRuangKelas: parseInt(school.intervensiRuangKelas || kegiatanData.intervensiRuangKelas || 
+                                         school.classroom_intervention || kegiatanData.classroom_intervention || 0),
+            kurangRKB: parseInt(school.kurangRKB || kegiatanData.kurangRKB || 
+                              school.shortage_classrooms || kegiatanData.shortage_classrooms || 0)
+          };
+        });
+
+        console.log('Final merged school data:', mergedSchoolData.length);
+        console.log('Sample merged data:', mergedSchoolData[0]);
+
+        setSchoolData(mergedSchoolData);
+
+        // Process geo data
+        let kecamatanNames = [];
+        if (kecamatanGeoJson && kecamatanGeoJson.features) {
+          kecamatanNames = kecamatanGeoJson.features
+            .map(feature => {
+              const props = feature.properties;
+              return props?.district || props?.NAMOBJ || props?.name || 
+                     props?.kecamatan || props?.nama || props?.KECAMATAN || props?.kec;
+            })
+            .filter(name => name && name.trim() !== '')
+            .sort();
+        }
+
+        // Get unique kecamatan names from school data as well
+        const schoolKecamatanNames = mergedSchoolData
+          .map(school => school.kecamatan)
+          .filter(name => name && name.trim() !== '' && name !== 'Tidak diketahui');
+
+        const allKecamatanNames = [...new Set([...kecamatanNames, ...schoolKecamatanNames])].sort();
+        setKecamatanList(allKecamatanNames);
+
+        // Extract desa names by kecamatan
         const desaMap = {};
-        
-        desaJson.features.forEach(feature => {
-          const props = feature.properties;
+        if (desaGeoJson && desaGeoJson.features) {
+          desaGeoJson.features.forEach(feature => {
+            const props = feature.properties;
+            const kecamatan = props?.district || props?.KECAMATAN || props?.kecamatan || 
+                             props?.kec || props?.NAMKEC || props?.kecamatan_nama;
+            const desa = props?.village || props?.NAMOBJ || props?.name || props?.desa || 
+                        props?.nama || props?.DESA || props?.kelurahan || props?.desa_kelurahan;
+            
+            if (kecamatan && desa) {
+              if (!desaMap[kecamatan]) {
+                desaMap[kecamatan] = new Set();
+              }
+              desaMap[kecamatan].add(desa);
+            }
+          });
+        }
+
+        // Add desa names from school data
+        mergedSchoolData.forEach(school => {
+          const kecamatan = school.kecamatan;
+          const desa = school.desa;
           
-          // Berdasarkan struktur JSON yang diberikan:
-          // - field untuk kecamatan adalah "district" 
-          // - field untuk desa/village adalah "village"
-          const kecamatan = props?.district || props?.KECAMATAN || props?.kecamatan || 
-                           props?.kec || props?.NAMKEC || props?.kecamatan_nama;
-          
-          const desa = props?.village || props?.NAMOBJ || props?.name || props?.desa || 
-                      props?.nama || props?.DESA || props?.kelurahan ||
-                      props?.desa_kelurahan;
-          
-          if (kecamatan && desa) {
+          if (kecamatan && desa && kecamatan !== 'Tidak diketahui' && desa !== 'Tidak diketahui') {
             if (!desaMap[kecamatan]) {
               desaMap[kecamatan] = new Set();
             }
@@ -274,24 +405,20 @@ const SchoolDetailPage = () => {
         });
         setDesaByKecamatan(desaObj);
 
-        // Generate jenjang list dari schools data dan tambahan manual
+        // Generate jenjang list
         const jenjangSet = new Set();
-        schoolsData.forEach(school => {
-          const jenjang = school.jenjang || school.tingkat_pendidikan || 
-                         school.level || school.bentuk_pendidikan;
-          if (jenjang) {
-            jenjangSet.add(jenjang);
+        mergedSchoolData.forEach(school => {
+          if (school.jenjang) {
+            jenjangSet.add(school.jenjang);
           }
         });
         
-        // Tambahkan jenjang standar jika belum ada
-        ['PKBM', 'PAUD', 'SD', 'SMP',].forEach(j => jenjangSet.add(j));
-        
         setJenjangList(Array.from(jenjangSet).sort());
 
-        console.log('Data loaded successfully:', {
-          schools: schoolsData.length,
-          kecamatan: uniqueKecamatan.length,
+        console.log('Data loading completed:', {
+          schools: mergedSchoolData.length,
+          kegiatan: combinedKegiatanData.length,
+          kecamatan: allKecamatanNames.length,
           jenjang: jenjangSet.size,
           desaByKecamatan: Object.keys(desaObj).length
         });
@@ -299,10 +426,28 @@ const SchoolDetailPage = () => {
       } catch (error) {
         console.error('Error loading data:', error);
         
-        // Fallback: set default values
-        setJenjangList(['PKBM', 'PAUD', 'SD', 'SMP',]);
-        setKecamatanList([]);
-        setDesaByKecamatan({});
+        // Fallback: set default values with sample data
+        const sampleData = [
+          {
+            no: 1,
+            npsn: '12345678',
+            namaSekolah: 'Contoh Sekolah',
+            jenjang: 'SD',
+            tipeSekolah: 'Negeri',
+            desa: 'Contoh Desa',
+            kecamatan: 'Contoh Kecamatan',
+            kondisiKelas: { baik: 5, rusakSedang: 2, rusakBerat: 1 },
+            rehabRuangKelas: 1,
+            pembangunanRKB: 0,
+            intervensiRuangKelas: 1,
+            kurangRKB: 2
+          }
+        ];
+        
+        setSchoolData(sampleData);
+        setJenjangList(['PKBM', 'PAUD', 'SD', 'SMP']);
+        setKecamatanList(['Contoh Kecamatan']);
+        setDesaByKecamatan({ 'Contoh Kecamatan': ['Contoh Desa'] });
       } finally {
         setLoading(false);
       }
@@ -387,29 +532,32 @@ const SchoolDetailPage = () => {
     {
       title: "Intervensi Ruang Kelas Semua Jenjang",
       data: [
-        { name: "Intervensi", value: totalIntervensi, color: "#4ECDC4" },
-        { name: "Belum Intervensi", value: Math.max(totalSekolah - totalIntervensi, 0), color: "#FFD93D" },
+        { name: "Pembangunan Dilakukan", value: totalIntervensi, color: "#4ECDC4" },
+        { name: "Kebutuhan RKB", value: Math.max(totalSekolah - totalIntervensi, 0), color: "#FFD93D" },
+        
       ],
     },
   ];
 
-  const barKondisiKelas = [
-    { name: "Baik", value: kondisiSemuaJenjang.baik },
-    { name: "Rusak Sedang", value: kondisiSemuaJenjang.rusakSedang },
-    { name: "Rusak Berat", value: kondisiSemuaJenjang.rusakBerat },
-  ];
-  
-  const barIntervensiKelas = [
-    { name: "Intervensi", value: totalIntervensi },
-    { name: "Belum Intervensi", value: Math.max(totalSekolah - totalIntervensi, 0) },
-  ];
-
+// 🔹 Bar Chart Kondisi Ruang Kelas
+const barKondisiKelas = [
+  { name: "Total Kelas", value: 0 },
+  { name: "Kondisi Baik", value: 0 },
+  { name: "Rusak Sedang", value: 0 },
+  { name: "Rusak Berat", value: 0 },
+  { name: "Kurang RKB", value: 0 },
+];
+// 🔹 Bar Chart Intervensi Ruang Kelas
+const barIntervensiKelas = [
+  { name: "Total Intervensi", value: 0 },
+  { name: "Pembangunan RKB", value: 0 },
+  { name: "Rehab Ruang Kelas", value: 0 },
+];
   // Handler untuk reset filter desa ketika kecamatan berubah
   const handleKecamatanChange = (e) => {
     setFilterKecamatan(e.target.value);
     setFilterDesa('Semua Desa'); // Reset filter desa
   };
-
   // Reset semua filter
   const handleResetAllFilters = () => {
     setFilterJenjang('Semua Jenjang');
@@ -431,7 +579,7 @@ const SchoolDetailPage = () => {
         <div>
           <div style={{ fontSize: 18, color: '#374151' }}>Memuat data...</div>
           <div style={{ marginTop: 8, color: '#6b7280' }}>
-            Mengambil data sekolah, kecamatan, dan desa
+            Mengambil data sekolah dari semua jenjang...
           </div>
         </div>
       </div>
@@ -521,26 +669,25 @@ const SchoolDetailPage = () => {
       </div>
 
       {/* Map Section */}
-<section className={styles.section}>
-  <h2 style={{
-    fontSize: 20, fontWeight: 600,
-    borderBottom: '3px solid #3b82f6',
-    paddingBottom: 8, marginBottom: 16, color: '#1e40af'
-  }}>
-    Peta Lokasi Sekolah
-  </h2>
-  <div className={styles.mapContainer}>
-    <Map 
-      schools={schoolData} // data asli sekolah
-      filter={{
-        jenjang: filterJenjang,
-        kecamatan: filterKecamatan,
-        desa: filterDesa
-      }} 
-    />
-  </div>
-</section>
-
+      <section className={styles.section}>
+        <h2 style={{
+          fontSize: 20, fontWeight: 600,
+          borderBottom: '3px solid #3b82f6',
+          paddingBottom: 8, marginBottom: 16, color: '#1e40af'
+        }}>
+          Peta Lokasi Sekolah
+        </h2>
+        <div className={styles.mapContainer}>
+          <Map 
+            schools={schoolData} // data asli sekolah
+            filter={{
+              jenjang: filterJenjang,
+              kecamatan: filterKecamatan,
+              desa: filterDesa
+            }} 
+          />
+        </div>
+      </section>
 
       {/* Pie Charts Section */}
       <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
@@ -554,10 +701,18 @@ const SchoolDetailPage = () => {
       {/* Bar Charts Section */}
       <section style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 32 }}>
         <div style={{ flex: '1 1 48%' }}>
-          <BarChartComponent title="Kondisi Ruang Kelas" data={barKondisiKelas} colors={pieColors} />
+          <BarChartComponent
+  title="Kondisi Ruang Kelas"
+  data={barKondisiKelas}
+  colors={["#4ECDC4", "#2ECC71", "#FFD93D", "#FF6B6B", "#9B59B6"]}
+/>
         </div>
         <div style={{ flex: '1 1 48%' }}>
-          <BarChartComponent title="Intervensi Ruang Kelas" data={barIntervensiKelas} colors={barColors} />
+          <BarChartComponent
+  title="Intervensi Ruang Kelas"
+  data={barIntervensiKelas}
+  colors={["#36A2EB", "#F39C12", "#8E44AD"]}
+/>
         </div>
       </section>
 
