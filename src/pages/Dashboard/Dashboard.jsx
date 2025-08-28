@@ -1,72 +1,468 @@
-import React, { useState } from 'react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+import React, { useState, useEffect } from 'react';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, Legend, LabelList } from 'recharts';
+import styles from './Dashboard.module.css';
 
 const Dashboard = () => {
-  const [selectedJenjang, setSelectedJenjang] = useState('Semua Jenjang');
-  const [selectedKecamatan, setSelectedKecamatan] = useState('Semua Kecamatan');
-  const [selectedTipe, setSelectedTipe] = useState('Rusak Berat');
-  const [jumlah, setJumlah] = useState(20);
+  const [data, setData] = useState({
+    paud: {},
+    sd: {},
+    smp: {},
+    pkbm: {},
+    kegiatanPaud: [],
+    kegiatanSd: [],
+    kegiatanSmp: [],
+    kegiatanPkbm: []
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Filter states for Kecamatan chart
+  const [kecamatanFilters, setKecamatanFilters] = useState({
+    tipe: 'berat', // 'berat', 'sedang', 'kurangRkb'
+    jumlah: 5, // Fixed to 5 per jenjang
+    urutan: 'teratas' // 'teratas', 'terbawah'
+  });
+  
+  // Filter states for Desa chart
+  const [desaFilters, setDesaFilters] = useState({
+    jenjang: 'Semua Jenjang',
+    kecamatan: 'Semua Kecamatan', 
+    tipe: 'berat',
+    jumlah: 20,
+    urutan: 'teratas'
+  });
 
-  const intervensiData = {
-    PAUD: { rehab: 0, pembangunan: 0 },
-    SD: { rehab: 0, pembangunan: 0 },
-    SMP: { rehab: 0, pembangunan: 0 },
-    PKBM: { rehab: 0, pembangunan: 0 }
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // Load all JSON files
+        const responses = await Promise.all([
+          fetch('/data/paud.json'),
+          fetch('/data/sd_new.json'),
+          fetch('/data/smp.json'),
+          fetch('/data/pkbm.json'),
+          fetch('/data/data_kegiatan_paud.json'),
+          fetch('/data/data_kegiatan_sd.json'),
+          fetch('/data/data_kegiatan_smp.json'),
+          fetch('/data/data_kegiatan_pkbm.json')
+        ]);
+
+        const [paudRes, sdRes, smpRes, pkbmRes, kegPaudRes, kegSdRes, kegSmpRes, kegPkbmRes] = responses;
+
+        // Check if all responses are ok
+        responses.forEach((res, index) => {
+          if (!res.ok) {
+            throw new Error(`Failed to fetch file ${index + 1}: ${res.status}`);
+          }
+        });
+
+        const jsonData = await Promise.all(responses.map(res => res.json()));
+
+        // PERBAIKAN 1: Memperbaiki mapping data yang benar
+        setData({
+          paud: jsonData[0],    // PAUD data dari paud.json
+          sd: jsonData[1],      // SD data dari sd_new.json  
+          smp: jsonData[2],     // SMP data dari smp.json
+          pkbm: jsonData[3],    // PKBM data dari pkbm.json
+          kegiatanPaud: jsonData[4],   // kegiatan PAUD dari data_kegiatan_paud.json
+          kegiatanSd: jsonData[5],     // kegiatan SD dari data_kegiatan_sd.json
+          kegiatanSmp: jsonData[6],    // kegiatan SMP dari data_kegiatan_smp.json
+          kegiatanPkbm: jsonData[7]    // kegiatan PKBM dari data_kegiatan_pkbm.json
+        });
+
+      } catch (err) {
+        console.error('Error loading data:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Calculate summary statistics
+  const calculateSummary = () => {
+    if (loading || error) return { totalPaud: 0, totalSd: 0, totalSmp: 0, totalPkbm: 0, totalTenagaPendidik: 0 };
+
+    const countSchools = (dataObj) => {
+      return Object.values(dataObj).reduce((total, kecamatan) => {
+        return total + (Array.isArray(kecamatan) ? kecamatan.length : 0);
+      }, 0);
+    };
+
+    const countTeachers = (dataObj) => {
+      return Object.values(dataObj).reduce((total, kecamatan) => {
+        if (!Array.isArray(kecamatan)) return total;
+        return total + kecamatan.reduce((subTotal, school) => {
+          if (school.teacher?.n_teachers) return subTotal + Number(school.teacher.n_teachers);
+          if (school.teachers) return subTotal + Number(school.teachers);
+          return subTotal;
+        }, 0);
+      }, 0);
+    };
+
+    return {
+      totalPaud: countSchools(data.paud),
+      totalSd: countSchools(data.sd),
+      totalSmp: countSchools(data.smp),
+      totalPkbm: countSchools(data.pkbm),
+      totalTenagaPendidik: countTeachers(data.paud) + countTeachers(data.sd) + countTeachers(data.smp) + countTeachers(data.pkbm)
+    };
   };
 
-  const topKecamatanData = [
-    { name: '', value: 0, color: '#ff6b6b' },
-    { name: '', value: 0, color: '#4ecdc4' },
-    { name: '', value: 0, color: '#ffe66d' },
-    { name: '', value: 0, color: '#a8e6cf' },
-    { name: '', value: 0, color: '#ff9f1c' }
+  // Calculate condition statistics with Total Kelas and Kurang RKB
+  const calculateConditionData = () => {
+    const result = {
+      PAUD: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
+      SD: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
+      SMP: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
+      PKBM: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 }
+    };
+
+    const processData = (dataObj, jenjang) => {
+      Object.values(dataObj).forEach(kecamatan => {
+        if (!Array.isArray(kecamatan)) return;
+        kecamatan.forEach(school => {
+          const condition = school.class_condition;
+          if (condition) {
+            const baik = Number(condition.classrooms_good) || 0;
+            const sedang = Number(condition.classrooms_moderate_damage) || 0;
+            const berat = Number(condition.classrooms_heavy_damage) || 0;
+            const kurang = Number(condition.lacking_rkb) || 0; // Field yang benar: lacking_rkb
+            
+            result[jenjang].baik += baik;
+            result[jenjang].sedang += sedang;
+            result[jenjang].berat += berat;
+            result[jenjang].kurangRkb += kurang;
+            result[jenjang].total += (baik + sedang + berat);
+          }
+        });
+      });
+    };
+
+    if (!loading && !error) {
+      processData(data.paud, 'PAUD');
+      processData(data.sd, 'SD');
+      processData(data.smp, 'SMP');
+      processData(data.pkbm, 'PKBM');
+    }
+
+    return result;
+  };
+
+  const calculateIntervensiData = () => {
+    const result = {
+      PAUD: { rehab: 0, pembangunan: 0 },
+      SD: { rehab: 0, pembangunan: 0 },
+      SMP: { rehab: 0, pembangunan: 0 },
+      PKBM: { rehab: 0, pembangunan: 0 }
+    };
+
+    const processKegiatan = (kegiatanArray, jenjang) => {
+      kegiatanArray.forEach(kegiatan => {
+        const kegiatanName = (kegiatan.Kegiatan || "").trim().toLowerCase();
+        const lokal = Number(kegiatan.Lokal) || 1;
+
+        if (kegiatanName.includes("rehab") || kegiatanName.includes("rehabilitasi")) {
+          result[jenjang].rehab += lokal;
+        } else if (kegiatanName.includes("pembangunan rkb")) {
+          result[jenjang].pembangunan += lokal;
+        }
+      });
+    };
+
+    if (!loading && !error) {
+      processKegiatan(data.kegiatanPaud, "PAUD");
+      processKegiatan(data.kegiatanSd, "SD");
+      processKegiatan(data.kegiatanSmp, "SMP");
+      processKegiatan(data.kegiatanPkbm, "PKBM");
+    }
+
+    return result;
+  };
+
+  // Get all available kecamatan
+  const getAllKecamatan = () => {
+    const kecamatanSet = new Set();
+    
+    if (!loading && !error) {
+      Object.keys(data.paud).forEach(kec => kecamatanSet.add(kec));
+      Object.keys(data.sd).forEach(kec => kecamatanSet.add(kec));
+      Object.keys(data.smp).forEach(kec => kecamatanSet.add(kec));
+      Object.keys(data.pkbm).forEach(kec => kecamatanSet.add(kec));
+    }
+    
+    return Array.from(kecamatanSet).sort();
+  };
+
+  // MODIFIED: Calculate top 5 kecamatan per jenjang
+  const calculateTopKecamatan = () => {
+    const finalData = [];
+
+    const getTopKecamatanPerJenjang = (dataObj, jenjangName) => {
+      const kecamatanData = [];
+      
+      Object.entries(dataObj).forEach(([kecamatanName, schools]) => {
+        if (!Array.isArray(schools)) return;
+        
+        let totalValue = 0;
+        schools.forEach(school => {
+          const condition = school.class_condition;
+          if (condition) {
+            let value = 0;
+            if (kecamatanFilters.tipe === 'berat') {
+              value = Number(condition.classrooms_heavy_damage) || 0;
+            } else if (kecamatanFilters.tipe === 'sedang') {
+              value = Number(condition.classrooms_moderate_damage) || 0;
+            } else if (kecamatanFilters.tipe === 'kurangRkb') {
+              value = Number(condition.lacking_rkb) || 0;
+            }
+            totalValue += value;
+          }
+        });
+
+        if (totalValue > 0) {
+          kecamatanData.push({
+            kecamatanName,
+            value: totalValue
+          });
+        }
+      });
+
+      // Sort per jenjang
+      if (kecamatanFilters.urutan === 'teratas') {
+        kecamatanData.sort((a, b) => b.value - a.value);
+      } else {
+        kecamatanData.sort((a, b) => a.value - b.value);
+      }
+      
+      // Ambil top 5 per jenjang
+      return kecamatanData.slice(0, 5).map(item => ({
+        name: `${item.kecamatanName} (${jenjangName})`,
+        PAUD: jenjangName === 'PAUD' ? item.value : 0,
+        SD: jenjangName === 'SD' ? item.value : 0,
+        SMP: jenjangName === 'SMP' ? item.value : 0,
+        PKBM: jenjangName === 'PKBM' ? item.value : 0,
+        sortValue: item.value,
+        jenjang: jenjangName,
+        kecamatan: item.kecamatanName
+      }));
+    };
+
+    if (!loading && !error) {
+      // Get top 5 for each jenjang
+      const paudTop5 = getTopKecamatanPerJenjang(data.paud, 'PAUD');
+      const sdTop5 = getTopKecamatanPerJenjang(data.sd, 'SD');
+      const smpTop5 = getTopKecamatanPerJenjang(data.smp, 'SMP');
+      const pkbmTop5 = getTopKecamatanPerJenjang(data.pkbm, 'PKBM');
+      
+      // Combine all data
+      finalData.push(...paudTop5, ...sdTop5, ...smpTop5, ...pkbmTop5);
+    }
+
+    // Debug: Log untuk melihat berapa banyak data per jenjang
+    console.log('Total data found:', finalData.length);
+    console.log('Data per jenjang:');
+    console.log('PAUD:', finalData.filter(d => d.jenjang === 'PAUD').length);
+    console.log('SD:', finalData.filter(d => d.jenjang === 'SD').length); 
+    console.log('SMP:', finalData.filter(d => d.jenjang === 'SMP').length);
+    console.log('PKBM:', finalData.filter(d => d.jenjang === 'PKBM').length);
+    
+    console.log('Final result:', finalData.map(r => `${r.name}: ${r.sortValue}`));
+    
+    return finalData;
+  };
+
+  // Calculate top desa with filters
+  const calculateTopDesa = () => {
+    const desaStats = {};
+
+    const processData = (dataObj, jenjangName) => {
+      // Skip if specific jenjang selected and doesn't match
+      if (desaFilters.jenjang !== 'Semua Jenjang' && desaFilters.jenjang !== jenjangName) {
+        return;
+      }
+
+      Object.entries(dataObj).forEach(([kecamatanName, schools]) => {
+        // Skip if specific kecamatan selected and doesn't match
+        if (desaFilters.kecamatan !== 'Semua Kecamatan' && desaFilters.kecamatan !== kecamatanName) {
+          return;
+        }
+
+        if (!Array.isArray(schools)) return;
+        
+        schools.forEach(school => {
+          const desaName = school.village;
+          const condition = school.class_condition;
+          
+          if (desaName && condition) {
+            const key = `${desaName} (${kecamatanName})`;
+            
+            if (!desaStats[key]) {
+              desaStats[key] = {
+                name: desaName,
+                kecamatan: kecamatanName,
+                displayName: key,
+                value: 0
+              };
+            }
+            
+            let value = 0;
+            if (desaFilters.tipe === 'berat') {
+              value = Number(condition.classrooms_heavy_damage) || 0;
+            } else if (desaFilters.tipe === 'sedang') {
+              value = Number(condition.classrooms_moderate_damage) || 0;
+            } else if (desaFilters.tipe === 'kurangRkb') {
+              value = Number(condition.lacking_rkb) || 0;
+            }
+            
+            desaStats[key].value += value;
+          }
+        });
+      });
+    };
+
+    if (!loading && !error) {
+      processData(data.paud, 'PAUD');
+      processData(data.sd, 'SD');
+      processData(data.smp, 'SMP');
+      processData(data.pkbm, 'PKBM');
+    }
+
+    // Convert to array and sort
+    let sortedDesa = Object.values(desaStats);
+    
+    if (desaFilters.urutan === 'teratas') {
+      sortedDesa.sort((a, b) => b.value - a.value);
+    } else {
+      sortedDesa.sort((a, b) => a.value - b.value);
+    }
+    
+    return sortedDesa.slice(0, desaFilters.jumlah);
+  };
+
+  const summary = calculateSummary();
+  const conditionData = calculateConditionData();
+  const intervensiData = calculateIntervensiData();
+  const topKecamatanData = calculateTopKecamatan();
+  const topDesaData = calculateTopDesa();
+  const allKecamatan = getAllKecamatan();
+
+  // Prepare chart data for condition chart with new categories and colors
+  const conditionChartData = [
+    {
+      jenjang: 'PAUD',
+      'Total Kelas': conditionData.PAUD.total,
+      'Kondisi Baik': conditionData.PAUD.baik,
+      'Rusak Sedang': conditionData.PAUD.sedang,
+      'Rusak Berat': conditionData.PAUD.berat,
+      'Kurang RKB': conditionData.PAUD.kurangRkb,
+    },
+    {
+      jenjang: 'SD', 
+      'Total Kelas': conditionData.SD.total,
+      'Kondisi Baik': conditionData.SD.baik,
+      'Rusak Sedang': conditionData.SD.sedang,
+      'Rusak Berat': conditionData.SD.berat,
+      'Kurang RKB': conditionData.SD.kurangRkb,
+    },
+    {
+      jenjang: 'SMP',
+      'Total Kelas': conditionData.SMP.total,
+      'Kondisi Baik': conditionData.SMP.baik,
+      'Rusak Sedang': conditionData.SMP.sedang,
+      'Rusak Berat': conditionData.SMP.berat,
+      'Kurang RKB': conditionData.SMP.kurangRkb,
+    },
+    {
+      jenjang: 'PKBM',
+      'Total Kelas': conditionData.PKBM.total,
+      'Kondisi Baik': conditionData.PKBM.baik,
+      'Rusak Sedang': conditionData.PKBM.sedang,
+      'Rusak Berat': conditionData.PKBM.berat,
+      'Kurang RKB': conditionData.PKBM.kurangRkb,
+    }
   ];
 
-  const topDesaData = Array.from({ length: 20 }, (_, i) => ({ name: '', value: 0 }));
+  // Prepare chart data for intervention chart (right chart)
+  const intervensiChartData = [
+    {
+      jenjang: 'PAUD',
+      'Rehabilitasi Ruang Kelas': intervensiData.PAUD.rehab,
+      'Pembangunan RKB': intervensiData.PAUD.pembangunan,
+    },
+    {
+      jenjang: 'SD',
+      'Rehabilitasi Ruang Kelas': intervensiData.SD.rehab,
+      'Pembangunan RKB': intervensiData.SD.pembangunan,
+    },
+    {
+      jenjang: 'SMP',
+      'Rehabilitasi Ruang Kelas': intervensiData.SMP.rehab,
+      'Pembangunan RKB': intervensiData.SMP.pembangunan,
+    },
+    {
+      jenjang: 'PKBM',
+      'Rehabilitasi Ruang Kelas': intervensiData.PKBM.rehab,
+      'Pembangunan RKB': intervensiData.PKBM.pembangunan,
+    }
+  ];
 
-  const renderIntervensiChart = (title, barColor) => {
+  const renderIntervensiChart = (title, dataKey, barColor) => {
     const chartHeight = 180;
-    const maxVal = 250;
-    const step = 50;
-    const lines = Array.from({ length: maxVal / step + 1 }, (_, i) => i * step);
+    const maxVal = Math.max(...Object.values(conditionData).map(d => d[dataKey])) || 250;
+    const step = Math.ceil(maxVal / 5) || 50;
+    const adjustedMax = step * 5;
+    const lines = Array.from({ length: 6 }, (_, i) => i * step);
+
+    const orderedJenjang = ["PAUD", "SD", "SMP", "PKBM"];
+    const chartData = orderedJenjang.map(jenjang => ({
+      jenjang,
+      value: conditionData[jenjang][dataKey]
+    }));
 
     return (
-      <div style={{ flex: 1, backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-        <h3 style={{ marginBottom: '15px', fontSize: '16px', fontWeight: '600', color: '#1e293b' }}>{title}</h3>
-
-        {/* Chart Container */}
-        <div style={{ position: 'relative', height: `${chartHeight}px`, borderLeft: '1px solid #cbd5e1', borderBottom: '1px solid #cbd5e1', paddingLeft: '30px' }}>
-          {/* Garis horizontal + angka */}
+      <div className={styles.intervensiChart}>
+        <h3>{title}</h3>
+        <div className={styles.barChartContainer}>
           {lines.map((val) => {
-            const bottomPos = (val / maxVal) * chartHeight;
+            const bottomPos = (val / adjustedMax) * chartHeight;
             return (
-              <div key={val} style={{ position: 'absolute', bottom: `${bottomPos}px`, left: 0, width: '100%', borderTop: '1px dashed #e2e8f0' }}>
-                <span style={{
-                  position: 'absolute',
-                  left: '-25px',
-                  fontSize: '10px',
-                  color: '#64748b',
-                  transform: 'translateY(-50%)'
-                }}>{val}</span>
+              <div 
+                key={val} 
+                className={styles.chartLines}
+                style={{ bottom: `${bottomPos}px` }}
+              >
+                <span>{val}</span>
               </div>
             );
           })}
 
-          {/* Batang */}
-          <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end', height: '100%' }}>
-            {['PAUD','SD','SMP','PKBM'].map(j => (
-              <div key={j} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
-                <div style={{ width: '30px', height: '0px', backgroundColor: barColor, borderRadius: '4px' }}></div>
-              </div>
-            ))}
+          <div className={styles.barContainer}>
+            {chartData.map(item => {
+              const height = (item.value / adjustedMax) * chartHeight;
+              return (
+                <div key={item.jenjang} className={styles.barItem}>
+                  <div 
+                    className={styles.bar}
+                    style={{ 
+                      height: `${height}px`, 
+                      backgroundColor: barColor 
+                    }}
+                  ></div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Label jenjang */}
-        <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
-          {['PAUD','SD','SMP','PKBM'].map(j => (
-            <div key={j} style={{ fontSize: '12px', fontWeight: '600', color: '#1e293b', textAlign: 'center', width: '30px' }}>
-              {j}
+        <div className={styles.barLabels}>
+          {chartData.map(item => (
+            <div key={item.jenjang} className={styles.barLabel}>
+              {item.jenjang}
             </div>
           ))}
         </div>
@@ -74,71 +470,297 @@ const Dashboard = () => {
     );
   };
 
+  // Custom label component for displaying values at end of bars
+  const CustomLabel = (props) => {
+    const { x, y, width, value } = props;
+    if (value === 0 || !value) return null; // Jangan tampilkan label untuk nilai 0 atau undefined
+    return (
+      <text x={x + width + 5} y={y + 12} fill="#333" fontSize={12}>
+        {value}
+      </text>
+    );
+  };
+
+  // Custom Bar component yang hanya render jika ada nilai
+  const CustomBar = ({ fill, dataKey, ...props }) => {
+    return (
+      <Bar {...props} dataKey={dataKey} fill={fill}>
+        <LabelList content={CustomLabel} />
+      </Bar>
+    );
+  };
+
+  const getTipeDisplayName = (tipe) => {
+    switch(tipe) {
+      case 'berat': return 'Rusak Berat';
+      case 'sedang': return 'Rusak Sedang';  
+      case 'kurangRkb': return 'Kurang RKB';
+      default: return tipe;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={styles.dashboard}>
+        <div className={styles.loading}>Loading dashboard data...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={styles.dashboard}>
+        <div className={styles.error}>Error loading data: {error}</div>
+      </div>
+    );
+  }
+
   return (
-  <div style={{ padding: '20px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
-    {/* Header Dashboard */}
-      <div style={{ background: 'white', padding: 20, borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', border: '1px solid #e5e7eb', marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#1f2937' }}>Dashboard</h1>
+    <div className={styles.dashboard}>
+      {/* Header Dashboard */}
+      <div className={styles.dashboardHeader}>
+        <h1>Dashboard Pendidikan</h1>
       </div>
 
-    {/* Dashboard Stat (Summary Cards) */}
-    <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '20px', marginBottom: '40px' }}>
-        {['TOTAL PAUD', 'TOTAL SD', 'TOTAL SMP', 'TOTAL PKBM', 'TENAGA PENDIDIK'].map((label, idx) => (
-          <div key={idx} style={{ backgroundColor: '#f1f5f9', padding: '15px', borderRadius: '12px', textAlign: 'center', boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: '14px', fontWeight: '500', color: '#64748b' }}>{label}</div>
-            <div style={{ fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>{/* kosong */}</div>
+      {/* Dashboard Stats (Summary Cards) */}
+      <div className={styles.summaryCardsContainer}>
+        <div className={styles.summaryCards}>
+          <div className={styles.summaryCard}>
+            <div className={styles.title}>TOTAL PAUD</div>
+            <div className={styles.value}>{summary.totalPaud.toLocaleString()}</div>
           </div>
-        ))}
+          <div className={styles.summaryCard}>
+            <div className={styles.title}>TOTAL SD</div>
+            <div className={styles.value}>{summary.totalSd.toLocaleString()}</div>
+          </div>
+          <div className={styles.summaryCard}>
+            <div className={styles.title}>TOTAL SMP</div>
+            <div className={styles.value}>{summary.totalSmp.toLocaleString()}</div>
+          </div>
+          <div className={styles.summaryCard}>
+            <div className={styles.title}>TOTAL PKBM</div>
+            <div className={styles.value}>{summary.totalPkbm.toLocaleString()}</div>
+          </div>
+          <div className={styles.summaryCard}>
+            <div className={styles.title}>TENAGA PENDIDIK</div>
+            <div className={styles.value}>{summary.totalTenagaPendidik.toLocaleString()}</div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    {/* Intervensi & Kondisi side by side */}
-    <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', marginBottom: '40px' }}>
-      {renderIntervensiChart('Intervensi Ruang Kelas Berdasarkan Kategori Sekolah', '#22c55e')}
-      {renderIntervensiChart('Kondisi Sekolah berdasarkan Ruang Kelas', '#3b82f6')}
-    </div>
+      {/* Charts Container - Kondisi & Intervensi sesuai gambar */}
+      <div className={styles.chartsContainer}>
+        {/* Left Chart - Kondisi Sekolah berdasarkan Ruang Kelas dengan warna baru */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h3>Kondisi Sekolah berdasarkan Ruang Kelas:</h3>
+          </div>
+          <div className={styles.chartContent}>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart
+                data={conditionChartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="jenjang" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Total Kelas" fill="#8B5CF6" name="Total Kelas" />
+                <Bar dataKey="Kondisi Baik" fill="#22C55E" name="Kondisi Baik" />
+                <Bar dataKey="Rusak Sedang" fill="#F97316" name="Rusak Sedang" />
+                <Bar dataKey="Rusak Berat" fill="#EF4444" name="Rusak Berat" />
+                <Bar dataKey="Kurang RKB" fill="#3B82F6" name="Kurang RKB" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
 
-    {/* Top Kecamatan Chart */}
-    <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', marginBottom: '30px' }}>
-      <h2 style={{ margin: '0 0 15px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
-        Top 5 Kecamatan dengan Kelas Rusak Berat Terbanyak per Jenjang
-      </h2>
-      <div style={{ overflowX: 'auto' }}>
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={topKecamatanData} layout="vertical" margin={{ top: 20, right: 30, left: 150, bottom: 5 }} barSize={30}>
+        {/* Right Chart - Intervensi Ruang Kelas */}
+        <div className={styles.chartCard}>
+          <div className={styles.chartHeader}>
+            <h3>Intervensi Ruang Kelas Berdasarkan Kategori Sekolah</h3>
+          </div>
+          <div className={styles.chartContent}>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart
+                data={intervensiChartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="jenjang" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Rehabilitasi Ruang Kelas" fill="#4ade80" />
+                <Bar dataKey="Pembangunan RKB" fill="#6366f1" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Kecamatan Chart with Filters - MODIFIED: Now shows 5 per jenjang */}
+      <div className={styles.chartContainer}>
+        <div className={styles.chartHeader}>
+          <h2>Top 5 Kecamatan dengan Ruang Kelas {getTipeDisplayName(kecamatanFilters.tipe)} Terbanyak per Jenjang</h2>
+          
+          {/* Filters for Kecamatan Chart - Removed jumlah filter since it's fixed to 5 per jenjang */}
+          <div className={styles.filtersContainer}>
+            <div className={styles.filterGroup}>
+              <label>Tampilkan Grafik:</label>
+              <select 
+                value={kecamatanFilters.tipe} 
+                onChange={(e) => setKecamatanFilters({...kecamatanFilters, tipe: e.target.value})}
+              >
+                <option value="berat">Rusak Berat</option>
+                <option value="sedang">Rusak Sedang</option>
+                <option value="kurangRkb">Kurang RKB</option>
+              </select>
+            </div>
+            
+            <div className={styles.filterGroup}>
+              <label>Urutan:</label>
+              <select 
+                value={kecamatanFilters.urutan} 
+                onChange={(e) => setKecamatanFilters({...kecamatanFilters, urutan: e.target.value})}
+              >
+                <option value="teratas">Teratas</option>
+                <option value="terbawah">Terbawah</option>
+              </select>
+            </div>
+            
+            <div className={styles.info}>
+              <span>Menampilkan 5 kecamatan teratas per jenjang (Total: 20 data)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.chartOverflow}>
+          <ResponsiveContainer width="100%" height={Math.max(600, topKecamatanData.length * 35)}>
+            <BarChart 
+              data={topKecamatanData} 
+              layout="vertical" 
+              margin={{ top: 20, right: 60, left: 50, bottom: 20 }} 
+              barSize={25}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis 
+                type="category" 
+                dataKey="name" 
+                width={180} 
+                fontSize={11} 
+                interval={0}
+                tick={{ fontSize: 11 }}
+              />
+              <Tooltip />
+              <Legend />
+              <CustomBar dataKey="PAUD" fill="#ff69b4" />
+              <CustomBar dataKey="SD" fill="#dc2626" />
+              <CustomBar dataKey="SMP" fill="#2563eb" />
+              <CustomBar dataKey="PKBM" fill="#16a34a" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Top Desa Chart with Filters */}
+      <div className={styles.chartContainer}>
+        <div className={styles.chartHeader}>
+          <h2>Top {desaFilters.jumlah} Desa dengan Ruang Kelas {getTipeDisplayName(desaFilters.tipe)} Terbanyak</h2>
+          
+          {/* Filters for Desa Chart */}
+          <div className={styles.filtersContainer}>
+            <div className={styles.filterGroup}>
+              <label>Jenjang:</label>
+              <select 
+                value={desaFilters.jenjang} 
+                onChange={(e) => setDesaFilters({...desaFilters, jenjang: e.target.value})}
+              >
+                <option value="Semua Jenjang">Semua Jenjang</option>
+                <option value="PAUD">PAUD</option>
+                <option value="SD">SD</option>
+                <option value="SMP">SMP</option>
+                <option value="PKBM">PKBM</option>
+              </select>
+            </div>
+            
+            <div className={styles.filterGroup}>
+              <label>Kecamatan:</label>
+              <select 
+                value={desaFilters.kecamatan} 
+                onChange={(e) => setDesaFilters({...desaFilters, kecamatan: e.target.value})}
+              >
+                <option value="Semua Kecamatan">Semua Kecamatan</option>
+                {allKecamatan.map(kec => (
+                  <option key={kec} value={kec}>{kec}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className={styles.filterGroup}>
+              <label>Tipe:</label>
+              <select 
+                value={desaFilters.tipe} 
+                onChange={(e) => setDesaFilters({...desaFilters, tipe: e.target.value})}
+              >
+                <option value="berat">Rusak Berat</option>
+                <option value="sedang">Rusak Sedang</option>
+                <option value="kurangRkb">Kurang RKB</option>
+              </select>
+            </div>
+            
+            <div className={styles.filterGroup}>
+              <label>Jumlah:</label>
+              <input 
+                type="number" 
+                min="1" 
+                max="50" 
+                value={desaFilters.jumlah}
+                onChange={(e) => setDesaFilters({...desaFilters, jumlah: parseInt(e.target.value) || 20})}
+              />
+            </div>
+            
+            <div className={styles.filterGroup}>
+              <label>Urutan:</label>
+              <select 
+                value={desaFilters.urutan} 
+                onChange={(e) => setDesaFilters({...desaFilters, urutan: e.target.value})}
+              >
+                <option value="teratas">Teratas</option>
+                <option value="terbawah">Terbawah</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <ResponsiveContainer width="100%" height={Math.max(500, topDesaData.length * 30)}>
+          <BarChart 
+            data={topDesaData} 
+            layout="vertical" 
+            margin={{ top: 20, right: 60, left: 50, bottom: 20 }} 
+            barSize={20}
+          >
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" domain={[0, 80]} />
-            <YAxis type="category" dataKey="name" width={140} fontSize={12} />
+            <XAxis type="number" />
+            <YAxis 
+              type="category" 
+              dataKey="displayName" 
+              width={180} 
+              fontSize={10} 
+              interval={0} 
+              tick={{ fill: '#555', fontSize: 10 }} 
+            />
             <Tooltip />
-            <Bar dataKey="value">
-              {topKecamatanData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color || '#ccc'} />
-              ))}
+            <Bar dataKey="value" fill="#4ecdc4">
+              <LabelList content={CustomLabel} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
-
-    {/* Top Desa Chart */}
-    <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-      <h2 style={{ margin: '0 0 20px 0', fontSize: '18px', fontWeight: '600', color: '#1e293b' }}>
-        Top {jumlah} Desa dengan Kelas Rusak Berat Terbanyak (Semua Jenjang, Semua Kecamatan)
-      </h2>
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={topDesaData.slice(0, jumlah)} layout="vertical" margin={{ top: 20, right: 30, left: 150, bottom: 5 }} barSize={30}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" domain={[0, 20]} />
-          <YAxis type="category" dataKey="name" width={150} fontSize={12} interval={0} tick={{ fill: '#555' }} />
-          <Tooltip />
-          <Bar dataKey="value" fill="#4ecdc4" />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  </div>
-);
-
+  );
 };
 
 export default Dashboard;
