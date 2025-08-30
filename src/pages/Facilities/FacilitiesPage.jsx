@@ -208,10 +208,9 @@ const FacilitiesPage = () => {
           
           // For PAUD, toilets data structure is different
           const toiletBaik = parseInt(toilets.good) || 0;
-          const toiletRusakSedang = parseInt(toilets.moderate_damage) || 0;
-          const toiletRusakBerat = parseInt(toilets.heavy_damage) || 0;
-          const nAvailable = parseFloat(toilets.n_available) || 0;
-          const totalToilet = toiletBaik + toiletRusakSedang + toiletRusakBerat || nAvailable || 0;
+const toiletRusakSedang = parseInt(toilets.moderate_damage) || 0;
+const toiletRusakBerat = parseInt(toilets.heavy_damage) || 0;
+const totalToilet = toiletBaik + toiletRusakSedang + toiletRusakBerat;
 
           processedData.push({
             no: counter++,
@@ -330,10 +329,9 @@ const FacilitiesPage = () => {
           const toilets = school.toilets || {};
           // For PKBM, similar to PAUD structure
           const toiletBaik = parseInt(toilets.good) || 0;
-          const toiletRusakSedang = parseInt(toilets.moderate_damage) || 0;
-          const toiletRusakBerat = parseFloat(toilets.heavy_damage) || 0; // Note: sometimes float
-          const nAvailable = parseInt(toilets.n_available) || 0;
-          const totalToilet = toiletBaik + toiletRusakSedang + toiletRusakBerat || nAvailable || 0;
+const toiletRusakSedang = parseInt(toilets.moderate_damage) || 0;
+const toiletRusakBerat = parseInt(toilets.heavy_damage) || 0;
+const totalToilet = toiletBaik + toiletRusakSedang + toiletRusakBerat;
 
           processedData.push({
             no: counter++,
@@ -355,7 +353,7 @@ const FacilitiesPage = () => {
 
     return processedData;
   };
-  // Generate chart data from processed school data - FIXED CATEGORIZATION
+  // Generate chart data - BENAR-BENAR DINAMIS berdasarkan data aktual
   const generateChartData = (data) => {
     const totalSchools = data.length;
     if (totalSchools === 0) {
@@ -368,14 +366,14 @@ const FacilitiesPage = () => {
       return;
     }
 
-    // Calculate toilet statistics
-    let totalToiletBaik = 0;
-    let totalToiletRusakSedang = 0; 
-    let totalToiletRusakBerat = 0;
+    // Calculate ACTUAL statistics from current filtered data
+    let toiletBaik = 0;
+    let toiletRusakSedang = 0; 
+    let toiletRusakBerat = 0;
     let totalToiletCount = 0;
-    let schoolsNeedToilets = 0; // Schools with no toilets
-    let schoolsNeedRehab = 0; // Schools with damaged toilets
-    let schoolsWithGoodToilets = 0; // Schools with ONLY good toilets (no damage)
+    let schoolsNeedToilets = 0; // Schools with no toilets (butuh pembangunan)
+    let schoolsNeedRehab = 0; // Schools with damaged toilets (butuh rehabilitasi)
+    let schoolsWithGoodToilets = 0; // Schools with only good toilets
 
     data.forEach(school => {
       const baik = school.toiletBaik || 0;
@@ -383,44 +381,102 @@ const FacilitiesPage = () => {
       const rusakBerat = school.toiletRusakBerat || 0;
       const total = school.totalToilet || 0;
       
-      // Add to totals
-      totalToiletBaik += baik;
-      totalToiletRusakSedang += rusakSedang;
-      totalToiletRusakBerat += rusakBerat;
+      // Add to toilet totals
+      toiletBaik += baik;
+      toiletRusakSedang += rusakSedang;
+      toiletRusakBerat += rusakBerat;
       totalToiletCount += total;
       
-      // Categorize schools - FIXED: Make categories mutually exclusive
+      // Categorize schools for intervention analysis
       if (total === 0) {
-        schoolsNeedToilets++; // Need to build toilets
+        schoolsNeedToilets++; // Butuh pembangunan toilet baru
       } else if (rusakSedang > 0 || rusakBerat > 0) {
-        schoolsNeedRehab++; // Need rehabilitation (has damaged toilets)
+        schoolsNeedRehab++; // Butuh rehabilitasi toilet yang rusak
       } else if (baik > 0) {
-        schoolsWithGoodToilets++; // Has only good toilets (no damage)
+        schoolsWithGoodToilets++; // Toilet sudah baik, tidak butuh intervensi
       }
-      // Note: If total > 0 but baik = 0 and no damage, it's an edge case
     });
 
-    const totalToiletsAll = totalToiletBaik + totalToiletRusakSedang + totalToiletRusakBerat;
+    // DINAMIS: Bar chart data - Kondisi Toilet berdasarkan data aktual
+    setKondisiToiletData([
+      { name: "Total Toilet", value: totalToiletCount, color: "#8884d8" },
+      { name: "Toilet Baik", value: toiletBaik, color: "#4ECDC4" },
+      { name: "Rusak Sedang", value: toiletRusakSedang, color: "#ffbb28" },
+      { name: "Rusak Berat", value: toiletRusakBerat, color: "#ff8042" },
+      { name: "Tidak Ada Toilet", value: schoolsNeedToilets, color: "#d9534f" },
+    ]);
+
+    // DINAMIS: Bar chart data - Kategori Intervensi berdasarkan kebutuhan sekolah
+    const totalIntervensiNeeded = schoolsNeedToilets + schoolsNeedRehab;
+    setIntervensiToiletData([
+      { name: 'Total Intervensi', value: totalIntervensiNeeded, color: '#FF6B6B' },
+      { name: 'Pembangunan Toilet', value: schoolsNeedToilets, color: '#FFD93D' },
+      { name: 'Rehabilitasi Toilet', value: schoolsNeedRehab, color: '#4ECDC4' }
+    ]);
+
+    // DINAMIS: Pie chart - Pembangunan Toilet
+    const totalForPembangunan = schoolsNeedToilets + schoolsWithGoodToilets + schoolsNeedRehab;
+    if (totalForPembangunan > 0) {
+      setPembangunanPieData([
+        { 
+          name: 'Kebutuhan Toilet (Belum Dibangun)', 
+          value: Math.round((schoolsNeedToilets / totalForPembangunan) * 100), 
+          actualCount: schoolsNeedToilets, 
+          color: '#FF6B6B' 
+        },
+        { 
+          name: 'Pembangunan Dilakukan', 
+          value: Math.round(((schoolsWithGoodToilets + schoolsNeedRehab) / totalForPembangunan) * 100), 
+          actualCount: schoolsWithGoodToilets + schoolsNeedRehab, 
+          color: '#4ECDC4' 
+        }
+      ]);
+    }
+
+    // DINAMIS: Pie chart - Rehabilitasi Toilet
+    const schoolsWithToilets = totalSchools - schoolsNeedToilets; // Sekolah yang punya toilet
+    if (schoolsWithToilets > 0) {
+      setRehabilitasiPieData([
+        { 
+          name: 'Rusak Berat (Belum Rehabilitasi)', 
+          value: Math.round((schoolsNeedRehab / schoolsWithToilets) * 100), 
+          actualCount: schoolsNeedRehab, 
+          color: '#FF6B6B' 
+        },
+        { 
+          name: 'Rehab Dilakukan', 
+          value: Math.round((schoolsWithGoodToilets / schoolsWithToilets) * 100), 
+          actualCount: schoolsWithGoodToilets, 
+          color: '#4ECDC4' 
+        }
+      ].filter(item => item.actualCount > 0));
+    } else {
+      setRehabilitasiPieData([
+        { name: 'Tidak Ada Toilet untuk Direhabilitasi', value: 100, actualCount: 0, color: '#95A5A6' }
+      ]);
+    }
+
+    // DINAMIS: Pie chart - Kondisi Toilet berdasarkan jumlah toilet aktual
+    const totalToiletsForPie = toiletBaik + toiletRusakSedang + toiletRusakBerat;
     
-    // Pie chart data - Kondisi Toilet
-    if (totalToiletsAll > 0) {
+    if (totalToiletsForPie > 0) {
       setKondisiPieData([
         { 
           name: 'Baik', 
-          value: Math.round((totalToiletBaik / totalToiletsAll) * 100), 
-          actualCount: totalToiletBaik, 
+          value: Math.round((toiletBaik / totalToiletsForPie) * 100), 
+          actualCount: toiletBaik, 
           color: '#4ECDC4' 
         },
         { 
           name: 'Rusak Sedang', 
-          value: Math.round((totalToiletRusakSedang / totalToiletsAll) * 100), 
-          actualCount: totalToiletRusakSedang, 
+          value: Math.round((toiletRusakSedang / totalToiletsForPie) * 100), 
+          actualCount: toiletRusakSedang, 
           color: '#FFD93D' 
         },
         { 
           name: 'Rusak Berat', 
-          value: Math.round((totalToiletRusakBerat / totalToiletsAll) * 100), 
-          actualCount: totalToiletRusakBerat, 
+          value: Math.round((toiletRusakBerat / totalToiletsForPie) * 100), 
+          actualCount: toiletRusakBerat, 
           color: '#FF6B6B' 
         }
       ].filter(item => item.value > 0));
@@ -428,69 +484,20 @@ const FacilitiesPage = () => {
       setKondisiPieData([{ name: 'Tidak Ada Data', value: 100, actualCount: 0, color: '#95A5A6' }]);
     }
 
-    // Pie chart data - Rehabilitasi Toilet
-    const needRehab = schoolsNeedRehab;
-    const alreadyGood = schoolsWithGoodToilets; // Only schools with good toilets
-    
-    if (totalSchools > 0) {
-      setRehabilitasiPieData([
-        { 
-          name: 'Rusak Berat (Belum Rehabilitasi)', 
-          value: Math.round((needRehab / totalSchools) * 100), 
-          actualCount: needRehab, 
-          color: '#FF6B6B' 
-        },
-        { 
-          name: 'Rehab Dilakukan', 
-          value: Math.round((alreadyGood / totalSchools) * 100), 
-          actualCount: alreadyGood, 
-          color: '#4ECDC4' 
-        }
-      ].filter(item => item.value > 0));
-    }
-
-    // Pie chart data - Pembangunan Toilet  
-    if (totalSchools > 0) {
-      setPembangunanPieData([
-        { 
-          name: 'Pembangunan Dilakukan', 
-          value: Math.round((schoolsNeedToilets / totalSchools) * 100), 
-          actualCount: schoolsNeedToilets, 
-          color: '#FF6B6B' 
-        },
-        { 
-          name: 'Kebutuhan Toilet (Belum DIbangun)', 
-          value: Math.round(((totalSchools - schoolsNeedToilets) / totalSchools) * 100), 
-          actualCount: (totalSchools - schoolsNeedToilets), 
-          color: '#4ECDC4' 
-        }
-      ].filter(item => item.value > 0));
-    }
-
-    // Bar chart data - Kondisi Toilet
-setKondisiToiletData([
-  { name: "Total Toilet", value: totalToiletCount, color: "#8884d8" },
-  { name: "Toilet Baik", value: totalToiletBaik, color: "#4ECDC4" },
-  { name: "Rusak Sedang", value: totalToiletRusakSedang, color: "#ffbb28" },
-  { name: "Rusak Berat", value: totalToiletRusakBerat, color: "#ff8042" },
-  { name: "Tidak Ada Toilet", value: schoolsNeedToilets, color: "#d9534f" },
-]);
-
-
-    // Bar chart data - Kategori Intervensi - FIXED: Now shows school counts, not toilet counts
-    setIntervensiToiletData([
-      { name: 'Total Intervensi', value: schoolsNeedToilets, color: '#FF6B6B' },
-      { name: 'Pembangunan Toilet', value: schoolsNeedRehab, color: '#FFD93D' },
-      { name: 'Rehabilitasi Toilet', value: schoolsWithGoodToilets, color: '#4ECDC4' }
-    ].filter(item => item.value > 0));
-
-    // Debug log to verify the numbers
-    console.log('📊 Chart Data Summary:');
-    console.log(`Total Schools: ${totalSchools}`);
-    console.log(`Schools Need Toilets: ${schoolsNeedToilets}`);
-    console.log(`Schools Need Rehab: ${schoolsNeedRehab}`);
+    // Debug log untuk melihat perhitungan aktual
+    console.log('📊 DINAMIS Chart Data Summary (ACTUAL CALCULATIONS):');
+    console.log(`Total Schools Filtered: ${totalSchools}`);
+    console.log(`=== Schools Categories ===`);
+    console.log(`Schools Need Toilets (No toilets): ${schoolsNeedToilets}`);
+    console.log(`Schools Need Rehab (Damaged toilets): ${schoolsNeedRehab}`);
     console.log(`Schools With Good Toilets: ${schoolsWithGoodToilets}`);
-    console.log(`Sum: ${schoolsNeedToilets + schoolsNeedRehab + schoolsWithGoodToilets} (should equal ${totalSchools})`);
+    console.log(`=== Toilet Counts ===`);
+    console.log(`Total Toilet Count: ${totalToiletCount}`);
+    console.log(`Toilet Baik: ${toiletBaik}`);
+    console.log(`Toilet Rusak Sedang: ${toiletRusakSedang}`);
+    console.log(`Toilet Rusak Berat: ${toiletRusakBerat}`);
+    console.log(`=== Intervention Needs ===`);
+    console.log(`Total Intervention Needed: ${totalIntervensiNeeded}`);
   };
   // Apply filters to school data
   useEffect(() => {

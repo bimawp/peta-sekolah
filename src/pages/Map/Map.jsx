@@ -11,7 +11,7 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import styles from "./Map.module.css";
+import styles from './Map.module.css';
 
 // Fix default Leaflet icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -23,10 +23,10 @@ L.Icon.Default.mergeOptions({
 
 // ========== CONSTANTS ==========
 const GARUT_BOUNDS = {
-  minLat: -7.6,
-  maxLat: -6.8,
-  minLng: 107.4,
-  maxLng: 108.2
+  minLat: -8.0,
+  maxLat: -6.5,
+  minLng: 107.0,
+  maxLng: 108.5
 };
 
 const GARUT_CENTER = [-7.2279, 107.9087];
@@ -42,7 +42,7 @@ const API_ENDPOINTS = {
 
 const FACILITY_COLORS = {
   "Rusak Berat": "#dc3545",
-  "Rusak Sedang": "#fd7e14",
+  "Rusak Sedang": "#fd7e14", 
   "Kekurangan RKB": "#ffc107",
   "Rehabilitasi": "#198754",
   "Pembangunan RKB": "#0d6efd",
@@ -51,17 +51,11 @@ const FACILITY_COLORS = {
 
 const FACILITY_LABELS = {
   "Rusak Berat": "Rusak Berat",
-  "Rusak Sedang": "Rusak Sedang", 
-  "Kekurangan RKB": "Kekurangan RKB",
+  "Rusak Sedang": "Rusak Sedang",
+  "Kekurangan RKB": "Kekurangan RKB", 
   "Rehabilitasi": "Baik / Rehabilitasi",
   "Pembangunan RKB": "Pembangunan RKB",
   "default": "Tidak Ada Data"
-};
-
-const PERFORMANCE_LIMITS = {
-  maxVisibleMarkers: 500,
-  initialDisplayLimit: 200,
-  boundsUpdateDelay: 300
 };
 
 // ========== UTILITY FUNCTIONS ==========
@@ -74,155 +68,182 @@ const isWithinGarutBounds = (lat, lng) => {
 
 const isValidCoordinate = (lat, lng) => {
   return !isNaN(lat) && !isNaN(lng) && 
+         lat !== 0 && lng !== 0 &&
          lat >= -90 && lat <= 90 && 
-         lng >= -180 && lng <= 180 &&
-         isWithinGarutBounds(lat, lng);
+         lng >= -180 && lng <= 180;
 };
 
-const reverseGeocode = async (lat, lng) => {
-  try {
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&accept-language=id,en`
-    );
-    const data = await response.json();
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
+
+// ========== FACILITY ANALYSIS ==========
+const analyzeFacilityCondition = (school) => {
+  const classCondition = school.class_condition || school.kondisi_ruang_kelas || {};
+  const toilets = school.toilets || school.toilet || {};
+  const library = school.library || school.perpustakaan || {};
+  const laboratory = school.laboratory || school.laboratory_comp || school.lab || {};
+  
+  if (school.fasilitas) {
+    if (typeof school.fasilitas === 'string') {
+      return school.fasilitas;
+    }
+    if (typeof school.fasilitas === 'object') {
+      const facility = school.fasilitas;
+      if (facility.rusakBerat > 0 || facility.rusak_berat > 0) return "Rusak Berat";
+      if (facility.rusakSedang > 0 || facility.rusak_sedang > 0) return "Rusak Sedang"; 
+      if (facility.kekurangan > 0 || facility.lacking_rkb > 0) return "Kekurangan RKB";
+      if (facility.baik > 0 || facility.good > 0) return "Rehabilitasi";
+    }
+  }
+  
+  let totalRooms = 0;
+  let goodRooms = 0;
+  let moderateDamage = 0;
+  let heavyDamage = 0;
+  let lacking = 0;
+
+  if (classCondition.total_room || classCondition.total) {
+    const total = Number(classCondition.total_room || classCondition.total) || 0;
+    totalRooms += total;
+    goodRooms += Number(classCondition.classrooms_good || classCondition.baik || classCondition.good) || 0;
+    moderateDamage += Number(classCondition.classrooms_moderate_damage || classCondition.rusak_sedang || classCondition.moderate_damage) || 0;
+    heavyDamage += Number(classCondition.classrooms_heavy_damage || classCondition.rusak_berat || classCondition.heavy_damage) || 0;
+    lacking += Number(classCondition.lacking_rkb || classCondition.kekurangan) || 0;
+  }
+
+  const toiletTotal = Number(toilets.total || toilets.available || toilets.jumlah) || 0;
+  if (toiletTotal > 0) {
+    totalRooms += toiletTotal;
+    goodRooms += Number(toilets.good || toilets.baik) || 0;
+    moderateDamage += Number(toilets.moderate_damage || toilets.rusak_sedang) || 0;
+    heavyDamage += Number(toilets.heavy_damage || toilets.rusak_berat) || 0;
+  }
+
+  const libTotal = Number(library.total || library.total_all || library.jumlah) || 0;
+  if (libTotal > 0) {
+    totalRooms += libTotal;
+    goodRooms += Number(library.good || library.baik) || 0;
+    moderateDamage += Number(library.moderate_damage || library.rusak_sedang) || 0;
+    heavyDamage += Number(library.heavy_damage || library.rusak_berat) || 0;
+  }
+
+  const labTotal = Number(laboratory.total || laboratory.total_all || laboratory.jumlah) || 0;
+  if (labTotal > 0) {
+    totalRooms += labTotal;
+    goodRooms += Number(laboratory.good || laboratory.baik) || 0;
+    moderateDamage += Number(laboratory.moderate_damage || laboratory.rusak_sedang) || 0;
+    heavyDamage += Number(laboratory.heavy_damage || laboratory.rusak_berat) || 0;
+  }
+
+  if (heavyDamage > 0) return "Rusak Berat";
+  if (lacking > 0) return "Kekurangan RKB";
+  if (moderateDamage > 0) return "Rusak Sedang";
+  if (goodRooms > 0) return "Rehabilitasi";
+  if (totalRooms > 0) return "Rehabilitasi";
+  
+  return "default";
+};
+
+const generateFacilityDetails = (school) => {
+  const details = [];
+  
+  const classData = school.class_condition || school.kondisi_ruang_kelas || {};
+  if (classData.total_room || classData.total || classData.jumlah) {
+    const total = Number(classData.total_room || classData.total || classData.jumlah) || 0;
     
-    if (data?.address) {
-      const address = data.address;
-      return {
-        fullAddress: data.display_name,
-        road: address.road || address.street || '',
-        village: address.village || address.suburb || address.hamlet || '',
-        district: address.district || address.state_district || '',
-        city: address.city || address.town || address.county || '',
-        state: address.state || address.province || '',
-        postcode: address.postcode || '',
-        country: address.country || 'Indonesia'
-      };
+    if (total > 0) {
+      const items = [];
+      items.push(`Total Ruang: ${total}`);
+      
+      const good = Number(classData.classrooms_good || classData.baik || classData.good) || 0;
+      const moderate = Number(classData.classrooms_moderate_damage || classData.rusak_sedang || classData.moderate_damage) || 0;
+      const heavy = Number(classData.classrooms_heavy_damage || classData.rusak_berat || classData.heavy_damage) || 0;
+      const lacking = Number(classData.lacking_rkb || classData.kekurangan) || 0;
+      
+      if (good > 0) items.push(`Kondisi Baik: ${good}`);
+      if (moderate > 0) items.push(`Rusak Sedang: ${moderate}`);
+      if (heavy > 0) items.push(`Rusak Berat: ${heavy}`);
+      if (lacking > 0) items.push(`Kekurangan RKB: ${lacking}`);
+      
+      details.push({
+        title: "Kondisi Ruang Kelas",
+        items: items
+      });
     }
-    return null;
-  } catch (error) {
-    console.warn("Reverse geocoding failed:", error);
-    return null;
   }
+
+  const studentCount = school.student_count || school.jumlah_siswa || 
+                      (Number(school.st_male || 0) + Number(school.st_female || 0));
+  
+  if (studentCount > 0) {
+    const items = [`Total: ${studentCount} siswa`];
+    
+    if (school.st_male && school.st_female) {
+      items.push(`Laki-laki: ${school.st_male}`);
+      items.push(`Perempuan: ${school.st_female}`);
+    }
+    
+    details.push({
+      title: "Jumlah Siswa",
+      items: items
+    });
+  }
+
+  const rombel = school.rombel || school.rombongan_belajar || {};
+  if (rombel.total || Object.keys(rombel).length > 0) {
+    const items = [];
+    
+    if (rombel.total) items.push(`Total Rombel: ${rombel.total}`);
+    
+    if (rombel.kb) items.push(`KB: ${rombel.kb}`);
+    if (rombel.tka) items.push(`TK A: ${rombel.tka}`);
+    if (rombel.tkb) items.push(`TK B: ${rombel.tkb}`);
+    
+    Object.keys(rombel).forEach(key => {
+      if (key.match(/^\d+$/)) {
+        items.push(`Kelas ${key}: ${rombel[key]}`);
+      }
+    });
+    
+    if (items.length > 0) {
+      details.push({
+        title: "Rombongan Belajar",
+        items: items
+      });
+    }
+  }
+
+  return {
+    condition: analyzeFacilityCondition(school),
+    details: details
+  };
 };
 
-// ========== ICON CREATION ==========
-const createFacilityIcon = (color, size = 'normal') => {
-  // Responsive icon sizes
-  const dimensions = size === 'small' ? { width: 20, height: 33 } : { width: 25, height: 41 };
-  const circleRadius = size === 'small' ? 5 : 6;
-  const innerRadius = size === 'small' ? 2.5 : 3;
-  
-  const svgIcon = `
-    <svg width="${dimensions.width}" height="${dimensions.height}" viewBox="0 0 ${dimensions.width} ${dimensions.height}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="shadow-${color.replace('#', '')}" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.3)"/>
-        </filter>
-      </defs>
-      <path d="M${dimensions.width/2} 0C${dimensions.width*0.224} 0 0 ${dimensions.width*0.224} 0 ${dimensions.width/2}c0 ${dimensions.width*0.132} ${dimensions.width*0.052} ${dimensions.width*0.252} ${dimensions.width*0.136} ${dimensions.width*0.34}L${dimensions.width/2} ${dimensions.height}l${dimensions.width*0.364} -${dimensions.height*0.488}c${dimensions.width*0.084}-${dimensions.width*0.088} ${dimensions.width*0.136}-${dimensions.width*0.208} ${dimensions.width*0.136}-${dimensions.width*0.34}C${dimensions.width} ${dimensions.width*0.224} ${dimensions.width*0.776} 0 ${dimensions.width/2} 0z" 
-            fill="${color}" 
-            stroke="#ffffff" 
-            stroke-width="2"
-            filter="url(#shadow-${color.replace('#', '')})"
-      />
-      <circle cx="${dimensions.width/2}" cy="${dimensions.width/2}" r="${circleRadius}" fill="white" stroke="#333" stroke-width="1"/>
-      <circle cx="${dimensions.width/2}" cy="${dimensions.width/2}" r="${innerRadius}" fill="${color}"/>
-    </svg>
-  `;
-  
-  return new L.DivIcon({
-    html: svgIcon,
-    iconSize: [dimensions.width, dimensions.height],
-    iconAnchor: [dimensions.width/2, dimensions.height],
-    popupAnchor: [1, -dimensions.height*0.83],
-    className: 'custom-facility-icon'
-  });
+const getFacilityColor = (facility, school = null) => {
+  const condition = getFacilityStatus(facility, school);
+  return FACILITY_COLORS[condition] || FACILITY_COLORS.default;
 };
 
-const createKecamatanIcon = (stats, size = 'normal') => {
-  const { total, baik, rusakSedang, rusakBerat } = stats;
-  const dimensions = size === 'small' ? 28 : 35;
-  
-  let dominantColor = FACILITY_COLORS.default;
-  if (rusakBerat > 0) dominantColor = FACILITY_COLORS["Rusak Berat"];
-  else if (rusakSedang > 0) dominantColor = FACILITY_COLORS["Rusak Sedang"];
-  else if (baik > 0) dominantColor = FACILITY_COLORS["Rehabilitasi"];
-  
-  const svgIcon = `
-    <svg width="${dimensions}" height="${dimensions}" viewBox="0 0 ${dimensions} ${dimensions}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="shadow-kec-${total}" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.4)"/>
-        </filter>
-      </defs>
-      <circle cx="${dimensions/2}" cy="${dimensions/2}" r="${dimensions/2-2}" 
-              fill="${dominantColor}" 
-              stroke="#fff" 
-              stroke-width="2"
-              filter="url(#shadow-kec-${total})"
-      />
-      <circle cx="${dimensions/2}" cy="${dimensions/2}" r="${dimensions/2-6}" 
-              fill="rgba(255,255,255,0.95)" 
-              stroke="#333" 
-              stroke-width="1"
-      />
-      <text x="${dimensions/2}" y="${dimensions/2-2}" 
-            text-anchor="middle" 
-            font-size="${size === 'small' ? 7 : 8}" 
-            font-weight="bold" 
-            fill="#333"
-      >${total}</text>
-      <text x="${dimensions/2}" y="${dimensions/2+6}" 
-            text-anchor="middle" 
-            font-size="${size === 'small' ? 5 : 6}" 
-            fill="#666"
-      >sekolah</text>
-    </svg>
-  `;
-  
-  return new L.DivIcon({
-    html: svgIcon,
-    iconSize: [dimensions, dimensions],
-    iconAnchor: [dimensions/2, dimensions/2],
-    popupAnchor: [0, -dimensions/2],
-    className: 'custom-kecamatan-icon'
-  });
-};
-
-// Fixed default icon with proper CDN URLs
-const defaultIcon = new L.Icon({
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-// ========== FACILITY HELPERS ==========
-const getFacilityColor = (facility) => {
-  if (!facility) return FACILITY_COLORS.default;
-  
-  if (typeof facility === 'object') {
-    if (facility.rusakBerat > 0 || facility.rusak_berat > 0 || facility.heavily_damaged > 0) {
-      return FACILITY_COLORS["Rusak Berat"];
-    }
-    if (facility.rusakSedang > 0 || facility.rusak_sedang > 0 || facility.slightly_damaged > 0) {
-      return FACILITY_COLORS["Rusak Sedang"];
-    }
-    if (facility.baik > 0 || facility.good > 0 || facility.bagus > 0) {
-      return FACILITY_COLORS["Rehabilitasi"];
-    }
-    return FACILITY_COLORS.default;
+const getFacilityStatus = (facility, school = null) => {
+  if (school) {
+    const condition = analyzeFacilityCondition(school);
+    return condition;
   }
   
-  return FACILITY_COLORS[facility] || FACILITY_COLORS.default;
-};
-
-const getFacilityStatus = (facility) => {
   if (!facility) return "default";
+  
+  if (typeof facility === 'string') {
+    return facility in FACILITY_COLORS ? facility : "default";
+  }
   
   if (typeof facility === 'object') {
     if (facility.rusakBerat > 0 || facility.rusak_berat > 0 || facility.heavily_damaged > 0) {
@@ -231,29 +252,66 @@ const getFacilityStatus = (facility) => {
     if (facility.rusakSedang > 0 || facility.rusak_sedang > 0 || facility.slightly_damaged > 0) {
       return "Rusak Sedang";
     }
-    if (facility.baik > 0 || facility.good > 0 || facility.bagus > 0) {
+    if (facility.kekurangan > 0 || facility.lacking_rkb > 0) {
+      return "Kekurangan RKB";
+    }
+    if (facility.baik > 0 || facility.good > 0) {
       return "Rehabilitasi";
     }
-    return "default";
   }
   
-  return facility in FACILITY_COLORS ? facility : "default";
+  return "default";
 };
 
-const getFacilityText = (facility) => {
-  if (typeof facility === 'object') {
-    const baik = facility.baik || facility.good || facility.bagus || 0;
-    const rusakSedang = facility.rusakSedang || facility.rusak_sedang || facility.slightly_damaged || 0;
-    const rusakBerat = facility.rusakBerat || facility.rusak_berat || facility.heavily_damaged || 0;
-    return `Baik: ${baik}, Rusak Sedang: ${rusakSedang}, Rusak Berat: ${rusakBerat}`;
-  }
-  return facility;
+// ========== ICON CREATION ==========
+const createFacilityIcon = (color, size = 'normal') => {
+  const dimensions = size === 'small' ? { width: 16, height: 26 } : { width: 20, height: 33 };
+  const radius = size === 'small' ? 4 : 5;
+  
+  return new L.DivIcon({
+    html: `<div style="
+      background: ${color};
+      width: ${dimensions.width}px;
+      height: ${dimensions.height}px;
+      border-radius: 50% 50% 50% 0;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      transform: rotate(-45deg);
+      position: relative;
+    ">
+      <div style="
+        background: white;
+        width: ${radius * 2}px;
+        height: ${radius * 2}px;
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(45deg);
+        border: 1px solid #333;
+      ">
+        <div style="
+          background: ${color};
+          width: ${radius}px;
+          height: ${radius}px;
+          border-radius: 50%;
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+        "></div>
+      </div>
+    </div>`,
+    iconSize: [dimensions.width, dimensions.height],
+    iconAnchor: [dimensions.width/2, dimensions.height],
+    popupAnchor: [0, -dimensions.height],
+    className: styles.customFacilityIcon
+  });
 };
 
-// Enhanced icon cache with responsive sizing
 const iconCache = {};
-const getIconForFacility = (facility, isMobile = false) => {
-  const color = getFacilityColor(facility);
+const getIconForFacility = (facility, school = null, isMobile = false) => {
+  const color = getFacilityColor(facility, school);
   const size = isMobile ? 'small' : 'normal';
   const cacheKey = `${color}-${size}`;
   
@@ -270,24 +328,56 @@ const formatLegacyData = (rawData, jenjang) => {
   
   Object.entries(rawData).forEach(([kecamatan, schools]) => {
     schools.forEach((school) => {
-      if (school.coordinates?.length === 2) {
-        const lat = parseFloat(school.coordinates[0]);
-        const lng = parseFloat(school.coordinates[1]);
-        
-        if (isValidCoordinate(lat, lng)) {
-          result.push({
-            nama: school.name,
-            npsn: school.npsn,
-            alamat: school.address,
-            kecamatan,
-            desa: school.desa || "",
-            kabupaten: school.kabupaten || "Garut",
-            lintang: lat,
-            bujur: lng,
-            jenjang,
-            fasilitas: school.fasilitas || null,
-          });
-        }
+      let lat, lng;
+      
+      if (school.coordinates && Array.isArray(school.coordinates) && school.coordinates.length >= 2) {
+        lat = parseFloat(school.coordinates[0]);
+        lng = parseFloat(school.coordinates[1]);
+      } else if (school.lat && school.lng) {
+        lat = parseFloat(school.lat);
+        lng = parseFloat(school.lng);
+      } else if (school.latitude && school.longitude) {
+        lat = parseFloat(school.latitude);
+        lng = parseFloat(school.longitude);
+      }
+      
+      if (isValidCoordinate(lat, lng)) {
+        result.push({
+          nama: school.name || school.nama || 'Unknown',
+          npsn: school.npsn || school.id || '',
+          alamat: school.address || school.alamat || '',
+          kecamatan: kecamatan || school.kecamatan || '',
+          desa: school.village || school.desa || school.kelurahan || "",
+          kabupaten: school.kabupaten || "Garut",
+          lintang: lat,
+          bujur: lng,
+          jenjang,
+          fasilitas: school.fasilitas || school.kondisi_fasilitas || null,
+          student_count: school.student_count || school.jumlah_siswa,
+          st_male: school.st_male || school.siswa_laki,
+          st_female: school.st_female || school.siswa_perempuan,
+          type: school.type || school.jenis,
+          class_condition: school.class_condition || school.kondisi_ruang_kelas,
+          rombel: school.rombel || school.rombongan_belajar,
+          furniture_computer: school.furniture_computer || school.perabot_komputer,
+          furniture: school.furniture || school.perabot,
+          teacher: school.teacher || school.guru,
+          toilets: school.toilets || school.toilet,
+          students_toilet: school.students_toilet,
+          teachers_toilet: school.teachers_toilet,
+          library: school.library || school.perpustakaan,
+          laboratory: school.laboratory,
+          laboratory_comp: school.laboratory_comp,
+          laboratory_ipa: school.laboratory_ipa,
+          laboratory_fisika: school.laboratory_fisika,
+          laboratory_biologi: school.laboratory_biologi,
+          laboratory_langua: school.laboratory_langua,
+          uks: school.uks,
+          uks_room: school.uks_room,
+          ape: school.ape,
+          building_status: school.building_status || school.status_bangunan,
+          facilities: school.facilities || school.fasilitas_umum
+        });
       }
     });
   });
@@ -298,15 +388,17 @@ const formatLegacyData = (rawData, jenjang) => {
 const formatSchoolsData = (schoolsArray) => {
   return schoolsArray
     .map(school => {
-      const lat = parseFloat(
-        school.latitude || school.lat || school.lintang || school.koordinat?.lat || 0
+      let lat = parseFloat(
+        school.latitude || school.lat || school.lintang || school.koordinat?.lat || 
+        (school.coordinates && school.coordinates[0]) || 0
       );
-      const lng = parseFloat(
-        school.longitude || school.lng || school.bujur || school.koordinat?.lng || 0
+      let lng = parseFloat(
+        school.longitude || school.lng || school.bujur || school.koordinat?.lng || 
+        (school.coordinates && school.coordinates[1]) || 0
       );
       
       return {
-        nama: school.namaSekolah || school.nama_sekolah || school.school_name || school.nama || 'Unknown',
+        nama: school.namaSekolah || school.nama_sekolah || school.school_name || school.nama || school.name || 'Unknown',
         npsn: school.npsn || school.school_id || school.id || '',
         alamat: school.alamat || school.address || school.alamat_sekolah || '',
         kecamatan: school.kecamatan || school.kec || school.kecamatan_nama || school.subdistrict || '',
@@ -316,6 +408,30 @@ const formatSchoolsData = (schoolsArray) => {
         bujur: lng,
         jenjang: school.jenjang || school.tingkat_pendidikan || school.level || school.bentuk_pendidikan || 'Unknown',
         fasilitas: school.fasilitas || school.kondisiKelas || school.kondisi_ruang_kelas || null,
+        student_count: school.student_count,
+        st_male: school.st_male,
+        st_female: school.st_female,
+        type: school.type,
+        class_condition: school.class_condition,
+        rombel: school.rombel,
+        furniture_computer: school.furniture_computer,
+        furniture: school.furniture,
+        teacher: school.teacher,
+        toilets: school.toilets,
+        students_toilet: school.students_toilet,
+        teachers_toilet: school.teachers_toilet,
+        library: school.library,
+        laboratory: school.laboratory,
+        laboratory_comp: school.laboratory_comp,
+        laboratory_ipa: school.laboratory_ipa,
+        laboratory_fisika: school.laboratory_fisika,
+        laboratory_biologi: school.laboratory_biologi,
+        laboratory_langua: school.laboratory_langua,
+        uks: school.uks,
+        uks_room: school.uks_room,
+        ape: school.ape,
+        building_status: school.building_status,
+        facilities: school.facilities
       };
     })
     .filter(school => isValidCoordinate(school.lintang, school.bujur));
@@ -329,150 +445,123 @@ const useResponsive = () => {
   useEffect(() => {
     const checkDevice = () => {
       const width = window.innerWidth;
-      setIsMobile(width <= 480);
-      setIsTablet(width > 480 && width <= 768);
+      setIsMobile(width <= 768);
+      setIsTablet(width > 768 && width <= 1024);
     };
     
     checkDevice();
-    window.addEventListener('resize', checkDevice);
+    const debouncedCheck = debounce(checkDevice, 100);
+    window.addEventListener('resize', debouncedCheck);
     
-    return () => window.removeEventListener('resize', checkDevice);
+    return () => window.removeEventListener('resize', debouncedCheck);
   }, []);
   
   return { isMobile, isTablet };
 };
 
 // ========== POPUP COMPONENTS ==========
-const SchoolPopup = React.memo(({ school, getDetailedAddress, isMobile }) => {
-  const [detailAddress, setDetailAddress] = useState(null);
-  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+const EnhancedSchoolPopup = React.memo(({ school, isMobile }) => {
+  const [showFullDetails, setShowFullDetails] = useState(false);
+  
+  const facilityAnalysis = useMemo(() => {
+    return generateFacilityDetails(school);
+  }, [school]);
+  
+  const facilityStatus = getFacilityStatus(school.fasilitas, school);
+  const facilityColor = FACILITY_COLORS[facilityStatus];
 
-  const needsGeocoding = !school.desa || !school.kecamatan || !school.kabupaten;
-  const facilityStatus = getFacilityStatus(school.fasilitas);
-  const facilityColor = getFacilityColor(school.fasilitas);
+  const containerClass = `${styles.popupContainer} ${isMobile ? styles.mobile : styles.desktop}`;
+  const titleClass = `${styles.popupTitle} ${isMobile ? styles.mobile : styles.desktop}`;
+  const facilitySectionClass = `${styles.facilitySection} ${isMobile ? styles.mobile : styles.desktop}`;
+  const circleClass = `${styles.facilityCircle} ${isMobile ? styles.mobile : styles.desktop}`;
+  const buttonClass = `${styles.detailToggleButton} ${isMobile ? styles.mobile : styles.desktop}`;
+  const hideButtonClass = `${styles.hideDetailButton} ${isMobile ? styles.mobile : styles.desktop}`;
+  const locationClass = `${styles.locationSection} ${isMobile ? styles.mobile : styles.desktop}`;
+  const coordinatesClass = `${styles.coordinatesSection} ${isMobile ? styles.mobile : styles.desktop}`;
 
-  useEffect(() => {
-    if (needsGeocoding) {
-      const loadAddress = async () => {
-        setIsLoadingAddress(true);
-        try {
-          const address = await getDetailedAddress(school);
-          setDetailAddress(address);
-        } catch (error) {
-          console.error("Error loading address:", error);
-        } finally {
-          setIsLoadingAddress(false);
-        }
-      };
-      loadAddress();
-    }
-  }, [school, needsGeocoding, getDetailedAddress]);
-
-  const popupStyles = {
-    container: {
-      minWidth: isMobile ? '200px' : '250px',
-      maxWidth: isMobile ? '280px' : '350px',
-      fontSize: isMobile ? '0.85em' : '1em'
-    },
-    title: {
-      fontSize: isMobile ? '1em' : '1.1em',
-      color: '#2c3e50',
-      marginBottom: '8px'
-    },
-    section: {
-      marginTop: isMobile ? '6px' : '8px',
-      padding: isMobile ? '8px' : '10px',
-      backgroundColor: '#f8f9fa',
-      borderRadius: '6px',
-      border: `2px solid ${facilityColor}`
-    },
-    indicator: {
-      display: 'flex',
-      alignItems: 'center',
-      marginBottom: '6px'
-    },
-    circle: {
-      display: 'inline-block',
-      width: isMobile ? 16 : 20,
-      height: isMobile ? 16 : 20,
-      borderRadius: '50%',
-      background: facilityColor,
-      marginRight: '8px',
-      border: '2px solid #fff',
-      boxShadow: '0 0 0 1px #ccc'
-    }
-  };
+  // Prevent event bubbling that could cause popup to close
+  const handleToggleDetails = useCallback((e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setShowFullDetails(prev => !prev);
+  }, []);
 
   return (
-    <div style={popupStyles.container}>
-      <strong style={popupStyles.title}>
+    <div className={containerClass}>
+      <div className={titleClass}>
         {school.nama}
-      </strong>
+      </div>
       
-      <div style={{ marginTop: 8 }}>
+      <div className={styles.schoolInfo}>
         <strong>Jenjang:</strong> 
-        <span style={{ color: '#3498db' }}> {school.jenjang}</span>
+        <span className={styles.jenjangBadge}>{school.jenjang}</span>
+        {school.type && (
+          <span className={styles.typeBadge}>({school.type})</span>
+        )}
       </div>
       
       {school.alamat && (
-        <div style={{ marginTop: 4 }}>
+        <div className={styles.schoolInfoItem}>
           <strong>Alamat:</strong> {school.alamat}
         </div>
       )}
       
-      <div style={popupStyles.section}>
-        <div style={popupStyles.indicator}>
-          <span style={popupStyles.circle}></span>
-          <strong style={{ color: facilityColor }}>
+      <div className={facilitySectionClass} style={{ borderColor: facilityColor }}>
+        <div className={styles.facilityIndicator}>
+          <span className={circleClass} style={{ background: facilityColor }}></span>
+          <strong className={styles.facilityStatus} style={{ color: facilityColor }}>
             {FACILITY_LABELS[facilityStatus]}
           </strong>
         </div>
-        
-        {school.fasilitas && (
-          <div style={{ 
-            fontSize: isMobile ? '0.8em' : '0.9em',
-            color: '#555',
-            backgroundColor: 'rgba(255,255,255,0.8)',
-            padding: isMobile ? '4px' : '6px',
-            borderRadius: '4px',
-            marginTop: '4px'
-          }}>
-            <strong>Detail Kondisi:</strong><br/>
-            {getFacilityText(school.fasilitas)}
-          </div>
-        )}
       </div>
+
+      {facilityAnalysis.details.length > 0 && (
+        <div className={styles.facilityDetailsSection}>
+          <button 
+            onClick={handleToggleDetails}
+            className={showFullDetails ? hideButtonClass : buttonClass}
+            type="button"
+          >
+            {showFullDetails ? 
+              'Sembunyikan Detail' : 
+              `Lihat Detail Fasilitas (${facilityAnalysis.details.length} kategori)`
+            }
+          </button>
+          
+          {showFullDetails && (
+            <div className={styles.detailsContainer}>
+              {facilityAnalysis.details.map((detail, index) => (
+                <div key={index} className={styles.detailSection}>
+                  <div className={`${styles.detailTitle} ${isMobile ? styles.mobile : styles.desktop}`}>
+                    {detail.title}
+                  </div>
+                  {detail.items.map((item, itemIndex) => (
+                    <div key={itemIndex} className={`${styles.detailItem} ${isMobile ? styles.mobile : styles.desktop}`}>
+                      • {item}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       
-      <div style={{ 
-        marginTop: 8, 
-        padding: isMobile ? '6px' : '8px',
-        backgroundColor: '#f8f9fa', 
-        borderRadius: '4px', 
-        fontSize: isMobile ? '0.8em' : '0.9em'
-      }}>
-        <strong style={{ color: '#34495e' }}>Lokasi Administratif:</strong>
+      <div className={locationClass}>
+        <div className={styles.locationTitle}>Lokasi:</div>
         
-        {school.desa ? (
-          <div><strong>Desa/Kelurahan:</strong> {school.desa}</div>
-        ) : isLoadingAddress ? (
-          <div><strong>Desa/Kelurahan:</strong> <em>Memuat...</em></div>
-        ) : detailAddress?.village && (
-          <div>
-            <strong>Desa/Kelurahan:</strong> {detailAddress.village} 
-            <span style={{ color: '#e67e22', fontSize: '0.8em' }}> (geocode)</span>
-          </div>
+        {school.desa && (
+          <div className={styles.locationItem}><strong>Desa/Kel:</strong> {school.desa}</div>
         )}
-        
         {school.kecamatan && (
-          <div><strong>Kecamatan:</strong> {school.kecamatan}</div>
+          <div className={styles.locationItem}><strong>Kecamatan:</strong> {school.kecamatan}</div>
         )}
-        
         {school.kabupaten && (
-          <div><strong>Kab/Kota:</strong> {school.kabupaten}</div>
+          <div className={styles.locationItem}><strong>Kabupaten:</strong> {school.kabupaten}</div>
         )}
       </div>
       
-      <div style={{ marginTop: 4, fontSize: isMobile ? '0.8em' : '0.9em', color: '#666' }}>
+      <div className={coordinatesClass}>
         {school.npsn && (
           <><strong>NPSN:</strong> {school.npsn}<br /></>
         )}
@@ -482,7 +571,102 @@ const SchoolPopup = React.memo(({ school, getDetailedAddress, isMobile }) => {
   );
 });
 
-SchoolPopup.displayName = 'SchoolPopup';
+EnhancedSchoolPopup.displayName = 'EnhancedSchoolPopup';
+
+// ========== MARKER COMPONENTS ==========
+const VirtualizedMarker = React.memo(({ school, isMobile }) => {
+  const markerRef = useRef();
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  
+  const markerIcon = useMemo(() => 
+    getIconForFacility(school.fasilitas, school, isMobile), 
+    [school.fasilitas, school, isMobile]
+  );
+  
+  const stableKey = useMemo(() => 
+    `${school.npsn || 'unk'}-${school.lintang}-${school.bujur}`, 
+    [school.npsn, school.lintang, school.bujur]
+  );
+
+  const handleClick = useCallback(() => {
+    if (markerRef.current && !isPopupOpen) {
+      markerRef.current.openPopup();
+      setIsPopupOpen(true);
+    }
+  }, [isPopupOpen]);
+
+  const handlePopupClose = useCallback(() => {
+    setIsPopupOpen(false);
+  }, []);
+
+  if (!isValidCoordinate(school.lintang, school.bujur)) {
+    return null;
+  }
+
+  return (
+    <Marker 
+      key={stableKey}
+      ref={markerRef}
+      position={[school.lintang, school.bujur]} 
+      icon={markerIcon}
+      eventHandlers={{
+        click: handleClick,
+        popupclose: handlePopupClose
+      }}
+    >
+      <Popup 
+        maxWidth={isMobile ? 300 : 400}
+        closeButton={true}
+        autoClose={true}
+        closeOnClick={true}
+        keepInView={true}
+        autoPan={!isMobile}
+      >
+        <EnhancedSchoolPopup 
+          school={school} 
+          isMobile={isMobile}
+        />
+      </Popup>
+    </Marker>
+  );
+});
+
+VirtualizedMarker.displayName = 'VirtualizedMarker';
+
+// ========== KECAMATAN COMPONENTS ==========
+const createKecamatanIcon = (stats, size = 'normal') => {
+  const { total, baik, rusakSedang, rusakBerat } = stats;
+  const dimensions = size === 'small' ? 24 : 30;
+  
+  let dominantColor = FACILITY_COLORS.default;
+  if (rusakBerat > 0) dominantColor = FACILITY_COLORS["Rusak Berat"];
+  else if (rusakSedang > 0) dominantColor = FACILITY_COLORS["Rusak Sedang"];
+  else if (baik > 0) dominantColor = FACILITY_COLORS["Rehabilitasi"];
+  
+  return new L.DivIcon({
+    html: `<div style="
+      width: ${dimensions}px;
+      height: ${dimensions}px;
+      border-radius: 50%;
+      background: ${dominantColor};
+      border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    ">
+      <div style="font-size: ${size === 'small' ? '8px' : '10px'}; line-height: 1;">${total}</div>
+      <div style="font-size: ${size === 'small' ? '6px' : '7px'}; line-height: 1;">sekolah</div>
+    </div>`,
+    iconSize: [dimensions, dimensions],
+    iconAnchor: [dimensions/2, dimensions/2],
+    popupAnchor: [0, -dimensions/2],
+    className: styles.customKecamatanIcon
+  });
+};
 
 const KecamatanPopup = React.memo(({ kecamatanName, stats, isMobile }) => {
   const percentages = useMemo(() => ({
@@ -492,40 +676,27 @@ const KecamatanPopup = React.memo(({ kecamatanName, stats, isMobile }) => {
     noData: ((stats.noData / stats.total) * 100).toFixed(1)
   }), [stats]);
 
-  const jenjangCounts = useMemo(() => {
-    return stats.schools.reduce((acc, school) => {
-      acc[school.jenjang] = (acc[school.jenjang] || 0) + 1;
-      return acc;
-    }, {});
-  }, [stats.schools]);
+  const containerClass = `${styles.kecamatanPopup} ${isMobile ? styles.mobile : styles.desktop}`;
+  const titleClass = `${styles.kecamatanTitle} ${isMobile ? styles.mobile : styles.desktop}`;
+  const totalClass = `${styles.totalSchoolsCard} ${isMobile ? styles.mobile : styles.desktop}`;
+  const conditionListClass = `${styles.conditionList} ${isMobile ? styles.mobile : styles.desktop}`;
+  const circleClass = `${styles.conditionCircle} ${isMobile ? styles.mobile : styles.desktop}`;
 
   return (
-    <div style={{ 
-      minWidth: isMobile ? '200px' : '280px',
-      maxWidth: isMobile ? '300px' : '350px',
-      fontSize: isMobile ? '0.85em' : '1em'
-    }}>
-      <strong style={{ 
-        fontSize: isMobile ? '1.1em' : '1.2em',
-        color: '#2c3e50' 
-      }}>
+    <div className={containerClass}>
+      <strong className={titleClass}>
         Kecamatan {kecamatanName}
       </strong>
       
-      <div style={{ 
-        marginTop: 10, 
-        padding: isMobile ? '6px' : '8px',
-        backgroundColor: '#ecf0f1', 
-        borderRadius: '4px' 
-      }}>
+      <div className={totalClass}>
         <strong>Total Sekolah: {stats.total}</strong>
       </div>
       
-      <div style={{ marginTop: 8 }}>
-        <strong style={{ color: '#34495e' }}>Kondisi Fasilitas:</strong>
+      <div className={styles.conditionTitle}>
+        <strong>Kondisi Fasilitas:</strong>
       </div>
       
-      <div style={{ marginTop: 4, fontSize: isMobile ? '0.8em' : '0.9em' }}>
+      <div className={conditionListClass}>
         {[
           { key: 'baik', label: 'Kondisi Baik', color: '#198754' },
           { key: 'rusakSedang', label: 'Rusak Sedang', color: '#fd7e14' },
@@ -533,35 +704,13 @@ const KecamatanPopup = React.memo(({ kecamatanName, stats, isMobile }) => {
           { key: 'noData', label: 'Tanpa Data', color: '#6c757d' }
         ].map(({ key, label, color }) => (
           stats[key] > 0 && (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
-              <span style={{
-                display: 'inline-block',
-                width: isMobile ? 10 : 12,
-                height: isMobile ? 10 : 12,
-                borderRadius: '50%',
-                background: color,
-                marginRight: '6px'
-              }}></span>
+            <div key={key} className={styles.conditionItem}>
+              <span className={circleClass} style={{ background: color }}></span>
               <span>{label}: <strong>{stats[key]}</strong> ({percentages[key]}%)</span>
             </div>
           )
         ))}
       </div>
-      
-      {!isMobile && (
-        <div style={{ 
-          marginTop: 8, 
-          padding: 6,
-          backgroundColor: '#f8f9fa', 
-          borderRadius: '4px', 
-          fontSize: '0.85em' 
-        }}>
-          <strong>Detail Jenjang:</strong>
-          {Object.entries(jenjangCounts).map(([jenjang, count]) => (
-            <div key={jenjang}>• {jenjang}: {count} sekolah</div>
-          ))}
-        </div>
-      )}
     </div>
   );
 });
@@ -573,30 +722,34 @@ const SafeGeoJSON = React.memo(({ data, style }) => {
   const safeOnEachFeature = useCallback((feature, layer) => {
     try {
       if (feature.properties) {
-        const name = feature.properties.name || 
-                    feature.properties.district || 
-                    feature.properties.village || 
-                    'Unknown';
+        const name =
+          feature.properties.name ||
+          feature.properties.district ||
+          feature.properties.village ||
+          "Unknown";
         layer.bindPopup(name);
       }
     } catch (e) {
       console.warn("GeoJSON feature error", e);
     }
   }, []);
-  
+
+  if (!data?.features) return null;
+
   return (
-    <GeoJSON 
-      data={data} 
-      style={style} 
+    <GeoJSON
+      data={data}
+      style={style}
       onEachFeature={safeOnEachFeature}
       key={JSON.stringify(data)}
     />
   );
 });
 
-SafeGeoJSON.displayName = 'SafeGeoJSON';
+SafeGeoJSON.displayName = "SafeGeoJSON";
 
-const Legend = React.memo(({ filteredCount, visibleCount, schools, isMobile }) => {
+// ========== LEGEND ==========
+const InteractiveLegend = React.memo(({ filteredCount, visibleCount, schools, isMobile, totalSchoolsLoaded }) => {
   const map = useMap();
   
   const facilityStats = useMemo(() => {
@@ -610,7 +763,7 @@ const Legend = React.memo(({ filteredCount, visibleCount, schools, isMobile }) =
     };
 
     schools.forEach(school => {
-      const status = getFacilityStatus(school.fasilitas);
+      const status = getFacilityStatus(school.fasilitas, school);
       stats[status] = (stats[status] || 0) + 1;
     });
 
@@ -621,7 +774,13 @@ const Legend = React.memo(({ filteredCount, visibleCount, schools, isMobile }) =
     const legend = L.control({ position: "bottomright" });
     
     legend.onAdd = () => {
-      const div = L.DomUtil.create("div", styles.legend);
+      const div = L.DomUtil.create("div", "info legend");
+      div.className += ` ${styles.legend} ${isMobile ? styles.mobile : styles.desktop}`;
+      div.style.maxHeight = isMobile ? '70vh' : '80vh';
+      div.style.overflowY = 'auto';
+      div.style.zIndex = '1000';
+      div.style.background = 'rgba(255, 255, 255, 0.95)';
+      div.style.backdropFilter = 'blur(5px)';
       
       const facilityRows = Object.entries(facilityStats)
         .filter(([_, count]) => count > 0)
@@ -631,29 +790,23 @@ const Legend = React.memo(({ filteredCount, visibleCount, schools, isMobile }) =
           const percentage = ((count / filteredCount) * 100).toFixed(1);
           
           return `
-            <div style="display: flex; align-items: center; margin: ${isMobile ? '1px' : '2px'} 0;">
-              <span style="background:${color}; width:${isMobile ? '10px' : '12px'}; height:${isMobile ? '10px' : '12px'}; display:inline-block; margin-right:5px; border-radius:50%; border: 1px solid #ccc;"></span>
-              <span style="font-size: ${isMobile ? '9px' : '11px'};">${isMobile ? label.substring(0, 15) + (label.length > 15 ? '...' : '') : label}: <strong>${count}</strong> (${percentage}%)</span>
+            <div class="${styles.legendRow} ${isMobile ? styles.mobile : styles.desktop}" style="margin-bottom: 4px;">
+              <span class="${styles.legendCircle} ${isMobile ? styles.mobile : styles.desktop}" style="background:${color}; display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 8px;"></span>
+              <span class="${styles.legendText} ${isMobile ? styles.mobile : styles.desktop}" style="font-size: ${isMobile ? '11px' : '12px'};">${isMobile && label.length > 15 ? label.substring(0, 15) + '...' : label}: <strong>${count}</strong> <span style="color: #666;">(${percentage}%)</span></span>
             </div>
           `;
         }).join('');
       
       div.innerHTML = `
-        <h4 style="font-size: ${isMobile ? '11px' : '14px'};">Keterangan</h4>
-        <div style="margin-bottom: ${isMobile ? '4px' : '8px'};"><strong>Kondisi Fasilitas:</strong></div>
-        ${facilityRows}
-        ${!isMobile ? `
-        <div style="margin-top:8px;"><strong>Marker Kecamatan:</strong></div>
-        <div style="display: flex; align-items: center; margin-top: 4px;">
-          <div style="width: 20px; height: 20px; border-radius: 50%; background: #198754; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; margin-right: 5px;">N</div>
-          <span style="font-size: 11px;">Akumulasi fasilitas sekolah</span>
-        </div>
-        ` : ''}
-        <div style="margin-top:${isMobile ? '4px' : '8px'}; font-size:${isMobile ? '8px' : '11px'}; color:#666;">
-          Total: ${filteredCount} sekolah<br/>
-          Ditampilkan: ${visibleCount} sekolah<br/>
-          <span style="color:#e74c3c;">📍 Area: Kabupaten Garut</span><br/>
-          <span style="color:#3498db; font-style: italic;">🔄 Data diperbarui otomatis</span>
+        <h4 class="${styles.legendTitle} ${isMobile ? styles.mobile : styles.desktop}" style="margin: 0 0 8px 0; font-size: ${isMobile ? '14px' : '16px'}; border-bottom: 1px solid #ddd; padding-bottom: 4px;">Peta Sekolah Garut</h4>
+        <div class="${styles.legendConditionTitle} ${isMobile ? styles.mobile : styles.desktop}" style="font-weight: bold; margin-bottom: 6px; font-size: ${isMobile ? '12px' : '13px'};">Kondisi Fasilitas:</div>
+        <div style="margin-bottom: 8px;">${facilityRows}</div>
+        <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;">
+        <div class="${styles.legendStats} ${isMobile ? styles.mobile : styles.desktop}" style="font-size: ${isMobile ? '10px' : '11px'}; color: #666;">
+          <div style="margin-bottom: 2px;"><span>Sekolah Terfilter: <strong>${filteredCount}</strong></span></div>
+          <div style="margin-bottom: 2px;"><span>Sekolah Terlihat: <strong>${visibleCount}</strong></span></div>
+          <div style="margin-bottom: 2px;"><span>Area: <strong>Kabupaten Garut</strong></span></div>
+          <div><span>Update Otomatis</span></div>
         </div>
       `;
       return div;
@@ -668,79 +821,43 @@ const Legend = React.memo(({ filteredCount, visibleCount, schools, isMobile }) =
         console.warn("Error removing legend:", e);
       }
     };
-  }, [map, filteredCount, visibleCount, facilityStats, isMobile]);
+  }, [map, filteredCount, visibleCount, facilityStats, isMobile, totalSchoolsLoaded]);
   
   return null;
 });
 
-Legend.displayName = 'Legend';
+InteractiveLegend.displayName = 'InteractiveLegend';
 
-const MapEventHandler = React.memo(({ onBoundsChange }) => {
+// ========== MAP EVENTS ==========
+const OptimizedMapEventHandler = React.memo(({ onBoundsChange, isMobile }) => {
   const map = useMapEvents({
-    moveend: () => {
+    moveend: debounce(() => {
       onBoundsChange(map);
-    },
-    zoomend: () => {
+    }, isMobile ? 400 : 300),
+    
+    zoomend: debounce(() => {
       onBoundsChange(map);
-    },
+    }, isMobile ? 400 : 300),
+    
     ready: () => {
-      console.log("Map is ready");
-      setTimeout(() => onBoundsChange(map), 300);
+      setTimeout(() => onBoundsChange(map), 500);
     }
   });
 
   return null;
 });
 
-MapEventHandler.displayName = 'MapEventHandler';
+OptimizedMapEventHandler.displayName = 'OptimizedMapEventHandler';
 
-// ========== STABLE MARKER COMPONENT ==========
-const StableMarker = React.memo(({ school, index, markerIcon, getDetailedAddress, isMobile }) => {
-  const stableKey = useMemo(() => 
-    `${school.npsn || 'unknown'}-${school.nama}-${school.lintang}-${school.bujur}`, 
-    [school.npsn, school.nama, school.lintang, school.bujur]
-  );
-
-  if (!isValidCoordinate(school.lintang, school.bujur)) {
-    return null;
-  }
-
-  return (
-    <Marker 
-      key={stableKey}
-      position={[school.lintang, school.bujur]} 
-      icon={markerIcon}
-      eventHandlers={{
-        click: (e) => {
-          e.originalEvent?.stopPropagation();
-        }
-      }}
-    >
-      <Popup 
-        maxWidth={isMobile ? 320 : 400}
-        closeButton={true}
-        autoClose={true}
-        closeOnClick={false}
-        keepInView={true}
-        autoPan={true}
-        autoPanPadding={[5, 5]}
-      >
-        <SchoolPopup school={school} getDetailedAddress={getDetailedAddress} isMobile={isMobile} />
-      </Popup>
-    </Marker>
-  );
-});
-
-StableMarker.displayName = 'StableMarker';
-
-const StableKecamatanMarker = React.memo(({ kecamatanName, stats, center, isMobile }) => {
+// ========== KECAMATAN MARKER ==========
+const OptimizedKecamatanMarker = React.memo(({ kecamatanName, stats, center, isMobile }) => {
   const map = useMap();
   const [shouldShow, setShouldShow] = useState(true);
   
   useEffect(() => {
     const handleZoom = () => {
       const currentZoom = map.getZoom();
-      setShouldShow(currentZoom <= (isMobile ? 11 : 12));
+      setShouldShow(currentZoom <= (isMobile ? 10 : 11));
     };
     
     handleZoom();
@@ -751,34 +868,17 @@ const StableKecamatanMarker = React.memo(({ kecamatanName, stats, center, isMobi
     };
   }, [map, isMobile]);
 
-  const stableKey = useMemo(() => 
-    `kecamatan-${kecamatanName}-${center.lat}-${center.lng}`, 
-    [kecamatanName, center.lat, center.lng]
-  );
-
-  if (!shouldShow) {
-    return null;
-  }
+  if (!shouldShow || !center) return null;
 
   return (
     <Marker
-      key={stableKey}
       position={[center.lat, center.lng]}
       icon={createKecamatanIcon(stats, isMobile ? 'small' : 'normal')}
-      eventHandlers={{
-        click: (e) => {
-          e.originalEvent?.stopPropagation();
-        }
-      }}
     >
       <Popup
         closeButton={true}
-        autoClose={false}
-        closeOnClick={false}
-        keepInView={true}
-        autoPan={true}
-        autoPanPadding={[5, 5]}
-        maxWidth={isMobile ? 320 : 400}
+        autoClose={true}
+        maxWidth={isMobile ? 280 : 350}
       >
         <KecamatanPopup kecamatanName={kecamatanName} stats={stats} isMobile={isMobile} />
       </Popup>
@@ -786,14 +886,13 @@ const StableKecamatanMarker = React.memo(({ kecamatanName, stats, center, isMobi
   );
 });
 
-StableKecamatanMarker.displayName = 'StableKecamatanMarker';
+OptimizedKecamatanMarker.displayName = 'OptimizedKecamatanMarker';
 
-// ========== MAIN COMPONENT ==========
+// ========== MAIN MAP COMPONENT ==========
 const Map = ({ filter, schools = [] }) => {
-  // Responsive hook
   const { isMobile, isTablet } = useResponsive();
   
-  // State
+  // Performance-focused state management
   const [allSchools, setAllSchools] = useState([]);
   const [filteredSchools, setFilteredSchools] = useState([]);
   const [visibleSchools, setVisibleSchools] = useState([]);
@@ -801,21 +900,89 @@ const Map = ({ filter, schools = [] }) => {
   const [geoDesa, setGeoDesa] = useState(null);
   const [kecamatanStats, setKecamatanStats] = useState({});
   const [kecamatanCenters, setKecamatanCenters] = useState({});
-  const [addressCache, setAddressCache] = useState({});
   const [isMapReady, setIsMapReady] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [totalSchoolsLoaded, setTotalSchoolsLoaded] = useState(0);
   
-  // Refs
   const mapRef = useRef();
   const boundsUpdateTimeoutRef = useRef();
 
-  // Responsive performance limits
-  const responsivePerformanceLimits = useMemo(() => ({
-    maxVisibleMarkers: isMobile ? 200 : isTablet ? 350 : 500,
-    initialDisplayLimit: isMobile ? 100 : isTablet ? 150 : 200,
+  // Optimized performance settings
+  const performanceConfig = useMemo(() => ({
+    maxVisibleMarkers: isMobile ? 200 : isTablet ? 400 : 600,
+    clusterRadius: isMobile ? 30 : 40,
+    clusterDisableZoom: isMobile ? 14 : 15,
     boundsUpdateDelay: isMobile ? 500 : 300
   }), [isMobile, isTablet]);
 
-  // ========== UTILITY HOOKS ==========
+  // ========== DATA LOADING ==========
+  useEffect(() => {
+    const loadAllSchoolData = async () => {
+      setLoadingProgress(0);
+      
+      if (schools && schools.length > 0) {
+        const formattedSchools = formatSchoolsData(schools);
+        setAllSchools(formattedSchools);
+        setTotalSchoolsLoaded(formattedSchools.length);
+        return;
+      }
+
+      try {
+        const endpoints = [
+          { url: API_ENDPOINTS.paud, type: "PAUD" },
+          { url: API_ENDPOINTS.sd, type: "SD" },
+          { url: API_ENDPOINTS.smp, type: "SMP" },
+          { url: API_ENDPOINTS.pkbm, type: "PKBM" }
+        ];
+        
+        const allSchoolsData = [];
+        let totalLoaded = 0;
+        
+        for (let i = 0; i < endpoints.length; i++) {
+          const { url, type } = endpoints[i];
+          
+          try {
+            const response = await fetch(url);
+            const data = await response.json();
+            const formattedData = formatLegacyData(data, type);
+            
+            allSchoolsData.push(...formattedData);
+            totalLoaded += formattedData.length;
+            
+            setLoadingProgress(((i + 1) / endpoints.length) * 100);
+            setTotalSchoolsLoaded(totalLoaded);
+            
+            // Progressive loading
+            if (i === 0) {
+              setAllSchools([...formattedData]);
+            }
+          } catch (error) {
+            console.error(`Error loading ${type} data:`, error);
+          }
+        }
+        
+        setAllSchools(allSchoolsData);
+        setTotalSchoolsLoaded(totalLoaded);
+        
+        // Load geographic boundaries
+        const [kecRes, desaRes] = await Promise.all([
+          fetch(API_ENDPOINTS.kecamatan).then(r => r.json()).catch(() => null),
+          fetch(API_ENDPOINTS.desa).then(r => r.json()).catch(() => null)
+        ]);
+        
+        if (kecRes) setGeoKecamatan(kecRes);
+        if (desaRes) setGeoDesa(desaRes);
+        
+      } catch (error) {
+        console.error("Error loading school data:", error);
+        setAllSchools([]);
+      }
+    };
+
+    loadAllSchoolData();
+  }, [schools]);
+
+  // ========== KECAMATAN CENTER CALCULATION ==========
   const calculateKecamatanCenters = useCallback((geoData) => {
     const centers = {};
     
@@ -843,15 +1010,10 @@ const Map = ({ filter, schools = [] }) => {
           processCoordinates(coordinates);
           
           if (pointCount > 0) {
-            const centerLat = totalLat / pointCount;
-            const centerLng = totalLng / pointCount;
-            
-            if (isWithinGarutBounds(centerLat, centerLng)) {
-              centers[kecamatanName] = {
-                lat: centerLat,
-                lng: centerLng
-              };
-            }
+            centers[kecamatanName] = {
+              lat: totalLat / pointCount,
+              lng: totalLng / pointCount
+            };
           }
         }
       });
@@ -860,6 +1022,7 @@ const Map = ({ filter, schools = [] }) => {
     return centers;
   }, []);
 
+  // ========== KECAMATAN STATS CALCULATION ==========
   const calculateKecamatanStats = useCallback((schoolsData) => {
     const stats = {};
     
@@ -881,208 +1044,68 @@ const Map = ({ filter, schools = [] }) => {
       stats[kec].total++;
       stats[kec].schools.push(school);
       
-      if (!school.fasilitas) {
-        stats[kec].noData++;
-        return;
-      }
+      const condition = getFacilityStatus(school.fasilitas, school);
       
-      if (typeof school.fasilitas === 'object') {
-        if (school.fasilitas.rusakBerat > 0 || school.fasilitas.rusak_berat > 0 || school.fasilitas.heavily_damaged > 0) {
+      switch (condition) {
+        case "Rusak Berat":
           stats[kec].rusakBerat++;
-        } else if (school.fasilitas.rusakSedang > 0 || school.fasilitas.rusak_sedang > 0 || school.fasilitas.slightly_damaged > 0) {
+          break;
+        case "Rusak Sedang":
           stats[kec].rusakSedang++;
-        } else if (school.fasilitas.baik > 0 || school.fasilitas.good > 0 || school.fasilitas.bagus > 0) {
+          break;
+        case "Rehabilitasi":
           stats[kec].baik++;
-        } else {
+          break;
+        default:
           stats[kec].noData++;
-        }
-      } else {
-        if (school.fasilitas === "Rusak Berat") {
-          stats[kec].rusakBerat++;
-        } else if (school.fasilitas === "Rusak Sedang") {
-          stats[kec].rusakSedang++;
-        } else if (school.fasilitas === "Rehabilitasi") {
-          stats[kec].baik++;
-        } else {
-          stats[kec].noData++;
-        }
       }
     });
     
     return stats;
   }, []);
 
-  const getDetailedAddress = useCallback(async (school) => {
-    const cacheKey = `${school.lintang}-${school.bujur}`;
-    
-    if (addressCache[cacheKey]) {
-      return addressCache[cacheKey];
-    }
-    
-    const detailAddress = await reverseGeocode(school.lintang, school.bujur);
-    
-    if (detailAddress) {
-      setAddressCache(prev => ({
-        ...prev,
-        [cacheKey]: detailAddress
-      }));
-    }
-    
-    return detailAddress;
-  }, [addressCache]);
-
+  // ========== OPTIMIZED VISIBLE MARKERS UPDATE ==========
   const updateVisibleMarkers = useCallback((map) => {
     if (!map || !isMapReady || filteredSchools.length === 0) {
       return;
     }
     
-    try {
-      if (boundsUpdateTimeoutRef.current) {
-        clearTimeout(boundsUpdateTimeoutRef.current);
-      }
-
-      boundsUpdateTimeoutRef.current = setTimeout(() => {
-        try {
-          const bounds = map.getBounds();
-          
-          if (!bounds) {
-            console.warn("No map bounds available");
-            return;
-          }
-
-          const visible = filteredSchools.filter((school) => {
-            if (!isValidCoordinate(school.lintang, school.bujur)) {
-              return false;
-            }
-
-            try {
-              return bounds.contains([school.lintang, school.bujur]);
-            } catch (e) {
-              console.warn("Error checking bounds for school:", school.nama, e);
-              return false;
-            }
-          });
-          
-          const limitedVisible = visible.slice(0, responsivePerformanceLimits.maxVisibleMarkers);
-          console.log(`Visible schools: ${limitedVisible.length} out of ${filteredSchools.length}`);
-          setVisibleSchools(limitedVisible);
-          
-        } catch (error) {
-          console.warn("Error in bounds timeout:", error);
-        }
-      }, responsivePerformanceLimits.boundsUpdateDelay);
-      
-    } catch (error) {
-      console.warn("Error updating visible markers:", error);
+    if (boundsUpdateTimeoutRef.current) {
+      clearTimeout(boundsUpdateTimeoutRef.current);
     }
-  }, [filteredSchools, isMapReady, responsivePerformanceLimits]);
 
-  // ========== DATA LOADING EFFECTS ==========
-  useEffect(() => {
-    const loadSchoolData = async () => {
-      if (schools && schools.length > 0) {
-        console.log("Loading schools from props:", schools.length);
-        const formattedSchools = formatSchoolsData(schools);
-        console.log("Formatted schools (within Garut bounds):", formattedSchools.length);
-        setAllSchools(formattedSchools);
-        return;
-      }
-
+    boundsUpdateTimeoutRef.current = setTimeout(() => {
       try {
-        const [paudRes, sdRes, smpRes, pkbmRes, kecRes, desaRes] = await Promise.all([
-          fetch(API_ENDPOINTS.paud).then(r => r.json()),
-          fetch(API_ENDPOINTS.sd).then(r => r.json()),
-          fetch(API_ENDPOINTS.smp).then(r => r.json()),
-          fetch(API_ENDPOINTS.pkbm).then(r => r.json()),
-          fetch(API_ENDPOINTS.kecamatan).then(r => r.json()),
-          fetch(API_ENDPOINTS.desa).then(r => r.json())
-        ]);
+        const bounds = map.getBounds();
+        if (!bounds) return;
 
-        const allSchoolsData = [
-          ...formatLegacyData(paudRes, "PAUD"),
-          ...formatLegacyData(sdRes, "SD"),
-          ...formatLegacyData(smpRes, "SMP"),
-          ...formatLegacyData(pkbmRes, "PKBM")
-        ];
-        
-        console.log("Loaded schools from API (within Garut bounds):", allSchoolsData.length);
-        setAllSchools(allSchoolsData);
-        setFilteredSchools(allSchoolsData);
-        setVisibleSchools(allSchoolsData.slice(0, responsivePerformanceLimits.initialDisplayLimit));
-        setGeoKecamatan(kecRes);
-        setGeoDesa(desaRes);
-      } catch (error) {
-        console.error("Error loading school data:", error);
-        setAllSchools([]);
-      }
-    };
-
-    loadSchoolData();
-  }, [schools]);
-
-  useEffect(() => {
-    const loadGeoData = async () => {
-      try {
-        const response = await fetch(API_ENDPOINTS.kecamatan);
-        const data = await response.json();
-        
-        const safeData = {
-          ...data,
-          features: data.features.filter((f) => f.geometry?.coordinates),
-        };
-        
-        setGeoKecamatan(safeData);
-        
-        const centers = calculateKecamatanCenters(safeData);
-        setKecamatanCenters(centers);
-      } catch (error) {
-        console.error("Error loading kecamatan data:", error);
-        setGeoKecamatan(null);
-      }
-    };
-
-    loadGeoData();
-  }, [calculateKecamatanCenters]);
-
-  useEffect(() => {
-    const loadDesaData = async () => {
-      if (filter?.kecamatan && 
-          filter.kecamatan !== "all" && 
-          filter.kecamatan !== "Semua Kecamatan") {
-        
-        try {
-          const response = await fetch(API_ENDPOINTS.desa);
-          const data = await response.json();
+        const visible = filteredSchools.filter((school) => {
+          if (!isValidCoordinate(school.lintang, school.bujur)) return false;
           
-          const desaFiltered = {
-            ...data,
-            features: data.features
-              .filter((f) => f.geometry?.coordinates)
-              .filter((f) => {
-                const kecamatan = f.properties?.district || 
-                               f.properties?.KECAMATAN || 
-                               f.properties?.kecamatan || 
-                               f.properties?.kec || 
-                               f.properties?.NAMKEC || 
-                               f.properties?.kecamatan_nama;
-                return kecamatan === filter.kecamatan;
-              }),
-          };
-          
-          setGeoDesa(desaFiltered);
-        } catch (error) {
-          console.error("Error loading desa data:", error);
-          setGeoDesa(null);
-        }
-      } else {
-        setGeoDesa(null);
+          try {
+            return bounds.contains([school.lintang, school.bujur]);
+          } catch (e) {
+            return false;
+          }
+        });
+        
+        const limitedVisible = visible.slice(0, performanceConfig.maxVisibleMarkers);
+        setVisibleSchools(limitedVisible);
+        
+      } catch (error) {
+        console.warn("Error updating visible markers:", error);
       }
-    };
+    }, performanceConfig.boundsUpdateDelay);
+  }, [filteredSchools, isMapReady, performanceConfig]);
 
-    loadDesaData();
-  }, [filter?.kecamatan]);
+  // ========== EFFECTS ==========
+  useEffect(() => {
+    if (geoKecamatan) {
+      const centers = calculateKecamatanCenters(geoKecamatan);
+      setKecamatanCenters(centers);
+    }
+  }, [geoKecamatan, calculateKecamatanCenters]);
 
-  // ========== DATA PROCESSING EFFECTS ==========
   useEffect(() => {
     if (allSchools.length > 0) {
       const stats = calculateKecamatanStats(allSchools);
@@ -1090,24 +1113,19 @@ const Map = ({ filter, schools = [] }) => {
     }
   }, [allSchools, calculateKecamatanStats]);
 
+  // Optimized filtering
   const memoizedFilteredSchools = useMemo(() => {
     let filtered = allSchools;
 
-    if (filter?.jenjang && 
-        filter.jenjang !== "all" && 
-        filter.jenjang !== "Semua Jenjang") {
+    if (filter?.jenjang && filter.jenjang !== "all" && filter.jenjang !== "Semua Jenjang") {
       filtered = filtered.filter((s) => s.jenjang === filter.jenjang);
     }
     
-    if (filter?.kecamatan && 
-        filter.kecamatan !== "all" && 
-        filter.kecamatan !== "Semua Kecamatan") {
+    if (filter?.kecamatan && filter.kecamatan !== "all" && filter.kecamatan !== "Semua Kecamatan") {
       filtered = filtered.filter((s) => s.kecamatan === filter.kecamatan);
     }
     
-    if (filter?.desa && 
-        filter.desa !== "all" && 
-        filter.desa !== "Semua Desa") {
+    if (filter?.desa && filter.desa !== "all" && filter.desa !== "Semua Desa") {
       filtered = filtered.filter((s) => s.desa === filter.desa);
     }
 
@@ -1120,32 +1138,20 @@ const Map = ({ filter, schools = [] }) => {
 
   useEffect(() => {
     if (filteredSchools.length > 0 && isMapReady) {
-      console.log("FilteredSchools changed:", filteredSchools.length);
-      
-      setVisibleSchools(filteredSchools.slice(0, responsivePerformanceLimits.initialDisplayLimit));
+      setVisibleSchools(filteredSchools.slice(0, performanceConfig.maxVisibleMarkers));
       
       if (mapRef.current) {
-        const map = mapRef.current;
-        if (map.getBounds) {
-          setTimeout(() => updateVisibleMarkers(map), 500);
-        }
+        setTimeout(() => updateVisibleMarkers(mapRef.current), 300);
       }
     } else if (filteredSchools.length === 0) {
       setVisibleSchools([]);
     }
-  }, [filteredSchools, updateVisibleMarkers, isMapReady, responsivePerformanceLimits]);
+  }, [filteredSchools, updateVisibleMarkers, isMapReady, performanceConfig]);
 
-  // ========== CLEANUP ==========
-  useEffect(() => {
-    return () => {
-      if (boundsUpdateTimeoutRef.current) {
-        clearTimeout(boundsUpdateTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // ========== RENDER HELPERS ==========
+  // ========== RENDER METHODS ==========
   const renderKecamatanMarkers = () => {
+    if (!geoKecamatan || Object.keys(kecamatanStats).length === 0) return null;
+    
     return Object.entries(kecamatanStats).map(([kecamatanName, stats]) => {
       const center = kecamatanCenters[kecamatanName];
       
@@ -1154,13 +1160,11 @@ const Map = ({ filter, schools = [] }) => {
                          filter.kecamatan === "all" || 
                          filter.kecamatan === "Semua Kecamatan");
       
-      if (!shouldShow) {
-        return null;
-      }
+      if (!shouldShow) return null;
 
       return (
-        <StableKecamatanMarker 
-          key={`kecamatan-${kecamatanName}`}
+        <OptimizedKecamatanMarker 
+          key={`kec-${kecamatanName}`}
           kecamatanName={kecamatanName}
           stats={stats}
           center={center}
@@ -1171,98 +1175,141 @@ const Map = ({ filter, schools = [] }) => {
   };
 
   const renderSchoolMarkers = () => {
-    return visibleSchools.map((school, index) => {
-      const markerIcon = school.fasilitas ? 
-        getIconForFacility(school.fasilitas, isMobile) : 
-        defaultIcon;
-      
-      return (
-        <StableMarker
-          key={`school-${school.npsn || 'unknown'}-${index}`}
-          school={school}
-          index={index}
-          markerIcon={markerIcon}
-          getDetailedAddress={getDetailedAddress}
-          isMobile={isMobile}
-        />
-      );
-    });
+    return visibleSchools.map((school, index) => (
+      <VirtualizedMarker
+        key={`school-${school.npsn || index}-${school.lintang}-${school.bujur}`}
+        school={school}
+        isMobile={isMobile}
+      />
+    ));
   };
 
   // ========== STYLES ==========
   const kecamatanStyle = useMemo(() => ({ 
     color: "#555", 
     weight: isMobile ? 0.5 : 1,
-    fillOpacity: 0.05 
+    fillOpacity: 0.02,
+    opacity: 0.7
   }), [isMobile]);
   
   const desaStyle = useMemo(() => ({ 
-    color: "#aaa", 
+    color: "#888", 
     weight: isMobile ? 0.3 : 0.5,
-    fillOpacity: 0.02 
+    fillOpacity: 0.01,
+    opacity: 0.5
   }), [isMobile]);
 
-  // Responsive map height
   const mapHeight = useMemo(() => {
-    if (isMobile) return "70vh";
-    if (isTablet) return "80vh";
+    if (isMobile) return "75vh";
+    if (isTablet) return "85vh";
     return "100vh";
   }, [isMobile, isTablet]);
 
-  // ========== RENDER ==========
+  // ========== CLEANUP ==========
+  useEffect(() => {
+    return () => {
+      if (boundsUpdateTimeoutRef.current) {
+        clearTimeout(boundsUpdateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // ========== LOADING OVERLAY ==========
+  const LoadingOverlay = () => {
+    if (totalSchoolsLoaded > 0) return null;
+    
+    return (
+      <div className={styles.loadingOverlay}>
+        <div className={styles.loadingCard}>
+          <div className={styles.loadingTitle}>Memuat Data Sekolah...</div>
+          <div className={styles.progressBar}>
+            <div 
+              className={styles.progressFill}
+              style={{ width: `${loadingProgress}%` }}
+            ></div>
+          </div>
+          <div className={styles.progressText}>
+            {loadingProgress.toFixed(0)}% - Target: 4842+ sekolah
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ========== MAIN RENDER ==========
   return (
-    <div className={styles.mapWrapper} style={{ height: mapHeight }}>
+    <div className={styles.mapContainer} style={{ height: mapHeight }}>
+      <LoadingOverlay />
+      
       <MapContainer
         center={GARUT_CENTER}
-        zoom={isMobile ? 10 : 11}
+        zoom={isMobile ? 9 : 10}
         scrollWheelZoom={true}
         style={{ height: "100%", width: "100%" }}
         ref={mapRef}
         whenReady={() => {
-          console.log("MapContainer ready");
           setIsMapReady(true);
-          setTimeout(() => {
-            if (filteredSchools.length > 0) {
-              setVisibleSchools(filteredSchools.slice(0, responsivePerformanceLimits.initialDisplayLimit));
-            }
-          }, 1000);
         }}
-        closePopupOnClick={false}
+        closePopupOnClick={true}
         attributionControl={!isMobile}
         zoomControl={!isMobile}
+        preferCanvas={true}
       >
         <TileLayer 
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution={isMobile ? '' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+          maxZoom={18}
+          tileSize={256}
+          keepBuffer={isMobile ? 2 : 4}
         />
         
         {geoKecamatan && (
           <SafeGeoJSON data={geoKecamatan} style={kecamatanStyle} />
         )}
-        {geoDesa && (
+        
+        {geoDesa && filter?.kecamatan && filter.kecamatan !== "all" && (
           <SafeGeoJSON data={geoDesa} style={desaStyle} />
         )}
         
         {isMapReady && renderKecamatanMarkers()}
         
-        {isMapReady && (
+        {isMapReady && visibleSchools.length > 0 && (
           <MarkerClusterGroup 
-            chunkedLoading 
-            maxClusterRadius={isMobile ? 30 : 40}
-            disableClusteringAtZoom={isMobile ? 14 : 15}
+            chunkedLoading={true}
+            chunkInterval={isMobile ? 200 : 100}
+            chunkDelay={isMobile ? 100 : 50}
+            maxClusterRadius={performanceConfig.clusterRadius}
+            disableClusteringAtZoom={performanceConfig.clusterDisableZoom}
             spiderfyOnMaxZoom={true}
             showCoverageOnHover={!isMobile}
             zoomToBoundsOnClick={true}
+            removeOutsideVisibleBounds={true}
+            animate={!isMobile}
             iconCreateFunction={(cluster) => {
               const count = cluster.getChildCount();
-              const size = count < 10 ? 'small' : count < 100 ? 'medium' : 'large';
-              const dimensions = isMobile ? 
-                { small: 20, medium: 30, large: 40 } :
-                { small: 30, medium: 40, large: 50 };
+              const size = count < 10 ? 'small' : count < 50 ? 'medium' : 'large';
+              const dimensions = {
+                small: isMobile ? 20 : 25,
+                medium: isMobile ? 28 : 35, 
+                large: isMobile ? 35 : 45
+              };
               
               return L.divIcon({
-                html: `<div style="background: #3498db; color: white; border-radius: 50%; width: ${dimensions[size]}px; height: ${dimensions[size]}px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: ${isMobile ? '10px' : '12px'}; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">${count}</div>`,
-                className: 'custom-cluster-icon',
+                html: `<div style="
+                  background: linear-gradient(135deg, #3498db, #2980b9);
+                  color: white;
+                  border-radius: 50%;
+                  width: ${dimensions[size]}px;
+                  height: ${dimensions[size]}px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-weight: bold;
+                  font-size: ${isMobile ? '9px' : '11px'};
+                  border: 2px solid #fff;
+                  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                ">${count}</div>`,
+                className: styles.customClusterIcon,
                 iconSize: [dimensions[size], dimensions[size]]
               });
             }}
@@ -1271,13 +1318,15 @@ const Map = ({ filter, schools = [] }) => {
           </MarkerClusterGroup>
         )}
         
-        <MapEventHandler onBoundsChange={updateVisibleMarkers} />
+        <OptimizedMapEventHandler onBoundsChange={updateVisibleMarkers} isMobile={isMobile} />
+        
         {isMapReady && (
-          <Legend 
+          <InteractiveLegend 
             filteredCount={filteredSchools.length} 
             visibleCount={visibleSchools.length}
             schools={filteredSchools}
             isMobile={isMobile}
+            totalSchoolsLoaded={totalSchoolsLoaded}
           />
         )}
       </MapContainer>

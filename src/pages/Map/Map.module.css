@@ -1,450 +1,499 @@
-/* ========================================== 
-   MAP CONTAINER STYLES
-========================================== */
-.mapWrapper {
+/* Map.module.css */
+
+.mapContainer {
   position: relative;
-  width: 100%;
-  height: 100vh;
-  border: 2px solid #ddd;
-  border-radius: 12px;
-  overflow: hidden;
-  background-color: #f8f9fa;
 }
 
-/* ========================================== 
-   LEGEND STYLES
-========================================== */
-.legend {
+.loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+
+  /* Tambahan untuk Safari */
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.loadingCard {
+  padding: 20px;
   background: white;
-  padding: 12px 15px;
-  font-size: 12px;
-  line-height: 1.4;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
-  max-width: 240px;
-  border: 1px solid #e0e0e0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-.legend h4 {
-  margin: 0 0 10px 0;
+.loadingTitle {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.progressBar {
+  width: 200px;
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #007bff, #28a745);
+  transition: width 0.3s ease;
+}
+
+.progressText {
   font-size: 14px;
-  font-weight: bold;
-  color: #2c3e50;
-  border-bottom: 2px solid #3498db;
-  padding-bottom: 4px;
+  margin-top: 8px;
+  color: #666;
 }
 
-.legend div {
-  margin: 4px 0;
+/* Popup Styles */
+.popupContainer {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.popupContainer.mobile {
+  min-width: 250px;
+  max-width: 300px;
+  font-size: 0.85em;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.popupContainer.desktop {
+  min-width: 320px;
+  max-width: 400px;
+  font-size: 1em;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.popupTitle {
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-weight: bold;
+}
+
+.popupTitle.mobile {
+  font-size: 1.1em;
+}
+
+.popupTitle.desktop {
+  font-size: 1.2em;
+}
+
+.schoolInfo {
+  margin-top: 8px;
+}
+
+.schoolInfoItem {
+  margin-top: 4px;
+}
+
+.jenjangBadge {
+  color: #3498db;
+  margin-left: 4px;
+}
+
+.typeBadge {
+  color: #6c757d;
+  margin-left: 8px;
+}
+
+.facilitySection {
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  border: 2px solid;
+}
+
+.facilitySection.mobile {
+  margin-top: 8px;
+  padding: 8px;
+}
+
+.facilitySection.desktop {
+  margin-top: 10px;
+  padding: 10px;
+}
+
+.facilityIndicator {
   display: flex;
   align-items: center;
+  margin-bottom: 8px;
 }
 
-.legend span {
-  flex-shrink: 0;
+.facilityCircle {
+  display: inline-block;
+  border-radius: 50%;
+  margin-right: 8px;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #ccc;
 }
 
-/* Dynamic legend enhancements */
-.legend .dynamic-stats {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  padding: 8px;
-  border-radius: 6px;
-  margin: 6px 0;
-  border-left: 4px solid #3498db;
+.facilityCircle.mobile {
+  width: 14px;
+  height: 14px;
 }
 
-.legend .facility-count {
-  font-weight: 600;
-  color: #2c3e50;
+.facilityCircle.desktop {
+  width: 18px;
+  height: 18px;
 }
 
-.legend .facility-percentage {
-  font-size: 0.85em;
-  color: #6c757d;
-  font-style: italic;
+.facilityStatus {
+  font-weight: bold;
 }
 
-/* ========================================== 
-   CUSTOM ICON STYLES
-========================================== */
-
-/* Facility Icons */
-.custom-facility-icon {
-  background: none !important;
-  border: none !important;
-}
-
-.custom-facility-icon svg {
-  filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
-  transition: transform 0.2s ease;
-}
-
-.custom-facility-icon:hover svg {
-  transform: scale(1.1);
-}
-
-/* Kecamatan Icons */
-.custom-kecamatan-icon {
-  background: none !important;
-  border: none !important;
-}
-
-.custom-kecamatan-icon svg {
-  filter: drop-shadow(2px 2px 6px rgba(0, 0, 0, 0.4));
-  transition: transform 0.2s ease;
-}
-
-.custom-kecamatan-icon:hover svg {
-  transform: scale(1.15);
-}
-
-
-/* ========================================== 
-   POPUP STYLES
-========================================== */
-
-/* Enhanced popup styling */
-.leaflet-popup-content-wrapper {
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-  border: 2px solid #3498db;
-}
-
-.leaflet-popup-content {
-  margin: 16px 20px;
-  line-height: 1.5;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  color: #2c3e50;
-}
-
-.leaflet-popup-tip-container {
-  margin: auto;
-}
-
-.leaflet-popup-tip {
-  border-top-color: #3498db !important;
-}
-
-/* ========================================== 
-   FACILITY STATUS INDICATOR STYLES
-========================================== */
-
-.facility-indicator {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-weight: 500;
-  font-size: 0.9em;
-  margin: 4px 0;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
-}
-
-.facility-indicator:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* Facility status colors */
-.facility-indicator.rusak-berat {
-  background-color: rgba(220, 53, 69, 0.1);
-  border-color: #dc3545;
-  color: #721c24;
-}
-
-.facility-indicator.rusak-sedang {
-  background-color: rgba(253, 126, 20, 0.1);
-  border-color: #fd7e14;
-  color: #974c0c;
-}
-
-.facility-indicator.kekurangan-rkb {
-  background-color: rgba(255, 193, 7, 0.1);
-  border-color: #ffc107;
-  color: #664d03;
-}
-
-.facility-indicator.rehabilitasi {
-  background-color: rgba(25, 135, 84, 0.1);
-  border-color: #198754;
-  color: #0f5132;
-}
-
-.facility-indicator.pembangunan-rkb {
-  background-color: rgba(13, 110, 253, 0.1);
-  border-color: #0d6efd;
-  color: #084298;
-}
-
-.facility-indicator.no-data {
-  background-color: rgba(108, 117, 125, 0.1);
-  border-color: #6c757d;
-  color: #495057;
-}
-
-/* Enhanced facility status colors for better visibility */
-.facility-status-excellent {
-  background: linear-gradient(135deg, #28a745, #20c997);
-  box-shadow: 0 2px 10px rgba(40, 167, 69, 0.3);
-}
-
-.facility-status-good {
-  background: linear-gradient(135deg, #17a2b8, #6f42c1);
-  box-shadow: 0 2px 10px rgba(23, 162, 184, 0.3);
-}
-
-.facility-status-warning {
-  background: linear-gradient(135deg, #ffc107, #fd7e14);
-  box-shadow: 0 2px 10px rgba(255, 193, 7, 0.3);
-}
-
-.facility-status-danger {
-  background: linear-gradient(135deg, #dc3545, #e83e8c);
-  box-shadow: 0 2px 10px rgba(220, 53, 69, 0.3);
-}
-
-.facility-status-info {
-  background: linear-gradient(135deg, #007bff, #6610f2);
-  box-shadow: 0 2px 10px rgba(0, 123, 255, 0.3);
-}
-
-/* ========================================== 
-   LEAFLET CONTAINER ENHANCEMENTS
-========================================== */
-
-.leaflet-container {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #f8f9fa;
-}
-
-/* ========================================== 
-   CLUSTER STYLING
-========================================== */
-
-.leaflet-cluster-anim .leaflet-marker-icon, 
-.leaflet-cluster-anim .leaflet-marker-shadow {
-  transition: transform 0.3s ease-out, opacity 0.3s ease-in;
-}
-
-/* ========================================== 
-   TOOLTIP STYLING
-========================================== */
-
-.leaflet-tooltip {
-  background: rgba(44, 62, 80, 0.9);
-  border: none;
-  border-radius: 6px;
+.detailToggleButton {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background-color: #007bff;
   color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+}
+
+.detailToggleButton.mobile {
+  font-size: 0.8em;
+}
+
+.detailToggleButton.desktop {
+  font-size: 0.9em;
+}
+
+.hideDetailButton {
+  margin-top: 8px;
+  padding: 4px 8px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  float: right;
+}
+
+.hideDetailButton.mobile {
+  font-size: 0.75em;
+}
+
+.hideDetailButton.desktop {
+  font-size: 0.8em;
+}
+
+.detailsContainer {
+  clear: both;
+  margin-top: 12px;
+}
+
+.detailSection {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: #ffffff;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+
+.detailTitle {
+  font-weight: bold;
+  color: #495057;
+  margin-bottom: 4px;
+}
+
+.detailTitle.mobile {
+  font-size: 0.9em;
+}
+
+.detailTitle.desktop {
+  font-size: 1em;
+}
+
+.detailItem {
+  margin-bottom: 2px;
+  padding-left: 8px;
+  color: #6c757d;
+}
+
+.detailItem.mobile {
+  font-size: 0.8em;
+}
+
+.detailItem.desktop {
+  font-size: 0.9em;
+}
+
+.locationSection {
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.locationSection.mobile {
+  padding: 6px;
+  font-size: 0.8em;
+}
+
+.locationSection.desktop {
+  padding: 8px;
+  font-size: 0.9em;
+}
+
+.locationTitle {
+  color: #34495e;
+  font-weight: bold;
+}
+
+.locationItem {
+  margin-top: 2px;
+}
+
+.coordinatesSection {
+  margin-top: 4px;
+  color: #666;
+}
+
+.coordinatesSection.mobile {
+  font-size: 0.8em;
+}
+
+.coordinatesSection.desktop {
+  font-size: 0.9em;
+}
+
+/* Kecamatan Popup Styles */
+.kecamatanPopup {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.kecamatanPopup.mobile {
+  min-width: 200px;
+  max-width: 280px;
+  font-size: 0.85em;
+}
+
+.kecamatanPopup.desktop {
+  min-width: 280px;
+  max-width: 350px;
+  font-size: 1em;
+}
+
+.kecamatanTitle {
+  color: #2c3e50;
+}
+
+.kecamatanTitle.mobile {
+  font-size: 1.1em;
+}
+
+.kecamatanTitle.desktop {
+  font-size: 1.2em;
+}
+
+.totalSchoolsCard {
+  background-color: #ecf0f1;
+  border-radius: 4px;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.totalSchoolsCard.mobile {
+  padding: 6px;
+}
+
+.totalSchoolsCard.desktop {
+  padding: 8px;
+}
+
+.conditionTitle {
+  margin-top: 8px;
+  color: #34495e;
+  font-weight: bold;
+}
+
+.conditionList {
+  margin-top: 4px;
+}
+
+.conditionList.mobile {
+  font-size: 0.8em;
+}
+
+.conditionList.desktop {
+  font-size: 0.9em;
+}
+
+.conditionItem {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.conditionCircle {
+  display: inline-block;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.conditionCircle.mobile {
+  width: 8px;
+  height: 8px;
+}
+
+.conditionCircle.desktop {
+  width: 10px;
+  height: 10px;
+}
+
+/* Custom Icons */
+.customFacilityIcon {
+  border: none !important;
+  background: transparent !important;
+}
+
+.customClusterIcon {
+  border: none !important;
+  background: transparent !important;
+}
+
+.customKecamatanIcon {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* Legend Styles */
+.legend {
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 8px !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+
+  /* Tambahan untuk Safari */
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.legend.mobile {
+  padding: 8px !important;
+  max-width: 200px !important;
+}
+
+.legend.desktop {
+  padding: 12px !important;
+  max-width: 250px !important;
+}
+
+.legendTitle {
+  margin: 0 0 8px 0;
+  color: #2c3e50;
+}
+
+.legendTitle.mobile {
   font-size: 12px;
+}
+
+.legendTitle.desktop {
+  font-size: 14px;
+}
+
+.legendConditionTitle {
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #34495e;
+}
+
+.legendConditionTitle.mobile {
+  margin-bottom: 6px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  margin: 3px 0;
+}
+
+.legendRow.mobile {
+  margin: 2px 0;
+}
+
+.legendCircle {
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  margin-right: 6px;
+}
+
+.legendCircle.mobile {
+  width: 12px;
+  height: 12px;
+}
+
+.legendCircle.desktop {
+  width: 14px;
+  height: 14px;
+}
+
+.legendText {
   font-weight: 500;
-  padding: 6px 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
-.leaflet-tooltip:before {
-  border-top-color: rgba(44, 62, 80, 0.9);
+.legendText.mobile {
+  font-size: 10px;
 }
 
-/* ========================================== 
-   ANIMATIONS
-========================================== */
-
-/* Loading animation for dynamic content */
-@keyframes pulse {
-  0% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-  100% {
-    opacity: 1;
-  }
+.legendText.desktop {
+  font-size: 12px;
 }
 
-.loading-indicator {
-  animation: pulse 1.5s ease-in-out infinite;
+.legendStats {
+  border: none;
+  margin: 8px 0;
+  border-top: 1px solid #ddd;
+  color: #666;
+  line-height: 1.3;
 }
 
-/* Animation for marker updates */
-.marker-update {
-  animation: markerPulse 0.6s ease-in-out;
+.legendStats.mobile {
+  font-size: 9px;
 }
 
-@keyframes markerPulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
+.legendStats.desktop {
+  font-size: 11px;
 }
 
-/* ========================================== 
-   RESPONSIVE DESIGN
-========================================== */
-
-/* Tablet Styles */
-@media (max-width: 768px) {
-  .mapWrapper {
-    height: 80vh;
-    border-radius: 8px;
-  }
-  
-  .legend {
-    max-width: 200px;
-    font-size: 11px;
-    padding: 10px 12px;
-  }
-  
-  .legend h4 {
-    font-size: 13px;
-  }
-  
-  .leaflet-popup-content {
-    margin: 12px 16px;
-  }
-  
-  .facility-indicator {
-    font-size: 0.8em;
-    padding: 5px 8px;
-  }
+.legendStatItem {
+  margin: 2px 0;
 }
 
-/* Mobile Styles */
-@media (max-width: 480px) {
-  .mapWrapper {
-    height: 70vh;
-    border-radius: 6px;
-    border-width: 1px;
-  }
-  
-  .legend {
-    max-width: 180px;
-    font-size: 10px;
-    padding: 8px 10px;
-  }
-  
-  .legend h4 {
-    font-size: 12px;
-  }
-  
-  .custom-facility-icon svg,
-  .custom-kecamatan-icon svg {
-    filter: drop-shadow(1px 1px 3px rgba(0, 0, 0, 0.3));
-  }
-  
-  .leaflet-popup-content {
-    margin: 10px 14px;
-    font-size: 0.9em;
-  }
-  
-  .facility-indicator {
-    font-size: 0.75em;
-    padding: 4px 6px;
-  }
+.totalStat {
+  color: #2980b9;
+  font-weight: bold;
 }
 
-/* Very Small Screens */
-@media (max-width: 360px) {
-  .mapWrapper {
-    height: 60vh;
-    border-radius: 4px;
-  }
-  
-  .legend {
-    max-width: 160px;
-    font-size: 9px;
-    padding: 6px 8px;
-  }
-  
-  .legend h4 {
-    font-size: 11px;
-  }
+.filterStat {
+  color: #333;
 }
 
-/* ========================================== 
-   DARK MODE SUPPORT (Optional)
-========================================== */
-
-@media (prefers-color-scheme: dark) {
-  .legend {
-    background: #2c3e50;
-    color: #ecf0f1;
-    border-color: #34495e;
-  }
-  
-  .legend h4 {
-    color: #3498db;
-    border-bottom-color: #3498db;
-  }
-  
-  .leaflet-popup-content-wrapper {
-    background: #2c3e50;
-    color: #ecf0f1;
-  }
-  
-  .leaflet-popup-content {
-    color: #ecf0f1;
-  }
+.visibleStat {
+  color: #333;
 }
 
-/* ========================================== 
-   ACCESSIBILITY IMPROVEMENTS
-========================================== */
-
-/* Focus styles for keyboard navigation */
-.leaflet-marker-icon:focus {
-  outline: 3px solid #3498db;
-  outline-offset: 2px;
+.areaStat {
+  color: #e74c3c;
+  margin-top: 4px;
 }
 
-.legend:focus-within {
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .legend {
-    border: 2px solid #000;
-    box-shadow: none;
-  }
-  
-  .facility-indicator {
-    border-width: 2px;
-  }
-  
-  .custom-facility-icon svg,
-  .custom-kecamatan-icon svg {
-    filter: contrast(1.5) drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.5));
-  }
-}
-
-/* ========================================== 
-   PRINT STYLES
-========================================== */
-
-@media print {
-  .mapWrapper {
-    height: 80vh;
-    border: 1px solid #000;
-    border-radius: 0;
-  }
-  
-  .legend {
-    background: white;
-    color: black;
-    box-shadow: none;
-    border: 1px solid #000;
-  }
-  
-  .custom-facility-icon svg,
-  .custom-kecamatan-icon svg {
-    filter: none;
-  }
+.updateStat {
+  color: #27ae60;
+  font-style: italic;
 }
