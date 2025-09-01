@@ -1,6 +1,6 @@
 // src/store/slices/schoolSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import schoolApi from '../../services/api/schoolApi';
+import schoolApi from '../../services/api/schoolApi.js';
 
 // Async thunk untuk fetch sekolah berdasarkan provinsi
 export const fetchSchoolsByProvince = createAsyncThunk(

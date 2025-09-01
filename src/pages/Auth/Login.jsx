@@ -1,14 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Login.module.css';
-import { useAuth } from '../../contexts/AuthContext'; // pastikan path sesuai
+import { useAuth } from '../../contexts/AuthContext'; 
+import { supabase } from '../../utils/supabase';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login, error, clearError, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [schools, setSchools] = useState([])  
 
+  useEffect(()=> {
+    const  getschools = async ()=> {
+      const { data } = await supabase.from('schools').select()
+
+      if (data.length > 1) {
+        setSchools(data)
+        console.log('test schools : ', data)
+      }
+    }
+
+    getschools()
+  },[])
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();

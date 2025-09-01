@@ -1,0 +1,63 @@
+# Supabase configuration for peta-sekolah project
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+# Configuration for JWT
+[auth.jwt]
+expiry = 3600
+secret = "your-jwt-secret-here"
+
+[auth.email]
+# Configure SMTP settings for production
+enabled = true
+double_confirm_changes = true
+enable_confirmations = false
+
+# Auth providers
+[auth.external.google]
+enabled = false
+
+[auth.external.github]
+enabled = false
+
+[db]
+# Database configuration
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[ingest]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+upload_path = "uploads"
+
+[edge_functions]
+enabled = true
+
+[analytics]
+enabled = false
+
+# Development specific settings
+[local_development]
+# Email templates
+[local_development.email]
+template_path = "./supabase/templates"
+
+# Custom configuration for peta-sekolah
+[custom]
+project_name = "peta-sekolah"
+version = "1.0.0"
+default_region = "Banjarwangi"

@@ -1,6 +1,6 @@
 // src/store/slices/budgetSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import budgetApi from '../../services/api/budgetApi'
+import budgetApi from '../../services/api/budgetApi.js';
 
 const initialState = {
   budgets: [],

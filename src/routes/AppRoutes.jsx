@@ -12,6 +12,7 @@ import Profile from '../pages/Users/Profile';
 import Settings from '../pages/Users/Settings';
 import Logout from '../pages/Users/Logout';
 import { useAuth } from '../contexts/AuthContext';
+import AdminProfile from "../pages/AdminProfile/AdminProfile";
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
@@ -54,6 +55,12 @@ const AppRoutes = () => {
       <Route
         path="/users/logout"
         element={isAuthenticated ? <Logout /> : <Navigate to="/login" replace />}
+      />
+
+      {/* Route baru untuk admin */}
+      <Route
+        path="/admin/profile"
+        element={isAuthenticated ? <AdminProfile /> : <Navigate to="/login" replace />}
       />
 
       {/* Catch-all */}

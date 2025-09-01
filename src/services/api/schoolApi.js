@@ -1,8 +1,8 @@
 // src/services/api/schoolApi.js
 
-// Contoh fungsi API untuk ambil data sekolah berdasarkan provinsi
+// Ambil data sekolah berdasarkan provinsi dari backend (Supabase)
 export async function getSchoolsByProvince(provinceId) {
-  // Contoh fetch, sesuaikan endpoint API kamu
+  // Sesuaikan endpoint API kamu
   const response = await fetch(`/api/schools?province=${provinceId}`);
   if (!response.ok) {
     throw new Error('Failed to fetch schools');
@@ -11,7 +11,7 @@ export async function getSchoolsByProvince(provinceId) {
   return data;
 }
 
-// Buat objek default export supaya bisa import default di slice
+// Default export untuk slice
 const schoolApi = {
   getSchoolsByProvince,
 };

@@ -1,6 +1,7 @@
 // src/store/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import authApi from '../../services/api/authApi'
+import authApi from '../../services/api/authApi.js';
+
 
 const initialState = {
   user: null,

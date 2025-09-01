@@ -1,19 +1,19 @@
 import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './slices/authSlice';
-import budgetReducer from './slices/budgetSlice';
-import counterReducer from './slices/counterSlice';
-import facilityReducer from './slices/facilitySlice';
-import schoolReducer from './slices/schoolSlice';
-import uiReducer from './slices/uiSlice';
+import authSlice from './slices/authSlice.js';
+import budgetSlice from './slices/budgetSlice.js';
+import counterSlice from './slices/counterSlice.js';
+import facilitySlice from './slices/facilitySlice.js';
+import schoolSlice from './slices/schoolSlice.js';
+import uiSlice from './slices/uiSlice.js';
 
 const store = configureStore({
   reducer: {
-    auth: authReducer,
-    budget: budgetReducer,
-    counter: counterReducer,
-    facility: facilityReducer,
-    school: schoolReducer,
-    ui: uiReducer,
+    auth: authSlice,
+    budget: budgetSlice,
+    counter: counterSlice,
+    facility: facilitySlice,
+    school: schoolSlice,
+    ui: uiSlice,
   },
 });
 

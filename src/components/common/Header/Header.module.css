@@ -21,7 +21,7 @@
   height: 64px;
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 1000;
   display: flex;
   align-items: center;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
@@ -204,4 +204,24 @@
   .dropdown {
     min-width: 200px;
   }
+}
+/* Admin Profile (opsional styling) */
+.adminProfileButton {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #2563eb; /* biru accent */
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.adminProfileButton:hover {
+  background-color: #eff6ff; /* biru muda */
+  transform: translateX(4px);
 }
