@@ -1,40 +1,80 @@
+// Login.jsx - SIMPLE VERSION
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Login.module.css';
 import { useAuth } from '../../contexts/AuthContext'; 
-import { supabase } from '../../utils/supabase';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, error, clearError, loading } = useAuth();
+  const { login, error, clearError, loading, isAuthenticated } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [schools, setSchools] = useState([])  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(()=> {
-    const  getschools = async ()=> {
-      const { data } = await supabase.from('schools').select()
+  console.log('🔍 Login component render:', {
+    isAuthenticated,
+    loading,
+    isSubmitting,
+    pathname: window.location.pathname
+  });
 
-      if (data.length > 1) {
-        setSchools(data)
-        console.log('test schools : ', data)
-      }
+  // Redirect jika sudah login
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      console.log('✅ Login: User authenticated, redirecting to dashboard...');
+      navigate('/dashboard', { replace: true });
     }
+  }, [isAuthenticated, loading, navigate]);
 
-    getschools()
-  },[])
-  
   const handleSubmit = async (e) => {
     e.preventDefault();
-    clearError();
+    
+    if (isSubmitting || loading) {
+      console.log('⏳ Login: Already submitting or loading, skipping...');
+      return;
+    }
 
-    const result = await login({ email, password });
-    if (result.success) {
-      navigate('/'); // redirect tetap di halaman root
-    } else {
-      alert(result.error);
+    setIsSubmitting(true);
+    clearError();
+    
+    console.log('🚀 Login: Starting login process for:', email);
+
+    try {
+      const result = await login({ email, password });
+      
+      console.log('🔍 Login: Login result:', result);
+      
+      if (result.success) {
+        console.log('✅ Login: Login successful!');
+        // Navigation akan dihandle oleh useEffect di atas
+      } else {
+        console.error('❌ Login: Login failed:', result.error);
+        alert(result.error || 'Login gagal. Silakan coba lagi.');
+      }
+    } catch (err) {
+      console.error('❌ Login: Exception during login:', err);
+      alert('Terjadi kesalahan saat login: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
+
+  // Jangan render form jika sedang loading
+  if (loading) {
+    console.log('⏳ Login: Showing loading state');
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
+        <div>Loading Authentication...</div>
+      </div>
+    );
+  }
+
+  console.log('📝 Login: Rendering login form');
 
   return (
     <div className={styles.loginContainer}>
@@ -49,7 +89,7 @@ const Login = () => {
           <h1 className={styles.mainTitle}>e-PlanDISDIK</h1>
           <p className={styles.subtitle}>Electronic Planning Dinas Pendidikan</p>
           <p className={styles.subtitle}>Kabupaten - Garut</p>
-          <br /> {/* 1 baris jarak sebelum tombol */}
+          <br />
           <a
             href="https://disdikkabgarut.org/"
             target="_blank"
@@ -92,6 +132,7 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className={styles.formInput}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -106,16 +147,27 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className={styles.formInput}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
 
-            <button type="submit" className={styles.loginBtn} disabled={loading}>
-              {loading ? 'Memproses...' : 'Masuk'}
+            <button 
+              type="submit" 
+              className={styles.loginBtn} 
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? 'Memproses...' : 'Masuk'}
             </button>
           </form>
 
-          {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+          {error && (
+            <p style={{ color: 'red', marginTop: '10px', textAlign: 'center' }}>
+              {error}
+            </p>
+          )}
+
+          {/* Debug Info - SELALU tampil untuk debugging */}
         </div>
       </div>
     </div>

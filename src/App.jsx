@@ -5,7 +5,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import store from './store/store';
+import store from './store/store.js';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { FilterProvider } from './contexts/FilterContext';

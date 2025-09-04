@@ -10,13 +10,12 @@ const Header = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    logout(); // pakai logout dari context
-    navigate('/login'); // redirect ke login
+    logout();
+    navigate('/login');
   };
 
-  const handleProfile = () => navigate('/users/profile');
-  const handleSettings = () => navigate('/users/settings');
   const handleAdminProfile = () => navigate('/admin/profile');
+  const handleSettings = () => navigate('/users/settings'); // navigasi ke halaman Setting
 
   return (
     <header className={styles.header}>
@@ -51,18 +50,14 @@ const Header = () => {
             {dropdownOpen && (
               <div className={styles.dropdown}>
                 <div className={styles.dropdownBody}>
-                  <button className={styles.dropdownItem} onClick={handleProfile}>
-                    <User size={16} />
-                    <span>Profile</span>
+                  <button className={styles.dropdownItem} onClick={handleAdminProfile}>
+                    <Shield size={16} />
+                    <span>Admin Profile</span>
                   </button>
                   <button className={styles.dropdownItem} onClick={handleSettings}>
                     <Settings size={16} />
                     <span>Settings</span>
                   </button>
-<button className={styles.adminProfileButton} onClick={handleAdminProfile}>
-  <Shield size={16} />
-  <span>Admin Profile</span>
-</button>
                   <button className={styles.logoutButton} onClick={handleLogout}>
                     <LogOut size={16} />
                     <span>Logout</span>
