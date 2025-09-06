@@ -1,145 +1,175 @@
 import React, { createContext, useContext, useEffect, useReducer } from 'react';
+import { supabase } from '../utils/supabase'; // Pastikan path ini benar
 
-// State awal
+// Auth State
 const initialState = {
   user: null,
-  token: null,
   isAuthenticated: false,
-  loading: true, // Selalu mulai dengan loading true
+  loading: true,
   error: null
 };
 
-// Actions
+// Auth Actions
 const authActions = {
-  LOGIN_START: 'LOGIN_START',
-  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
-  LOGIN_FAILURE: 'LOGIN_FAILURE',
+  LOGIN: 'LOGIN',
   LOGOUT: 'LOGOUT',
-  LOAD_USER_SUCCESS: 'LOAD_USER_SUCCESS',
-  LOAD_USER_FINISH: 'LOAD_USER_FINISH', // Aksi baru untuk menandai selesai load
-  CLEAR_ERROR: 'CLEAR_ERROR'
+  SET_LOADING: 'SET_LOADING',
+  SET_ERROR: 'SET_ERROR',
+  CLEAR_ERROR: 'CLEAR_ERROR',
 };
 
-// Reducer
+// Auth Reducer
 const authReducer = (state, action) => {
   switch (action.type) {
-    case authActions.LOGIN_START:
-      return { ...state, loading: true, error: null };
-    
-    case authActions.LOGIN_SUCCESS:
+    case authActions.LOGIN:
       return {
         ...state,
-        user: action.payload.user,
-        token: action.payload.token,
-        isAuthenticated: true,
+        user: action.payload,
+        isAuthenticated: !!action.payload,
         loading: false,
-        error: null
+        error: null,
       };
-    
-    case authActions.LOGIN_FAILURE:
-      return {
-        ...state,
-        token: null,
-        isAuthenticated: false,
-        loading: false,
-        error: action.payload
-      };
-
     case authActions.LOGOUT:
       return {
-        ...initialState,
-        loading: false // Pastikan loading false setelah logout
+        ...state,
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+        error: null,
       };
-
-    case authActions.LOAD_USER_SUCCESS:
+    case authActions.SET_LOADING:
       return {
         ...state,
-        user: action.payload.user,
-        token: action.payload.token,
-        isAuthenticated: true,
-        loading: false
+        loading: action.payload,
       };
-
-    case authActions.LOAD_USER_FINISH:
-      // Aksi ini dipanggil ketika tidak ada token, menandakan proses load selesai.
-      return { ...state, loading: false };
-
+    case authActions.SET_ERROR:
+      return {
+        ...state,
+        error: action.payload,
+        loading: false,
+      };
     case authActions.CLEAR_ERROR:
-      return { ...state, error: null };
-    
+      return {
+        ...state,
+        error: null,
+      };
     default:
       return state;
   }
 };
 
+// Create Auth Context
 const AuthContext = createContext();
 
+// Auth Provider Component
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  useEffect(() => {
-    // Fungsi ini sinkron dan tidak perlu async
-    const loadUserFromStorage = () => {
-      try {
-        const token = localStorage.getItem('token');
+  const loadUser = async (session) => {
+    if (session) {
+      // Ambil data profil dari tabel 'profiles'
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .single();
 
-        if (token) {
-          // Jika ada token, kita asumsikan valid (sesuai logika mock Anda)
-          const mockUser = {
-            id: 1, name: 'Admin User', email: 'admin@disdik.go.id', role: 'admin', avatar: null
-          };
-          dispatch({
-            type: authActions.LOAD_USER_SUCCESS,
-            payload: { user: mockUser, token }
-          });
-        } else {
-          // Jika tidak ada token, proses loading selesai
-          dispatch({ type: authActions.LOAD_USER_FINISH });
-        }
-      } catch (error) {
-        console.error("Failed to load user:", error);
-        dispatch({ type: authActions.LOAD_USER_FINISH });
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching profile:', profileError);
       }
-    };
-
-    loadUserFromStorage();
-  }, []);
-
-  const login = async (credentials) => {
-    dispatch({ type: authActions.LOGIN_START });
-    try {
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulasi network delay
       
-      if (credentials.email === 'admin@disdik.go.id' && credentials.password === 'admin123') {
-        const mockResponse = {
-          user: { id: 1, name: 'Admin User', email: 'admin@disdik.go.id', role: 'admin', avatar: null },
-          token: 'mock-jwt-token-' + Date.now()
-        };
-
-        localStorage.setItem('token', mockResponse.token);
-        dispatch({ type: authActions.LOGIN_SUCCESS, payload: mockResponse });
-        return { success: true };
-      } else {
-        throw new Error('Email atau password salah');
-      }
-    } catch (error) {
-      dispatch({ type: authActions.LOGIN_FAILURE, payload: error.message });
-      return { success: false, error: error.message };
+      const userWithProfile = profile ? { ...session.user, ...profile } : session.user;
+      dispatch({ type: authActions.LOGIN, payload: userWithProfile });
+    } else {
+      dispatch({ type: authActions.LOGOUT });
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    dispatch({ type: authActions.LOGOUT });
-  };
-  
-  // Fungsi lain (register, updateProfile, dll.) tetap sama...
+  useEffect(() => {
+    // Ambil session saat komponen dimuat
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      loadUser(session);
+    });
 
-  const value = { ...state, login, logout, /* ...fungsi lain */ };
+    // Dengarkan perubahan state autentikasi dari Supabase
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          loadUser(session);
+        }
+        if (event === 'SIGNED_OUT') {
+          dispatch({ type: authActions.LOGOUT });
+        }
+      }
+    );
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, []);
+
+  const login = async (credentials) => {
+    dispatch({ type: authActions.SET_LOADING, payload: true });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      if (error) throw error;
+      return { success: true };
+    } catch (error) {
+      dispatch({
+        type: authActions.SET_ERROR,
+        payload: error.message,
+      });
+      return { success: false, error: error.message };
+    } finally {
+      dispatch({ type: authActions.SET_LOADING, payload: false });
+    }
+  };
+
+  const register = async (userData) => {
+    console.warn('Fungsi register belum diimplementasikan dengan Supabase.');
+    return { success: false, error: 'Fungsi register belum diimplementasikan.' };
+  };
+
+  const logout = async () => {
+    try {
+      dispatch({ type: authActions.SET_LOADING, payload: true });
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      dispatch({ type: authActions.LOGOUT });
+    } catch (error) {
+      dispatch({
+        type: authActions.SET_ERROR,
+        payload: error.message,
+      });
+    } finally {
+      dispatch({ type: authActions.SET_LOADING, payload: false });
+    }
+  };
+
+  const updateProfile = async (userData) => {
+    console.warn('Fungsi updateProfile perlu diimplementasikan.');
+    return { success: false, error: 'Fungsi updateProfile belum diimplementasikan.' };
+  };
+
+  const value = {
+    user: state.user,
+    isAuthenticated: state.isAuthenticated,
+    loading: state.loading,
+    error: state.error,
+    login,
+    register,
+    logout,
+    updateProfile,
+    clearError: () => dispatch({ type: authActions.CLEAR_ERROR }),
+  };
 
   return (
     <AuthContext.Provider value={value}>
-      {!state.loading ? children : <div>Loading Authentication...</div>}
+      {children}
     </AuthContext.Provider>
   );
 };

@@ -1,8 +1,8 @@
-// src/pages/Login/Login.jsx
+// Login.jsx - SIMPLE VERSION
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Login.module.css';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext'; 
 
 const Login = () => {
   const navigate = useNavigate();
@@ -15,67 +15,66 @@ const Login = () => {
     isAuthenticated,
     loading,
     isSubmitting,
-    pathname: window.location.pathname,
+    pathname: window.location.pathname
   });
 
   // Redirect jika sudah login
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      console.log('✅ Login: User authenticated, redirecting...');
+      console.log('✅ Login: User authenticated, redirecting to dashboard...');
       navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, loading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     if (isSubmitting || loading) {
-      console.log('⏳ Login: Already submitting/loading, skip');
+      console.log('⏳ Login: Already submitting or loading, skipping...');
       return;
     }
 
     setIsSubmitting(true);
     clearError();
-
-    console.log('🚀 Login: Starting login for:', email);
+    
+    console.log('🚀 Login: Starting login process for:', email);
 
     try {
       const result = await login({ email, password });
-      console.log('🔍 Login: Result:', result);
-
+      
+      console.log('🔍 Login: Login result:', result);
+      
       if (result.success) {
-        console.log('✅ Login: Success!');
-        // Redirect handled by useEffect
+        console.log('✅ Login: Login successful!');
+        // Navigation akan dihandle oleh useEffect di atas
       } else {
-        console.error('❌ Login: Failed:', result.error);
-        alert(result.error || 'Login gagal, coba lagi.');
+        console.error('❌ Login: Login failed:', result.error);
+        alert(result.error || 'Login gagal. Silakan coba lagi.');
       }
     } catch (err) {
-      console.error('❌ Login Exception:', err);
-      alert('Terjadi kesalahan: ' + err.message);
+      console.error('❌ Login: Exception during login:', err);
+      alert('Terjadi kesalahan saat login: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // State loading
+  // Jangan render form jika sedang loading
   if (loading) {
     console.log('⏳ Login: Showing loading state');
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-        }}
-      >
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        height: '100vh' 
+      }}>
         <div>Loading Authentication...</div>
       </div>
     );
   }
 
-  console.log('📝 Login: Rendering form');
+  console.log('📝 Login: Rendering login form');
 
   return (
     <div className={styles.loginContainer}>
@@ -100,7 +99,9 @@ const Login = () => {
             Selengkapnya
           </a>
         </div>
-        <div className={styles.bottomText}>DINAS PENDIDIKAN KABUPATEN GARUT</div>
+        <div className={styles.bottomText}>
+          DINAS PENDIDIKAN KABUPATEN GARUT
+        </div>
       </div>
 
       {/* Kanan */}
@@ -151,9 +152,9 @@ const Login = () => {
               </div>
             </div>
 
-            <button
-              type="submit"
-              className={styles.loginBtn}
+            <button 
+              type="submit" 
+              className={styles.loginBtn} 
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Memproses...' : 'Masuk'}
@@ -161,16 +162,12 @@ const Login = () => {
           </form>
 
           {error && (
-            <p
-              style={{
-                color: 'red',
-                marginTop: '10px',
-                textAlign: 'center',
-              }}
-            >
+            <p style={{ color: 'red', marginTop: '10px', textAlign: 'center' }}>
               {error}
             </p>
           )}
+
+          {/* Debug Info - SELALU tampil untuk debugging */}
         </div>
       </div>
     </div>
