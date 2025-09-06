@@ -1,6 +1,6 @@
 // src/components/common/Header/Header.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Settings, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext'; // Pastikan path ini benar
@@ -8,9 +8,16 @@ import styles from './Header.module.css';
 
 const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  // Ambil 'profile' dan 'user' dari useAuth
-  const { user, profile, logout } = useAuth();
+  // Ambil 'profile', 'user', dan 'refreshProfile' dari useAuth
+  const { user, profile, logout, refreshProfile } = useAuth();
   const navigate = useNavigate();
+
+  // Refresh profile data ketika component dimount jika user ada tapi profile belum ada
+  useEffect(() => {
+    if (user && !profile && refreshProfile) {
+      refreshProfile();
+    }
+  }, [user, profile, refreshProfile]);
 
   const handleLogout = () => {
     logout();
@@ -21,14 +28,15 @@ const Header = () => {
     navigate('/admin/profile');
     setDropdownOpen(false);
   };
+
   const handleSettings = () => {
     navigate('/users/settings');
     setDropdownOpen(false);
   };
   
-  // Fungsi untuk mendapatkan inisial nama
+  // Fungsi untuk mendapatkan inisial nama (sinkron dengan AdminProfile.jsx)
   const getInitials = (name) => {
-    if (!name) return user?.email ? user.email.charAt(0).toUpperCase() : 'A';
+    if (!name) return user?.email?.charAt(0).toUpperCase() || 'U';
     return name
       .split(' ')
       .map(part => part.charAt(0))
@@ -37,6 +45,17 @@ const Header = () => {
       .toUpperCase();
   };
 
+  // Fungsi untuk mendapatkan display name role (sinkron dengan AdminProfile.jsx)
+  const getRoleDisplayName = (role) => {
+    const roleNames = {
+      'admin': 'Administrator',
+      'kepala_dinas': 'Kepala Dinas',
+      'staff': 'Staff',
+      'guru': 'Guru',
+      'operator': 'Operator'
+    };
+    return roleNames[role?.toLowerCase()] || role?.replace('_', ' ').toUpperCase() || 'User';
+  };
 
   return (
     <header className={styles.header}>
@@ -61,24 +80,74 @@ const Header = () => {
               onClick={() => setDropdownOpen(!dropdownOpen)}
             >
               <div className={styles.userAvatar}>
-                {/* Logika untuk menampilkan avatar atau inisial */}
+                {/* Logika untuk menampilkan avatar atau inisial (sinkron dengan AdminProfile.jsx) */}
                 {profile?.avatar_url ? (
-                  <img src={profile.avatar_url} alt="Avatar" className={styles.avatarImage} />
-                ) : (
-                  <span className={styles.avatarInitials}>
-                    {getInitials(profile?.name)}
-                  </span>
-                )}
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Avatar" 
+                    className={styles.avatarImage}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <span 
+                  className={styles.avatarInitials}
+                  style={{ display: profile?.avatar_url ? 'none' : 'flex' }}
+                >
+                  {getInitials(profile?.name)}
+                </span>
               </div>
               <div className={styles.userInfo}>
-                 {/* Tampilkan data dari 'profile' jika ada, fallback ke data 'user' */}
-                <span className={styles.userName}>{profile?.name || user?.email.split('@')[0]}</span>
-                <span className={styles.userRole}>{user?.email}</span>
+                {/* Tampilkan data dari 'profile' jika ada, fallback ke data 'user' */}
+                <span className={styles.userName}>
+                  {profile?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                </span>
+                <span className={styles.userRole}>
+                  {profile?.role ? getRoleDisplayName(profile.role) : user?.email}
+                </span>
               </div>
             </button>
 
             {dropdownOpen && (
               <div className={styles.dropdown}>
+                <div className={styles.dropdownHeader}>
+                  <div className={styles.dropdownAvatar}>
+                    {profile?.avatar_url ? (
+                      <img 
+                        src={profile.avatar_url} 
+                        alt="Avatar" 
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <span 
+                      className={styles.dropdownInitials}
+                      style={{ display: profile?.avatar_url ? 'none' : 'flex' }}
+                    >
+                      {getInitials(profile?.name)}
+                    </span>
+                  </div>
+                  <div className={styles.dropdownUserInfo}>
+                    <span className={styles.dropdownUserName}>
+                      {profile?.name || user?.user_metadata?.full_name || 'Admin'}
+                    </span>
+                    <span className={styles.dropdownUserEmail}>
+                      {profile?.email || user?.email}
+                    </span>
+                    {profile?.role && (
+                      <span className={styles.dropdownUserRole}>
+                        {getRoleDisplayName(profile.role)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className={styles.dropdownDivider}></div>
+                
                 <div className={styles.dropdownBody}>
                   <button className={styles.dropdownItem} onClick={handleAdminProfile}>
                     <Shield size={16} />
@@ -88,6 +157,9 @@ const Header = () => {
                     <Settings size={16} />
                     <span>Settings</span>
                   </button>
+                  
+                  <div className={styles.dropdownDivider}></div>
+                  
                   <button className={styles.logoutButton} onClick={handleLogout}>
                     <LogOut size={16} />
                     <span>Logout</span>

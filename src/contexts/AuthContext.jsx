@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase'; // Pastikan path ini benar
 // Auth State
 const initialState = {
   user: null,
+  profile: null, // Tambahkan profile ke state
   isAuthenticated: false,
   loading: true,
   error: null
@@ -16,6 +17,7 @@ const authActions = {
   SET_LOADING: 'SET_LOADING',
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
+  UPDATE_PROFILE: 'UPDATE_PROFILE', // Tambahkan action untuk update profile
 };
 
 // Auth Reducer
@@ -24,8 +26,9 @@ const authReducer = (state, action) => {
     case authActions.LOGIN:
       return {
         ...state,
-        user: action.payload,
-        isAuthenticated: !!action.payload,
+        user: action.payload.user,
+        profile: action.payload.profile,
+        isAuthenticated: !!action.payload.user,
         loading: false,
         error: null,
       };
@@ -33,9 +36,15 @@ const authReducer = (state, action) => {
       return {
         ...state,
         user: null,
+        profile: null,
         isAuthenticated: false,
         loading: false,
         error: null,
+      };
+    case authActions.UPDATE_PROFILE:
+      return {
+        ...state,
+        profile: action.payload,
       };
     case authActions.SET_LOADING:
       return {
@@ -65,21 +74,42 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  // Fungsi untuk set profile dari AdminProfile.jsx
+  const setProfileData = (profileData) => {
+    dispatch({ 
+      type: authActions.UPDATE_PROFILE, 
+      payload: profileData 
+    });
+  };
+
   const loadUser = async (session) => {
     if (session) {
-      // Ambil data profil dari tabel 'profiles'
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
+      let profile = null;
+      
+      // Ambil data profil dari tabel 'profile' (sesuai dengan AdminProfile.jsx)
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profile') // Menggunakan 'profile' (tanpa 's') sesuai AdminProfile.jsx
+          .select('*')
+          .eq('user_id', session.user.id)
+          .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching profile:', profileError);
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Error fetching profile:', profileError);
+        } else if (profileData) {
+          profile = profileData;
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
       }
       
-      const userWithProfile = profile ? { ...session.user, ...profile } : session.user;
-      dispatch({ type: authActions.LOGIN, payload: userWithProfile });
+      dispatch({ 
+        type: authActions.LOGIN, 
+        payload: { 
+          user: session.user, 
+          profile: profile 
+        } 
+      });
     } else {
       dispatch({ type: authActions.LOGOUT });
     }
@@ -150,13 +180,86 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const updateProfile = async (userData) => {
-    console.warn('Fungsi updateProfile perlu diimplementasikan.');
-    return { success: false, error: 'Fungsi updateProfile belum diimplementasikan.' };
+  // Fungsi untuk refresh profile data
+  const refreshProfile = async () => {
+    if (!state.user) return;
+    
+    try {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profile')
+        .select('*')
+        .eq('user_id', state.user.id)
+        .single();
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error refreshing profile:', profileError);
+        return;
+      }
+
+      if (profileData) {
+        dispatch({ 
+          type: authActions.UPDATE_PROFILE, 
+          payload: profileData 
+        });
+      }
+    } catch (error) {
+      console.error('Error refreshing profile:', error);
+    }
+  };
+
+  const updateProfile = async (profileData) => {
+    if (!state.user) {
+      return { success: false, error: 'User tidak ditemukan' };
+    }
+
+    try {
+      const updateData = {
+        ...profileData,
+        user_id: state.user.id,
+        updated_at: new Date().toISOString()
+      };
+
+      let result;
+      if (state.profile?.id) {
+        // Update existing profile
+        result = await supabase
+          .from('profile')
+          .update(updateData)
+          .eq('id', state.profile.id)
+          .select()
+          .single();
+      } else {
+        // Create new profile
+        updateData.created_at = new Date().toISOString();
+        result = await supabase
+          .from('profile')
+          .insert([updateData])
+          .select()
+          .single();
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      // Update profile in context
+      if (result.data) {
+        dispatch({ 
+          type: authActions.UPDATE_PROFILE, 
+          payload: result.data 
+        });
+      }
+
+      return { success: true, data: result.data };
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return { success: false, error: error.message };
+    }
   };
 
   const value = {
     user: state.user,
+    profile: state.profile, // Export profile
     isAuthenticated: state.isAuthenticated,
     loading: state.loading,
     error: state.error,
@@ -164,6 +267,8 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    refreshProfile, // Export refreshProfile function
+    setProfileData, // Export setProfileData function
     clearError: () => dispatch({ type: authActions.CLEAR_ERROR }),
   };
 

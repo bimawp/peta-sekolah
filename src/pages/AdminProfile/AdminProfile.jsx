@@ -5,7 +5,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../utils/supabase';
 
 const AdminProfile = () => {
-  const { user } = useAuth();
+  // Ambil setProfileData dari useAuth untuk menyimpan data ke context
+  const { user, profile: contextProfile, setProfileData } = useAuth();
   const [activeView, setActiveView] = useState('profile');
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -74,10 +75,17 @@ const AdminProfile = () => {
       }
       console.log('Data profil yang diambil:', data);
       if (data) {
-        setProfile({ 
+        const profileData = { 
           ...data, 
           email: user.email || data.email 
-        });
+        };
+        
+        // Set profile di local state
+        setProfile(profileData);
+        
+        // PENTING: Set profile data ke AuthContext agar Header bisa mengakses
+        setProfileData(profileData);
+        
       } else {
         console.log('Profil tidak ditemukan. Mencoba membuat profil baru...');
         
@@ -90,7 +98,6 @@ const AdminProfile = () => {
           updated_at: new Date().toISOString(),
         };
 
-        // PERBAIKAN: Memastikan nama tabel konsisten 'profile' (tanpa 's')
         const { data: newProfile, error: insertError } = await supabase
           .from('profile')
           .insert([newProfileData])
@@ -101,7 +108,14 @@ const AdminProfile = () => {
           console.error('Error creating new profile:', insertError);
           showMessage('Gagal membuat profil baru. Periksa kebijakan INSERT RLS.', 'error');
         } else {
-          setProfile({ ...newProfile, email: user.email });
+          const profileData = { ...newProfile, email: user.email };
+          
+          // Set profile di local state
+          setProfile(profileData);
+          
+          // PENTING: Set profile data ke AuthContext agar Header bisa mengakses
+          setProfileData(profileData);
+          
           showMessage('Profil baru berhasil dibuat.', 'success');
         }
       }
@@ -132,7 +146,6 @@ const AdminProfile = () => {
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     
-    // PERBAIKAN: Validasi .trim() yang lebih aman untuk mencegah error
     if (!profile.name || !profile.name.trim()) {
       showMessage('Nama tidak boleh kosong', 'error');
       return;
@@ -158,14 +171,14 @@ const AdminProfile = () => {
           .update(profileData)
           .eq('id', profile.id)
           .select()
-          .single(); // PERBAIKAN: .single() diaktifkan agar mendapat objek, bukan array
+          .single();
       } else {
         profileData.created_at = new Date().toISOString();
         result = await supabase
           .from('profile')
           .insert([profileData])
           .select()
-          .single(); // PERBAIKAN: .single() diaktifkan agar mendapat objek, bukan array
+          .single();
       }
 
       if (result.error) {
@@ -173,7 +186,13 @@ const AdminProfile = () => {
       }
       
       if (result.data) {
-        setProfile({ ...result.data, email: user.email });
+        const updatedProfile = { ...result.data, email: user.email };
+        
+        // Update local state
+        setProfile(updatedProfile);
+        
+        // PENTING: Update profile data di AuthContext agar Header langsung update
+        setProfileData(updatedProfile);
       }
       showMessage('Profil berhasil diperbarui!');
     } catch (error) {
@@ -317,7 +336,13 @@ const AdminProfile = () => {
       }
       
       if(result.data){
-        setProfile({ ...result.data, email: user.email });
+        const updatedProfile = { ...result.data, email: user.email };
+        
+        // Update local state
+        setProfile(updatedProfile);
+        
+        // PENTING: Update profile data di AuthContext agar Header langsung update
+        setProfileData(updatedProfile);
       }
       showMessage('Avatar berhasil diunggah dan disimpan!');
     } catch (error) {
@@ -684,19 +709,110 @@ const AdminProfile = () => {
 
           {activeTab === 'notifications' && (
             <div className={styles.notificationSection}>
-                {/* Konten Notifikasi */}
+                <div className={styles.sectionHeader}>
+                  <h2>Pengaturan Notifikasi</h2>
+                  <p>Kelola preferensi notifikasi Anda</p>
+                </div>
+                <p>Fitur notifikasi akan segera tersedia.</p>
             </div>
           )}
 
           {activeTab === 'preferences' && (
             <div className={styles.preferencesSection}>
-                {/* Konten Preferensi */}
+                <div className={styles.sectionHeader}>
+                  <h2>Preferensi</h2>
+                  <p>Atur bahasa dan tema aplikasi</p>
+                </div>
+                <p>Fitur preferensi akan segera tersedia.</p>
             </div>
           )}
 
           {activeTab === 'security' && (
             <div className={styles.securitySection}>
-                {/* Konten Keamanan */}
+                <div className={styles.sectionHeader}>
+                  <h2>Keamanan</h2>
+                  <p>Kelola password dan keamanan akun</p>
+                </div>
+                
+                <form onSubmit={handlePasswordSubmit} className={styles.form}>
+                  <div className={styles.formGroup}>
+                    <label>
+                      <Lock size={16} />
+                      Password Saat Ini *
+                    </label>
+                    <div className={styles.passwordInput}>
+                      <input
+                        type={showPasswords.current ? "text" : "password"}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
+                        placeholder="Masukkan password saat ini"
+                        required
+                      />
+                      <button
+                        type="button"
+                        className={styles.togglePassword}
+                        onClick={() => togglePasswordVisibility('current')}
+                      >
+                        {showPasswords.current ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label>
+                      <Lock size={16} />
+                      Password Baru *
+                    </label>
+                    <div className={styles.passwordInput}>
+                      <input
+                        type={showPasswords.new ? "text" : "password"}
+                        value={passwordData.newPassword}
+                        onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
+                        placeholder="Masukkan password baru"
+                        required
+                      />
+                      <button
+                        type="button"
+                        className={styles.togglePassword}
+                        onClick={() => togglePasswordVisibility('new')}
+                      >
+                        {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label>
+                      <Lock size={16} />
+                      Konfirmasi Password Baru *
+                    </label>
+                    <div className={styles.passwordInput}>
+                      <input
+                        type={showPasswords.confirm ? "text" : "password"}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
+                        placeholder="Konfirmasi password baru"
+                        required
+                      />
+                      <button
+                        type="button"
+                        className={styles.togglePassword}
+                        onClick={() => togglePasswordVisibility('confirm')}
+                      >
+                        {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    className={styles.saveButton}
+                    disabled={loading}
+                  >
+                    <Save size={16} />
+                    {loading ? 'Menyimpan...' : 'Ubah Password'}
+                  </button>
+                </form>
             </div>
           )}
         </div>
