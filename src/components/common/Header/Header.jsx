@@ -1,12 +1,15 @@
+// src/components/common/Header/Header.jsx
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Settings, LogOut, Shield } from 'lucide-react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext'; // Pastikan path ini benar
 import styles from './Header.module.css';
 
 const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const { user, logout } = useAuth();
+  // Ambil 'profile' dan 'user' dari useAuth
+  const { user, profile, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -14,8 +17,26 @@ const Header = () => {
     navigate('/login');
   };
 
-  const handleAdminProfile = () => navigate('/admin/profile');
-  const handleSettings = () => navigate('/users/settings'); // navigasi ke halaman Setting
+  const handleAdminProfile = () => {
+    navigate('/admin/profile');
+    setDropdownOpen(false);
+  };
+  const handleSettings = () => {
+    navigate('/users/settings');
+    setDropdownOpen(false);
+  };
+  
+  // Fungsi untuk mendapatkan inisial nama
+  const getInitials = (name) => {
+    if (!name) return user?.email ? user.email.charAt(0).toUpperCase() : 'A';
+    return name
+      .split(' ')
+      .map(part => part.charAt(0))
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+  };
+
 
   return (
     <header className={styles.header}>
@@ -33,17 +54,26 @@ const Header = () => {
 
         {/* Right */}
         <div className={styles.right}>
+         {user && ( // Tampilkan menu hanya jika user sudah login
           <div className={styles.userMenu}>
             <button
               className={styles.userButton}
               onClick={() => setDropdownOpen(!dropdownOpen)}
             >
               <div className={styles.userAvatar}>
-                <User size={20} />
+                {/* Logika untuk menampilkan avatar atau inisial */}
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Avatar" className={styles.avatarImage} />
+                ) : (
+                  <span className={styles.avatarInitials}>
+                    {getInitials(profile?.name)}
+                  </span>
+                )}
               </div>
               <div className={styles.userInfo}>
-                <span className={styles.userName}>{user?.name || 'Admin User'}</span>
-                <span className={styles.userRole}>{user?.email || 'admin@disdik.go.id'}</span>
+                 {/* Tampilkan data dari 'profile' jika ada, fallback ke data 'user' */}
+                <span className={styles.userName}>{profile?.name || user?.email.split('@')[0]}</span>
+                <span className={styles.userRole}>{user?.email}</span>
               </div>
             </button>
 
@@ -66,6 +96,7 @@ const Header = () => {
               </div>
             )}
           </div>
+         )}
         </div>
       </div>
 

@@ -2,41 +2,25 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const ProtectedRoute = ({ children, requiredRole = null }) => {
-  const { isAuthenticated, user, loading } = useAuth();
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
+  // 1. Saat aplikasi sedang memeriksa status login, tampilkan pesan loading
   if (loading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '50vh'
-      }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          border: '2px solid var(--color-bg-tertiary)',
-          borderTop: '2px solid var(--color-primary)',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <p>Loading Authentication...</p>
       </div>
     );
   }
 
+  // 2. Setelah selesai memeriksa, jika ternyata tidak login, paksa pengguna kembali ke halaman login
   if (!isAuthenticated) {
-    // Redirect to login page with return url
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if user has required role
-  if (requiredRole && user?.role !== requiredRole) {
-    // Redirect to dashboard if user doesn't have required role
-    return <Navigate to="/" replace />;
-  }
-
+  // 3. Jika sudah login, izinkan pengguna melihat halaman yang dituju
   return children;
 };
 
