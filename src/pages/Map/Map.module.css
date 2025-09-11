@@ -1,346 +1,434 @@
-/* Map.module.css */
-
-.mapContainer {
-  position: relative;
+/* CSS Variables for consistent theming */
+:root {
+  --primary-blue: #3498db;
+  --primary-blue-dark: #2980b9;
+  --success-green: #198754;
+  --warning-orange: #fd7e14;
+  --danger-red: #dc3545;
+  --warning-yellow: #ffc107;
+  --secondary-gray: #6c757d;
+  --light-gray: #f8f9fa;
+  --medium-gray: #dee2e6;
+  --dark-gray: #495057;
+  --white: #ffffff;
+  --shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.15);
+  --shadow-heavy: 0 8px 16px rgba(0, 0, 0, 0.2);
+  --border-radius-sm: 6px;
+  --border-radius: 12px;
+  --border-radius-lg: 16px;
+  --transition-fast: 0.15s ease-in-out;
+  --transition: 0.2s ease-in-out;
+  --transition-slow: 0.3s ease-in-out;
 }
 
+/* Main map container */
+.mapContainer {
+  position: relative;
+  width: 100%;
+  background: var(--light-gray);
+  /* PERBAIKAN 1: Paksa peta untuk memenuhi seluruh tinggi layar. Ini akan memperbaiki legenda yang terpotong. */
+  height: 100vh;
+}
+
+/* Loading overlay */
 .loadingOverlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-
-  /* Tambahan untuk Safari */
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
+  z-index: 2000;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
+/* ... (sisa kode loading tidak berubah) ... */
 .loadingCard {
-  padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: var(--white);
+  padding: 24px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-medium);
   text-align: center;
+  min-width: 280px;
+  max-width: 90vw;
 }
 
 .loadingTitle {
-  font-size: 18px;
-  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dark-gray);
+  margin-bottom: 16px;
 }
 
 .progressBar {
-  width: 200px;
-  height: 6px;
-  background: #e0e0e0;
-  border-radius: 3px;
+  width: 100%;
+  height: 8px;
+  background: var(--medium-gray);
+  border-radius: 4px;
   overflow: hidden;
+  margin-bottom: 12px;
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #007bff, #28a745);
-  transition: width 0.3s ease;
+  background: linear-gradient(90deg, var(--primary-blue), var(--primary-blue-dark));
+  transition: width var(--transition);
+  border-radius: 4px;
 }
 
 .progressText {
   font-size: 14px;
-  margin-top: 8px;
-  color: #666;
+  color: var(--secondary-gray);
 }
 
-/* Popup Styles */
+
+/* School popup styles */
 .popupContainer {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.4;
+  color: var(--dark-gray);
+  padding: 0;
+  margin: 0;
 }
 
 .popupContainer.mobile {
-  min-width: 250px;
-  max-width: 300px;
-  font-size: 0.85em;
-  max-height: 400px;
-  overflow-y: auto;
+  min-width: 260px;
+  max-width: 280px;
 }
 
 .popupContainer.desktop {
   min-width: 320px;
-  max-width: 400px;
-  font-size: 1em;
-  max-height: 500px;
-  overflow-y: auto;
+  max-width: 380px;
 }
 
 .popupTitle {
-  color: #2c3e50;
-  margin-bottom: 10px;
-  font-weight: bold;
+  font-weight: 700;
+  color: var(--primary-blue-dark);
+  margin-bottom: 12px;
+  line-height: 1.3;
+  border-bottom: 2px solid var(--primary-blue);
+  padding-bottom: 8px;
 }
 
 .popupTitle.mobile {
-  font-size: 1.1em;
+  font-size: 15px;
 }
 
 .popupTitle.desktop {
-  font-size: 1.2em;
+  font-size: 17px;
 }
 
 .schoolInfo {
-  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 13px;
 }
 
 .schoolInfoItem {
-  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .jenjangBadge {
-  color: #3498db;
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+  color: var(--white);
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
   margin-left: 4px;
 }
 
 .typeBadge {
-  color: #6c757d;
-  margin-left: 8px;
+  background: var(--medium-gray);
+  color: var(--dark-gray);
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .facilitySection {
-  border-radius: 6px;
-  background-color: #f8f9fa;
-  border: 2px solid;
+  background: rgba(255, 255, 255, 0.8);
+  border-left: 4px solid transparent;
+  padding: 10px;
+  margin: 12px 0;
+  border-radius: var(--border-radius-sm);
 }
 
 .facilitySection.mobile {
-  margin-top: 8px;
   padding: 8px;
+  margin: 10px 0;
 }
 
 .facilitySection.desktop {
-  margin-top: 10px;
-  padding: 10px;
+  padding: 12px;
 }
 
 .facilityIndicator {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  gap: 8px;
 }
 
 .facilityCircle {
-  display: inline-block;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  margin-right: 8px;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px #ccc;
+  flex-shrink: 0;
+  border: 2px solid var(--white);
+  box-shadow: var(--shadow-light);
 }
 
 .facilityCircle.mobile {
+  width: 10px;
+  height: 10px;
+}
+
+.facilityCircle.desktop {
   width: 14px;
   height: 14px;
 }
 
-.facilityCircle.desktop {
-  width: 18px;
-  height: 18px;
+.facilityStatus {
+  font-weight: 600;
+  font-size: 13px;
 }
 
-.facilityStatus {
-  font-weight: bold;
+.facilityDetailsSection {
+  margin: 12px 0;
 }
 
 .detailToggleButton {
-  margin-top: 8px;
-  padding: 6px 12px;
-  background-color: #007bff;
-  color: white;
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+  color: var(--white);
   border: none;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: var(--border-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  transition: all var(--transition-fast);
   width: 100%;
+  text-align: center;
 }
 
 .detailToggleButton.mobile {
-  font-size: 0.8em;
+  padding: 7px 10px;
+  font-size: 11px;
 }
 
-.detailToggleButton.desktop {
-  font-size: 0.9em;
+.detailToggleButton:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
 }
 
 .hideDetailButton {
-  margin-top: 8px;
-  padding: 4px 8px;
-  background-color: #6c757d;
-  color: white;
+  background: var(--secondary-gray);
+  color: var(--white);
   border: none;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border-radius: var(--border-radius-sm);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
-  float: right;
+  transition: all var(--transition-fast);
+  width: 100%;
+  text-align: center;
 }
 
 .hideDetailButton.mobile {
-  font-size: 0.75em;
+  padding: 7px 10px;
+  font-size: 11px;
 }
 
-.hideDetailButton.desktop {
-  font-size: 0.8em;
+.hideDetailButton:hover {
+  background: var(--dark-gray);
+  transform: translateY(-1px);
 }
 
 .detailsContainer {
-  clear: both;
-  margin-top: 12px;
+  background: var(--light-gray);
+  border-radius: var(--border-radius-sm);
+  padding: 12px;
+  margin-top: 8px;
+  /* PERBAIKAN: Kurangi sedikit max-height agar lebih aman di layar kecil */
+  max-height: 150px;
+  overflow-y: auto;
 }
 
+/* ... (sisa kode popup tidak berubah) ... */
 .detailSection {
-  margin-top: 8px;
-  padding: 8px;
-  background-color: #ffffff;
-  border-radius: 4px;
-  border: 1px solid #e9ecef;
+  margin-bottom: 12px;
+}
+
+.detailSection:last-child {
+  margin-bottom: 0;
 }
 
 .detailTitle {
-  font-weight: bold;
-  color: #495057;
-  margin-bottom: 4px;
+  font-weight: 600;
+  color: var(--primary-blue-dark);
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--medium-gray);
+  padding-bottom: 4px;
 }
 
 .detailTitle.mobile {
-  font-size: 0.9em;
+  font-size: 12px;
 }
 
 .detailTitle.desktop {
-  font-size: 1em;
+  font-size: 13px;
 }
 
 .detailItem {
-  margin-bottom: 2px;
-  padding-left: 8px;
-  color: #6c757d;
+  color: var(--dark-gray);
+  margin-bottom: 3px;
+  line-height: 1.3;
 }
 
 .detailItem.mobile {
-  font-size: 0.8em;
+  font-size: 11px;
 }
 
 .detailItem.desktop {
-  font-size: 0.9em;
+  font-size: 12px;
 }
 
 .locationSection {
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  margin-top: 8px;
+  background: rgba(248, 249, 250, 0.8);
+  padding: 10px;
+  border-radius: var(--border-radius-sm);
+  margin: 12px 0;
 }
 
 .locationSection.mobile {
-  padding: 6px;
-  font-size: 0.8em;
-}
-
-.locationSection.desktop {
   padding: 8px;
-  font-size: 0.9em;
+  margin: 10px 0;
 }
 
 .locationTitle {
-  color: #34495e;
-  font-weight: bold;
+  font-weight: 600;
+  color: var(--dark-gray);
+  font-size: 13px;
+  margin-bottom: 8px;
 }
 
 .locationItem {
-  margin-top: 2px;
+  font-size: 12px;
+  margin-bottom: 4px;
+  color: var(--secondary-gray);
 }
 
 .coordinatesSection {
-  margin-top: 4px;
-  color: #666;
+  font-size: 12px;
+  color: var(--secondary-gray);
+  padding-top: 10px;
+  border-top: 1px solid var(--medium-gray);
+  line-height: 1.5;
 }
 
 .coordinatesSection.mobile {
-  font-size: 0.8em;
+  font-size: 11px;
 }
 
-.coordinatesSection.desktop {
-  font-size: 0.9em;
-}
 
-/* Kecamatan Popup Styles */
+/* ... (kode kecamatan popup tidak berubah) ... */
 .kecamatanPopup {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.4;
+  color: var(--dark-gray);
+  min-width: 280px;
 }
 
 .kecamatanPopup.mobile {
-  min-width: 200px;
+  min-width: 260px;
   max-width: 280px;
-  font-size: 0.85em;
 }
 
 .kecamatanPopup.desktop {
-  min-width: 280px;
+  min-width: 320px;
   max-width: 350px;
-  font-size: 1em;
 }
 
 .kecamatanTitle {
-  color: #2c3e50;
+  color: var(--primary-blue-dark);
+  margin-bottom: 12px;
+  border-bottom: 2px solid var(--primary-blue);
+  padding-bottom: 6px;
 }
 
 .kecamatanTitle.mobile {
-  font-size: 1.1em;
+  font-size: 15px;
 }
 
 .kecamatanTitle.desktop {
-  font-size: 1.2em;
+  font-size: 16px;
 }
 
 .totalSchoolsCard {
-  background-color: #ecf0f1;
-  border-radius: 4px;
-  margin-top: 10px;
-  font-weight: bold;
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+  color: var(--white);
+  padding: 12px;
+  border-radius: var(--border-radius);
+  text-align: center;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-light);
 }
 
 .totalSchoolsCard.mobile {
-  padding: 6px;
+  padding: 10px;
+  font-size: 14px;
 }
 
 .totalSchoolsCard.desktop {
-  padding: 8px;
+  padding: 14px;
+  font-size: 15px;
 }
 
 .conditionTitle {
-  margin-top: 8px;
-  color: #34495e;
-  font-weight: bold;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--dark-gray);
 }
 
 .conditionList {
-  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .conditionList.mobile {
-  font-size: 0.8em;
-}
-
-.conditionList.desktop {
-  font-size: 0.9em;
+  gap: 5px;
 }
 
 .conditionItem {
   display: flex;
   align-items: center;
-  margin-bottom: 2px;
+  gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
 }
 
 .conditionCircle {
-  display: inline-block;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  margin-right: 6px;
+  flex-shrink: 0;
+  border: 1px solid var(--white);
+  box-shadow: var(--shadow-light);
 }
 
 .conditionCircle.mobile {
@@ -348,107 +436,97 @@
   height: 8px;
 }
 
-.conditionCircle.desktop {
-  width: 10px;
-  height: 10px;
-}
-
-/* Custom Icons */
-.customFacilityIcon {
-  border: none !important;
-  background: transparent !important;
-}
-
-.customClusterIcon {
-  border: none !important;
-  background: transparent !important;
-}
-
-.customKecamatanIcon {
-  border: none !important;
-  background: transparent !important;
-}
-
-/* Legend Styles */
+/* Legend styles */
 .legend {
-  background: rgba(255, 255, 255, 0.95) !important;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2) !important;
-  border-radius: 8px !important;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+  background: rgba(255, 255, 255, 0.95);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  box-shadow: var(--shadow-medium);
+  border: 1px solid rgba(255, 255, 255, 0.8);
 
-  /* Tambahan untuk Safari */
-  -webkit-backdrop-filter: blur(10px) !important;
-  backdrop-filter: blur(10px) !important;
-
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  /* PERBAIKAN 3: Batasi tinggi legenda dan buat scrollable jika perlu */
+  max-height: 45vh; /* Maksimal 45% tinggi layar */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
+
 
 .legend.mobile {
-  padding: 8px !important;
-  max-width: 200px !important;
+  padding: 10px;
+  max-width: 250px;
+  font-size: 11px;
+  max-height: 40vh; /* Lebih kecil di mobile */
 }
 
 .legend.desktop {
-  padding: 12px !important;
-  max-width: 250px !important;
+  padding: 16px;
+  max-width: 300px;
 }
 
 .legendTitle {
-  margin: 0 0 8px 0;
-  color: #2c3e50;
+  color: var(--primary-blue-dark);
+  border-bottom: 2px solid var(--primary-blue);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 .legendTitle.mobile {
-  font-size: 12px;
-}
-
-.legendTitle.desktop {
   font-size: 14px;
 }
 
+.legendTitle.desktop {
+  font-size: 16px;
+}
+
+/* ... (sisa kode legenda tidak berubah) ... */
 .legendConditionTitle {
-  margin-bottom: 8px;
-  font-weight: bold;
-  color: #34495e;
+  color: var(--dark-gray);
+  margin-bottom: 6px;
 }
 
 .legendConditionTitle.mobile {
-  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.legendConditionTitle.desktop {
+  font-size: 13px;
 }
 
 .legendRow {
   display: flex;
   align-items: center;
-  margin: 3px 0;
+  margin-bottom: 4px;
 }
 
 .legendRow.mobile {
-  margin: 2px 0;
+  margin-bottom: 3px;
 }
 
 .legendCircle {
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  margin-right: 6px;
+  margin-right: 8px;
+  flex-shrink: 0;
+  border: 1px solid var(--white);
+  box-shadow: var(--shadow-light);
 }
 
 .legendCircle.mobile {
-  width: 12px;
-  height: 12px;
-}
-
-.legendCircle.desktop {
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
 }
 
 .legendText {
-  font-weight: 500;
+  line-height: 1.3;
+  color: var(--dark-gray);
 }
 
 .legendText.mobile {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .legendText.desktop {
@@ -456,44 +534,156 @@
 }
 
 .legendStats {
-  border: none;
-  margin: 8px 0;
-  border-top: 1px solid #ddd;
-  color: #666;
-  line-height: 1.3;
+  color: var(--secondary-gray);
+  line-height: 1.4;
 }
 
 .legendStats.mobile {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .legendStats.desktop {
   font-size: 11px;
 }
 
-.legendStatItem {
-  margin: 2px 0;
+/* ... (sisa kode custom icon, responsive, dan animasi tidak berubah) ... */
+.customFacilityIcon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
-.totalStat {
-  color: #2980b9;
-  font-weight: bold;
+.customKecamatanIcon {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
 }
 
-.filterStat {
-  color: #333;
+.customClusterIcon {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
 }
 
-.visibleStat {
-  color: #333;
+@media (min-width: 768px) {
+  .loadingCard {
+    min-width: 320px;
+    padding: 32px;
+  }
+  .loadingTitle {
+    font-size: 18px;
+  }
+  .progressBar {
+    height: 10px;
+  }
+  .progressText {
+    font-size: 15px;
+  }
+  .detailsContainer {
+      max-height: 200px;
+  }
 }
 
-.areaStat {
-  color: #e74c3c;
-  margin-top: 4px;
+@media (min-width: 1024px) {
+  .legend {
+    max-width: 320px;
+    padding: 20px;
+  }
+  .popupContainer {
+    max-width: 400px;
+  }
+  .kecamatanPopup {
+    max-width: 380px;
+  }
 }
 
-.updateStat {
-  color: #27ae60;
-  font-style: italic;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* Leaflet overrides */
+:global(.leaflet-popup-content-wrapper) {
+  padding: 0;
+  border-radius: var(--border-radius) !important;
+  box-shadow: var(--shadow-heavy) !important;
+  background: var(--white) !important;
+  
+  /* PERBAIKAN 2: Batasi tinggi popup dan buat scrollable jika kontennya panjang. Ini akan memperbaiki detail yang terpotong. */
+  max-height: 80vh; /* Maksimal 80% dari tinggi layar */
+  overflow-y: auto;
+}
+
+:global(.leaflet-popup-content) {
+  margin: 0 !important;
+  padding: 16px !important;
+  line-height: 1.4 !important;
+}
+
+:global(.leaflet-popup-tip) {
+  background: var(--white) !important;
+  box-shadow: var(--shadow-light) !important;
+}
+
+:global(.leaflet-popup-close-button) {
+  color: var(--secondary-gray) !important;
+  font-size: 18px !important;
+  padding: 8px !important;
+  transition: color var(--transition-fast) !important;
+  /* Pastikan tombol close tetap terlihat saat popup di-scroll */
+  position: sticky;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  background: var(--white);
+  border-radius: 0 var(--border-radius) 0 0;
+}
+
+:global(.leaflet-popup-close-button:hover) {
+  color: var(--danger-red) !important;
+}
+
+:global(.marker-cluster) {
+  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark)) !important;
+  border: 2px solid var(--white) !important;
+  box-shadow: var(--shadow-medium) !important;
+  transition: transform var(--transition-fast) !important;
+}
+
+:global(.marker-cluster:hover) {
+  transform: scale(1.1) !important;
+}
+
+:global(.marker-cluster div) {
+  background: transparent !important;
+  color: var(--white) !important;
+  font-weight: 600 !important;
+}
+
+/* Scrollbar styling for a better look */
+.detailsContainer::-webkit-scrollbar,
+.legend::-webkit-scrollbar,
+:global(.leaflet-popup-content-wrapper)::-webkit-scrollbar {
+  width: 5px;
+}
+
+.detailsContainer::-webkit-scrollbar-track,
+.legend::-webkit-scrollbar-track,
+:global(.leaflet-popup-content-wrapper)::-webkit-scrollbar-track {
+  background: var(--medium-gray);
+  border-radius: 2px;
+}
+
+.detailsContainer::-webkit-scrollbar-thumb,
+.legend::-webkit-scrollbar-thumb,
+:global(.leaflet-popup-content-wrapper)::-webkit-scrollbar-thumb {
+  background: var(--secondary-gray);
+  border-radius: 2px;
+}
+
+.detailsContainer::-webkit-scrollbar-thumb:hover,
+.legend::-webkit-scrollbar-thumb:hover,
+:global(.leaflet-popup-content-wrapper)::-webkit-scrollbar-thumb:hover {
+  background: var(--dark-gray);
 }

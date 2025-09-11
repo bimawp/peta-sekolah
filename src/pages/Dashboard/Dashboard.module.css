@@ -1,264 +1,385 @@
-/* Dashboard.module.css */
+/* Dashboard.module.css - Modern Responsive Dashboard */
 
-/* Main dashboard container */
-.dashboard {
-  padding: 20px;
-  background-color: #f8fafc;
-  min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  max-width: 100%;
-  overflow-x: hidden;
+/* Import modern font */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* CSS Variables for consistent theming */
+:root {
+  --primary-color: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+  --secondary-color: #10b981;
+  --secondary-light: #34d399;
+  --accent-color: #f59e0b;
+  --accent-light: #fbbf24;
+  --warning-color: #ef4444;
+  --warning-light: #f87171;
+  
+  --bg-primary: #fafbfc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f8fafc;
+  
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-light: #d1d5db;
+  
+  --border-color: #e5e7eb;
+  --border-light: #f3f4f6;
+  --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-large: 0 10px 15px rgba(0, 0, 0, 0.08);
+  
+  --border-radius: 12px;
+  --border-radius-lg: 16px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: all 0.15s ease-out;
 }
 
-/* Header */
+/* Dark mode variables */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-card: #1e293b;
+    --bg-hover: #334155;
+    
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #64748b;
+    --text-light: #475569;
+    
+    --border-color: #334155;
+    --border-light: #1e293b;
+    --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.3);
+    --shadow-medium: 0 4px 6px rgba(0, 0, 0, 0.2);
+    --shadow-large: 0 10px 15px rgba(0, 0, 0, 0.25);
+  }
+}
+
+/* Global styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Main Dashboard Container */
+.dashboard {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-primary);
+  min-height: 100vh;
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding: 2rem 1rem;
+}
+
+/* Dashboard Header */
 .dashboardHeader {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  margin-bottom: 20px;
-  text-align: left; /* pastikan teks di kiri */
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 0 1rem;
 }
 
 .dashboardHeader h1 {
-  margin: 0;
-  font-size: 1.8rem;
-  color: #111827;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  margin-bottom: 0.5rem;
 }
 
-/* Summary Cards Section */
+.dashboardHeader h1::after {
+  content: '';
+  display: block;
+  width: 80px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+  margin: 1rem auto;
+  border-radius: 2px;
+}
+
+/* Loading and Error States */
+.loading,
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.loading {
+  color: var(--text-secondary);
+}
+
+.error {
+  color: var(--warning-color);
+  background: var(--bg-card);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  box-shadow: var(--shadow-medium);
+}
+
+/* Summary Cards Container */
 .summaryCardsContainer {
-  margin-bottom: 20px;
+  margin-bottom: 3rem;
+  padding: 0 1rem;
 }
 
 .summaryCards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .summaryCard {
-  flex: 1 1 150px;
-  background: white;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  background: var(--bg-card);
+  border-radius: var(--border-radius);
+  padding: 2rem 1.5rem;
   text-align: center;
-  transition: transform 0.2s ease;
+  box-shadow: var(--shadow-medium);
+  border: 1px solid var(--border-light);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.summaryCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+  transform: translateX(-100%);
+  transition: var(--transition);
 }
 
 .summaryCard:hover {
-  transform: translateY(-3px);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-large);
+  border-color: var(--border-color);
+}
+
+.summaryCard:hover::before {
+  transform: translateX(0);
 }
 
 .summaryCard .title {
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
-  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
 }
 
 .summaryCard .value {
-  font-size: 1.5rem;
-  color: #111827;
-  font-weight: bold;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  line-height: 1.2;
 }
 
 /* Charts Container */
 .chartsContainer {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+  padding: 0 1rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.chartCard {
-  flex: 1 1 500px;
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+/* Chart Cards */
+.chartCard,
+.chartContainer {
+  background: var(--bg-card);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-medium);
+  border: 1px solid var(--border-light);
+  transition: var(--transition);
+  overflow: hidden;
+}
+
+.chartCard:hover,
+.chartContainer:hover {
+  box-shadow: var(--shadow-large);
+  border-color: var(--border-color);
+}
+
+.chartContainer {
+  margin: 0 1rem 3rem 1rem;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Chart Headers */
+.chartHeader {
+  padding: 2rem 2rem 1rem 2rem;
+  border-bottom: 1px solid var(--border-light);
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%);
+}
+
+.chartHeader h2,
+.chartHeader h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
 }
 
 .chartHeader h3 {
-  margin: 0 0 10px 0;
-  font-size: 1.2rem;
-  color: #111827;
+  font-size: 1.25rem;
 }
 
+/* Chart Content */
 .chartContent {
-  width: 100%;
-  height: 350px;
+  padding: 2rem;
+  background: var(--bg-card);
 }
 
-/* FIXED: Chart overflow - NO MORE HORIZONTAL SCROLL */
-.chartOverflow {
-  width: 100%;
-  max-width: 100%;
-  overflow: visible; /* Changed from overflow-x: auto */
-  padding-top: 10px;
-}
-
-/* Enhanced Filter Section */
-.filterSection {
-  margin: 20px 0;
-  background: #f8fafc;
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #e5e7eb;
-}
-
-.filterRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.filterCard {
-  flex: 1;
-  background: white;
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  border: 1px solid #e5e7eb;
-}
-
-.filterTitle {
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: #374151;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-}
-
-.filterTitle:before {
-  content: "⚙️";
-  margin-right: 8px;
-  font-size: 1rem;
-}
-
-.filterControls {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-}
-
-.filterGroup {
-  display: flex;
-  flex-direction: column;
-}
-
-.filterGroup label {
-  margin-bottom: 6px;
-  color: #374151;
-  font-weight: 500;
-  font-size: 0.9rem;
-}
-
-.selectInput,
-.numberInput {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  font-size: 0.9rem;
-  background: white;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.selectInput:focus,
-.numberInput:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.selectInput:hover,
-.numberInput:hover {
-  border-color: #9ca3af;
-}
-
-.numberInput {
-  width: 80px;
-}
-
-/* UPDATED: Filters container - better responsive layout */
+/* Filters Container */
 .filtersContainer {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
-  margin-bottom: 20px;
-  align-items: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-hover);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-light);
 }
 
 .filterGroup {
   display: flex;
   flex-direction: column;
-  font-size: 0.85rem;
+  gap: 0.5rem;
   min-width: 120px;
+  flex: 1;
 }
 
 .filterGroup label {
-  margin-bottom: 4px;
-  color: #374151;
+  font-size: 0.875rem;
   font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 .filterGroup select,
 .filterGroup input {
-  padding: 8px 12px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  font-size: 0.85rem;
-  background: white;
-  transition: border-color 0.2s ease;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: var(--transition-fast);
+  outline: none;
 }
 
 .filterGroup select:focus,
 .filterGroup input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
 }
 
-/* Info text styling */
+.filterGroup select:hover,
+.filterGroup input:hover {
+  border-color: var(--primary-light);
+}
+
 .info {
-  background: #e0f2fe;
-  color: #0369a1;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  border: 1px solid #7dd3fc;
   display: flex;
   align-items: center;
-  white-space: nowrap;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  border: 1px solid var(--border-light);
 }
 
-/* Bar Chart Custom */
+/* Chart Overflow Handling */
+.chartOverflow {
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 2rem;
+  background: var(--bg-card);
+}
+
+.chartOverflow::-webkit-scrollbar {
+  height: 8px;
+}
+
+.chartOverflow::-webkit-scrollbar-track {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.chartOverflow::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+
+.chartOverflow::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Custom Intervention Chart Styles */
 .intervensiChart {
-  background: white;
-  padding: 15px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1.5rem;
+}
+
+.intervensiChart h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+  text-align: center;
 }
 
 .barChartContainer {
   position: relative;
-  height: 180px;
-  margin-top: 10px;
+  flex: 1;
+  background: var(--bg-hover);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
 }
 
 .chartLines {
   position: absolute;
   left: 0;
-  width: 100%;
-  border-top: 1px dashed #d1d5db;
-  font-size: 10px;
-  color: #6b7280;
+  right: 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.chartLines span {
+  position: absolute;
+  left: -2rem;
+  top: -0.5rem;
+  background: var(--bg-hover);
+  padding: 0 0.25rem;
 }
 
 .barContainer {
@@ -266,138 +387,346 @@
   justify-content: space-around;
   align-items: flex-end;
   height: 100%;
+  padding: 0 2rem;
 }
 
 .barItem {
-  width: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex: 1;
+  max-width: 60px;
 }
 
 .bar {
-  width: 100%;
+  width: 40px;
+  min-height: 2px;
   border-radius: 4px 4px 0 0;
+  transition: var(--transition);
+  position: relative;
+  box-shadow: var(--shadow-light);
+}
+
+.bar:hover {
+  transform: scaleY(1.05);
+  box-shadow: var(--shadow-medium);
 }
 
 .barLabels {
   display: flex;
   justify-content: space-around;
-  margin-top: 5px;
+  padding: 0 2rem;
 }
 
 .barLabel {
-  font-size: 12px;
-  color: #374151;
-}
-
-/* Loading and error */
-.loading,
-.error {
-  padding: 40px;
   text-align: center;
-  font-size: 1.2rem;
-  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  flex: 1;
+  max-width: 60px;
 }
 
-/* FIXED: Vertical bar chart container - fits within viewport */
-.chartContainer {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-  margin-bottom: 20px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.chartContainer h2 {
-  margin-bottom: 15px;
-  font-size: 1.3rem;
-  color: #111827;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-.chartHeader {
-  margin-bottom: 20px;
-}
-
-/* UPDATED: Responsive Design with better breakpoints */
-@media (max-width: 768px) {
-  .dashboard {
-    padding: 15px;
-  }
-  
-  .filtersContainer {
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .filterGroup {
-    min-width: 100%;
-  }
-  
-  .filterControls {
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .chartsContainer {
     grid-template-columns: 1fr;
   }
   
-  .filterCard {
-    margin-bottom: 15px;
+  .dashboard {
+    padding: 1.5rem 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem 0.5rem;
   }
   
   .summaryCards {
-    flex-direction: column;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
   }
   
-  .chartsContainer {
-    flex-direction: column;
+  .summaryCard {
+    padding: 1.5rem 1rem;
   }
   
-  .chartContainer h2 {
-    font-size: 1.1rem;
+  .summaryCard .value {
+    font-size: 2rem;
   }
   
-  .info {
-    font-size: 0.75rem;
-    text-align: center;
+  .chartHeader {
+    padding: 1.5rem 1rem 1rem 1rem;
   }
-}
-
-@media (min-width: 768px) and (max-width: 1024px) {
+  
+  .chartContent,
+  .chartOverflow {
+    padding: 1rem;
+  }
+  
   .filtersContainer {
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 1rem;
   }
   
   .filterGroup {
-    flex: 0 1 auto;
+    min-width: unset;
+  }
+  
+  .chartsContainer {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .chartContainer {
+    margin: 0 0.5rem 2rem 0.5rem;
   }
 }
 
-@media (min-width: 1200px) {
-  .dashboard {
-    padding: 30px;
+@media (max-width: 640px) {
+  .summaryCards {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
   }
   
-  .filterControls {
-    grid-template-columns: repeat(5, 1fr);
+  .summaryCard {
+    padding: 1rem 0.75rem;
+  }
+  
+  .summaryCard .title {
+    font-size: 0.75rem;
+  }
+  
+  .summaryCard .value {
+    font-size: 1.75rem;
+  }
+  
+  .chartHeader h2,
+  .chartHeader h3 {
+    font-size: 1.125rem;
+  }
+  
+  .barContainer {
+    padding: 0 1rem;
+  }
+  
+  .barLabels {
+    padding: 0 1rem;
+  }
+  
+  .barLabel {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard {
+    padding: 0.75rem 0.25rem;
+  }
+  
+  .summaryCards {
+    grid-template-columns: 1fr;
+  }
+  
+  .summaryCard {
+    padding: 1rem;
+  }
+  
+  .chartHeader {
+    padding: 1rem;
+  }
+  
+  .chartContent,
+  .chartOverflow {
+    padding: 0.75rem;
+  }
+  
+  .chartContainer {
+    margin: 0 0.25rem 1.5rem 0.25rem;
+  }
+}
+
+/* Animation for loading states */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.loading {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Custom scrollbar for better UX */
+.dashboard ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dashboard ::-webkit-scrollbar-track {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.dashboard ::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+
+.dashboard ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Focus styles for accessibility */
+.filterGroup select:focus-visible,
+.filterGroup input:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Print styles */
+@media print {
+  .dashboard {
+    background: white;
+    color: black;
+    padding: 1rem;
+  }
+  
+  .summaryCard,
+  .chartCard,
+  .chartContainer {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+    margin-bottom: 1rem;
   }
   
   .filtersContainer {
-    max-width: 90%;
+    display: none;
   }
 }
 
-/* Enhanced visual effects */
-.filterCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  transition: all 0.2s ease;
+/* Utility classes for better chart handling */
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.chartContainer:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transition: all 0.2s ease;
+.chart-responsive {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
-/* REMOVED: Custom scrollbar styles since we no longer need horizontal scroll */
+/* Better scrollbar for chart containers */
+.chart-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chart-responsive::-webkit-scrollbar-track {
+  background: var(--bg-hover);
+  border-radius: 3px;
+}
+
+.chart-responsive::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.chart-responsive::-webkit-scrollbar-thumb:hover {
+  opacity: 1;
+}
+
+/* Loading skeleton animation untuk chart */
+.chart-loading {
+  background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-secondary) 50%, var(--bg-hover) 75%);
+  background-size: 200% 100%;
+  animation: loading-skeleton 1.5s infinite;
+}
+
+@keyframes loading-skeleton {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Better spacing for chart elements */
+.chart-margin-sm {
+  margin: 1rem 0;
+}
+
+.chart-margin-md {
+  margin: 1.5rem 0;
+}
+
+.chart-margin-lg {
+  margin: 2rem 0;
+}
+
+/* Fix untuk recharts responsive issues */
+.recharts-responsive-container {
+  min-height: 0 !important;
+}
+
+/* Specific fixes untuk horizontal bar chart */
+.horizontal-bar-chart .recharts-cartesian-axis-tick-value {
+  font-size: 10px !important;
+  fill: var(--text-secondary) !important;
+}
+
+.horizontal-bar-chart .recharts-bar-rectangle {
+  rx: 4;
+  ry: 4;
+}
+
+/* Gradient background untuk charts */
+.chart-gradient {
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-hover) 100%);
+  border-radius: var(--border-radius);
+}
+
+/* Empty state untuk charts */
+.chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.chart-empty-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+/* Improved filter styling */
+.filter-active {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-left: 0.5rem;
+}

@@ -17,7 +17,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   
   // Filter states for Kecamatan chart
-  const [kecamatanFilters, setKecamatanFilters] = useState({
+  const [kecamatanFilters, setKecamatanFilters] = useState({ // <-- KESALAHAN DIPERBAIKI DI SINI
     tipe: 'berat', // 'berat', 'sedang', 'kurangRkb'
     jumlah: 5, // Fixed to 5 per jenjang
     urutan: 'teratas' // 'teratas', 'terbawah'
@@ -62,14 +62,14 @@ const Dashboard = () => {
 
         // PERBAIKAN 1: Memperbaiki mapping data yang benar
         setData({
-          paud: jsonData[0],    // PAUD data dari paud.json
-          sd: jsonData[1],      // SD data dari sd_new.json  
-          smp: jsonData[2],     // SMP data dari smp.json
-          pkbm: jsonData[3],    // PKBM data dari pkbm.json
-          kegiatanPaud: jsonData[4],   // kegiatan PAUD dari data_kegiatan_paud.json
-          kegiatanSd: jsonData[5],     // kegiatan SD dari data_kegiatan_sd.json
-          kegiatanSmp: jsonData[6],    // kegiatan SMP dari data_kegiatan_smp.json
-          kegiatanPkbm: jsonData[7]    // kegiatan PKBM dari data_kegiatan_pkbm.json
+          paud: jsonData[0],      // PAUD data dari paud.json
+          sd: jsonData[1],        // SD data dari sd_new.json  
+          smp: jsonData[2],       // SMP data dari smp.json
+          pkbm: jsonData[3],      // PKBM data dari pkbm.json
+          kegiatanPaud: jsonData[4],  // kegiatan PAUD dari data_kegiatan_paud.json
+          kegiatanSd: jsonData[5],    // kegiatan SD dari data_kegiatan_sd.json
+          kegiatanSmp: jsonData[6],   // kegiatan SMP dari data_kegiatan_smp.json
+          kegiatanPkbm: jsonData[7]   // kegiatan PKBM dari data_kegiatan_pkbm.json
         });
 
       } catch (err) {
@@ -469,22 +469,52 @@ const Dashboard = () => {
       </div>
     );
   };
+  
+  // ====================================================================
+  // ===== SNIPPET BARU DIMASUKKAN DI SINI ==============================
+  // ====================================================================
 
-  // Custom label component for displaying values at end of bars
+  // Custom label component untuk menangani nilai 0 dan positioning yang lebih baik
   const CustomLabel = (props) => {
-    const { x, y, width, value } = props;
-    if (value === 0 || !value) return null; // Jangan tampilkan label untuk nilai 0 atau undefined
+    const { x, y, width, height, value, payload } = props;
+    
+    // Jangan tampilkan label jika nilai 0, null, undefined, atau NaN
+    if (!value || value === 0 || isNaN(value)) return null;
+    
+    // Posisi label di ujung bar dengan padding yang lebih besar untuk nilai kecil
+    const minBarWidth = 20; // Minimum bar width untuk readability
+    const actualBarWidth = Math.max(width, minBarWidth);
+    const labelX = x + actualBarWidth + 12; // Lebih banyak padding
+    const labelY = y + (height / 2);
+    
     return (
-      <text x={x + width + 5} y={y + 12} fill="#333" fontSize={12}>
-        {value}
+      <text 
+        x={labelX} 
+        y={labelY} 
+        fill="#374151" 
+        fontSize="11" 
+        fontWeight="600"
+        textAnchor="start"
+        dominantBaseline="middle"
+        style={{
+          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+        }}
+      >
+        {value.toLocaleString()}
       </text>
     );
   };
 
-  // Custom Bar component yang hanya render jika ada nilai
-  const CustomBar = ({ fill, dataKey, ...props }) => {
+  // Custom Bar component yang lebih baik
+  const CustomBar = ({ fill, dataKey, data, ...props }) => {
     return (
-      <Bar {...props} dataKey={dataKey} fill={fill}>
+      <Bar 
+        {...props} 
+        dataKey={dataKey} 
+        fill={fill}
+        radius={[0, 4, 4, 0]} // Rounded corners di ujung kanan
+        minPointSize={20} // Minimum size untuk bar yang sangat kecil agar label tidak nabrak
+      >
         <LabelList content={CustomLabel} />
       </Bar>
     );
@@ -637,29 +667,75 @@ const Dashboard = () => {
         </div>
 
         <div className={styles.chartOverflow}>
+          {/* ==================================================================== */}
+          {/* ===== RESPONSIVE CONTAINER BARU DIMASUKKAN DI SINI ============== */}
+          {/* ==================================================================== */}
           <ResponsiveContainer width="100%" height={Math.max(600, topKecamatanData.length * 35)}>
             <BarChart 
               data={topKecamatanData} 
               layout="vertical" 
-              margin={{ top: 20, right: 60, left: 50, bottom: 20 }} 
+              margin={{ 
+                top: 20, 
+                right: 100, // Lebih banyak space untuk labels nilai kecil
+                left: 60,   // Lebih banyak space untuk nama kecamatan panjang
+                bottom: 20 
+              }} 
               barSize={25}
+              barGap={4}
             >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
+              <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+              <XAxis 
+                type="number" 
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 11, fill: '#6B7280' }}
+                domain={[0, 'dataMax + 10']} // Tambah space untuk labels
+              />
               <YAxis 
                 type="category" 
                 dataKey="name" 
-                width={180} 
-                fontSize={11} 
+                width={200} // Lebih lebar untuk nama kecamatan panjang
+                fontSize={10} 
                 interval={0}
-                tick={{ fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tick={{ 
+                  fontSize: 10, 
+                  fill: '#374151',
+                  textAnchor: 'end',
+                  dominantBaseline: 'middle'
+                }}
+                tickFormatter={(value) => {
+                  // Potong text yang terlalu panjang untuk mobile
+                  if (window.innerWidth < 768 && value.length > 25) {
+                    return value.substring(0, 22) + '...';
+                  }
+                  return value;
+                }}
               />
-              <Tooltip />
-              <Legend />
-              <CustomBar dataKey="PAUD" fill="#ff69b4" />
-              <CustomBar dataKey="SD" fill="#dc2626" />
-              <CustomBar dataKey="SMP" fill="#2563eb" />
-              <CustomBar dataKey="PKBM" fill="#16a34a" />
+              <Tooltip 
+                formatter={(value, name) => [
+                  value?.toLocaleString() || 0, 
+                  name
+                ]}
+                labelFormatter={(label) => `Kecamatan: ${label}`}
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.05)'
+                }}
+              />
+              <Legend 
+                wrapperStyle={{
+                  paddingTop: '20px',
+                  fontSize: '12px'
+                }}
+              />
+              <CustomBar dataKey="PAUD" fill="#EC4899" />
+              <CustomBar dataKey="SD" fill="#DC2626" />
+              <CustomBar dataKey="SMP" fill="#2563EB" />
+              <CustomBar dataKey="PKBM" fill="#16A34A" />
             </BarChart>
           </ResponsiveContainer>
         </div>

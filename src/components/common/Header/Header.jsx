@@ -1,7 +1,7 @@
 // src/components/common/Header/Header.jsx
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User, Settings, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext'; // Pastikan path ini benar
 import styles from './Header.module.css';
@@ -11,6 +11,7 @@ const Header = () => {
   // Ambil 'profile', 'user', dan 'refreshProfile' dari useAuth
   const { user, profile, logout, refreshProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Refresh profile data ketika component dimount jika user ada tapi profile belum ada
   useEffect(() => {
@@ -30,7 +31,16 @@ const Header = () => {
   };
 
   const handleSettings = () => {
-    navigate('/users/settings');
+    // Jika sudah di halaman admin profile, ubah activeView ke settings
+    if (location.pathname === '/admin/profile') {
+      // Trigger perubahan view ke settings di komponen AdminProfile
+      // Karena tidak bisa langsung mengakses state komponen lain,
+      // kita akan menggunakan URL parameter atau redirect ke tab settings
+      navigate('/admin/profile?view=settings');
+    } else {
+      // Jika di halaman lain, redirect ke admin profile dengan view settings
+      navigate('/admin/profile?view=settings');
+    }
     setDropdownOpen(false);
   };
   

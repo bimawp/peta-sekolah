@@ -1,43 +1,27 @@
-.layout {
+/* Mengatur layout utama menggunakan flexbox */
+.layoutContainer {
+  display: flex;
+  background-color: #f8f9fa; /* Warna latar belakang konten */
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-bg-secondary);
 }
 
-.contentArea {
-  display: flex;
-  flex: 1;
-  height: calc(100vh - 64px);
-  overflow: visible; /* supaya sidebar fixed tidak terpengaruh scroll */
-}
-
+/* Wadah untuk Header dan Konten Halaman */
 .mainContent {
-  flex: 1;
-  height: 100%;
-  overflow-y: auto; /* scroll hanya di mainContent */
+  flex-grow: 1; /* Mengisi sisa ruang yang tersedia */
   display: flex;
   flex-direction: column;
-  margin-left: 280px; /* margin sidebar default */
-  transition: margin-left 0.3s ease;
+  width: 100%;
 }
 
-.mainContentCollapsed {
-  margin-left: 64px; /* margin sidebar saat collapse */
+/* Konten utama halaman dengan padding */
+.pageContent {
+  padding: 24px;
+  flex-grow: 1;
 }
 
-/* Supaya map bisa tumbuh penuh di mainContent */
-.map {
-  flex: 1;
-  min-height: 0;
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .mainContent {
-    margin-left: 0;
-  }
-  .mainContentCollapsed {
-    margin-left: 0;
-  }
+/* Penyesuaian saat sidebar diciutkan (diterapkan oleh body class dari Sidebar.jsx) */
+/* Pastikan body.sidebar-collapsed bekerja atau gunakan state di Layout untuk ini */
+body.sidebar-collapsed + .layoutContainer .mainContent {
+  /* Anda bisa menambahkan transisi atau penyesuaian margin di sini jika diperlukan */
+  transition: margin-left 0.3s ease-in-out;
 }

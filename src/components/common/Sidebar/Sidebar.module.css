@@ -1,60 +1,336 @@
-/* Sidebar.module.css */
+/* --- Variabel Global untuk Tema Modern --- */
+:root {
+  --header-height: 70px;
+  --sidebar-width-expanded: 280px;
+  --sidebar-width-collapsed: 80px;
+  
+  /* Palet Warna Modern dengan Gradien */
+  --primary-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --primary-bg-solid: #667eea;
+  --secondary-bg: rgba(255, 255, 255, 0.1);
+  --primary-text: #FFFFFF;
+  --secondary-text: rgba(255, 255, 255, 0.8);
+  --hover-bg: rgba(255, 255, 255, 0.15);
+  --active-bg: rgba(255, 255, 255, 0.2);
+  --active-indicator: #FFD700;
+  --shadow-light: rgba(255, 255, 255, 0.1);
+  --shadow-dark: rgba(0, 0, 0, 0.3);
+  --border-radius: 12px;
+  --border-radius-small: 8px;
+  
+  /* Animasi */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-medium: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- Font Import --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* --- Gaya Dasar Sidebar (Desktop) --- */
 .sidebar {
-  position: fixed;
-  top: 64px;
-  left: 0;
-  height: calc(100vh - 64px);
-  background-color: white;
-  width: 220px;
-  box-shadow: 2px 0 6px rgb(0 0 0 / 0.1);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  
+  position: sticky;
+  top: var(--header-height);
+  height: calc(100vh - var(--header-height));
+  
   display: flex;
   flex-direction: column;
-  transition: width 0.3s ease;
-  overflow: hidden;
-  border-right: 1px solid #e5e7eb;
+  
+  width: var(--sidebar-width-expanded);
+  border-radius: 0 var(--border-radius) var(--border-radius) 0;
+  box-shadow: 
+    0 10px 30px var(--shadow-dark),
+    inset 0 1px 0 var(--shadow-light);
   z-index: 1000;
+  
+  /* Backdrop blur effect */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  
+  /* Smooth transitions */
+  transition: 
+    width var(--transition-medium),
+    box-shadow var(--transition-fast);
+  
+  /* Subtle border */
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.collapsed {
-  width: 64px;
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  pointer-events: none;
+  border-radius: inherit;
 }
 
+/* --- Header Internal Sidebar --- */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 24px 24px 16px;
+  flex-shrink: 0;
+  min-height: 80px;
+  position: relative;
+  z-index: 2;
 }
 
 .logo {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 1.75rem;
   font-weight: 700;
-  font-size: 1.125rem;
-  color: #3b82f6; /* biru */
-  -webkit-user-select: none; /* Safari 3+, iOS Safari 3+ */
-  user-select: none;
+  letter-spacing: -0.02em;
   white-space: nowrap;
+  opacity: 1;
+  visibility: visible;
+  transition: 
+    opacity var(--transition-fast) ease,
+    visibility var(--transition-fast) ease,
+    transform var(--transition-fast) ease;
+  
+  /* Gradient text effect */
+  background: linear-gradient(135deg, #FFD700, #FFA726);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  /* Text shadow fallback */
+  text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
+  
+  /* Subtle glow effect */
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.2));
+}
+
+.logo:hover {
+  transform: scale(1.02);
 }
 
 .toggleBtn {
-  background: none;
+  background: var(--secondary-bg);
   border: none;
+  color: var(--primary-text);
   cursor: pointer;
-  color: #6b7280;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s ease;
-  padding: 0;
+  padding: 12px;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  position: relative;
+  overflow: hidden;
+  
+  /* Modern glass effect */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
+  transition: 
+    all var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.toggleBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: left var(--transition-medium);
 }
 
 .toggleBtn:hover {
-  color: #3b82f6;
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+  box-shadow: 
+    0 6px 20px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
+.toggleBtn:hover::before {
+  left: 100%;
+}
+
+.toggleBtn:active {
+  transform: scale(0.95);
+}
+
+/* --- Menu Navigasi --- */
 .menu {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding-top: 0.75rem;
+  padding: 8px 16px 24px;
+  flex-grow: 1;
+  overflow-y: auto;
+  position: relative;
+  z-index: 2;
+  
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.menu::-webkit-scrollbar {
+  width: 4px;
+}
+
+.menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* --- State: Sidebar Diciutkan (Collapsed) --- */
+.collapsed {
+  width: var(--sidebar-width-collapsed);
+}
+
+.collapsed .logo {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-20px);
+}
+
+.collapsed .toggleBtn {
+  margin: 0 auto;
+}
+
+/* --- Animasi Masuk --- */
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --- Responsif & Tampilan Mobile --- */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 320px;
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    
+    /* Enhanced mobile shadows */
+    box-shadow: 
+      0 20px 60px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 var(--shadow-light);
+    
+    transform: translateX(-100%);
+    transition: transform var(--transition-medium);
+    
+    /* Mobile-specific backdrop blur */
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .open {
+    transform: translateX(0);
+    animation: slideInFromLeft var(--transition-medium) ease-out;
+  }
+
+  .toggleBtn {
+    position: absolute;
+    top: 20px;
+    right: -22px;
+    background: var(--primary-bg-solid);
+    border-radius: 0 50% 50% 0;
+    box-shadow: 
+      0 6px 20px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    padding: 16px 12px;
+    z-index: 1001;
+    width: 50px;
+    height: 56px;
+  }
+
+  .header {
+    padding: 32px 24px 24px;
+  }
+
+  .logo {
+    font-size: 2rem;
+    padding-left: 0;
+  }
+}
+
+/* --- Overlay untuk Mobile --- */
+.sidebarOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 999;
+  opacity: 0;
+  animation: fadeIn var(--transition-medium) forwards;
+}
+
+/* --- Efek Hover Global --- */
+.sidebar:hover {
+  box-shadow: 
+    0 15px 40px var(--shadow-dark),
+    inset 0 1px 0 var(--shadow-light);
+}
+
+/* --- Dark mode support --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --shadow-dark: rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* --- Reduced motion support --- */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
