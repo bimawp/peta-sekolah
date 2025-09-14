@@ -1,4 +1,5 @@
-// AppRoutes.jsx - FIXED VERSION
+// src/routes/AppRoutes.jsx - VERSI PERBAIKAN FINAL
+
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from '../pages/Dashboard/Dashboard';
@@ -12,110 +13,40 @@ import Profile from '../pages/Users/Profile';
 import Settings from '../pages/Users/Settings';
 import Logout from '../pages/Users/Logout';
 import AdminProfile from '../pages/AdminProfile/AdminProfile';
-import { useAuth } from '../contexts/AuthContext';
-
-// Protected Route Component
-const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        <div>Loading...</div>
-      </div>
-    );
-  }
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  return children;
-};
-
-// Root Route Component
-const RootRoute = () => {
-  const { isAuthenticated, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        <div>Loading...</div>
-      </div>
-    );
-  }
-  
-  // Redirect based on authentication status
-  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
-};
+import Layout from '../components/common/Layout/Layout';
+import ProtectedRoute from './ProtectedRoute'; // 1. IMPORT DARI FILE TERPISAH
 
 const AppRoutes = () => {
   return (
     <Routes>
-      {/* Root route */}
-      <Route path="/" element={<RootRoute />} />
-      
-      {/* Public routes */}
+      {/* Rute publik (tidak butuh login) */}
       <Route path="/login" element={<Login />} />
-      
-      {/* Protected routes */}
-      <Route path="/dashboard" element={
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      } />
-      <Route path="/detail-sekolah" element={
-        <ProtectedRoute>
-          <SchoolDetailPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/anggaran" element={
-        <ProtectedRoute>
-          <Budget />
-        </ProtectedRoute>
-      } />
-      <Route path="/lainnya" element={
-        <ProtectedRoute>
-          <Facilities />
-        </ProtectedRoute>
-      } />
-      <Route path="/map" element={
-        <ProtectedRoute>
-          <Map />
-        </ProtectedRoute>
-      } />
-      <Route path="/users/profile" element={
-        <ProtectedRoute>
-          <Profile />
-        </ProtectedRoute>
-      } />
-      <Route path="/users/settings" element={
-        <ProtectedRoute>
-          <Settings />
-        </ProtectedRoute>
-      } />
-      <Route path="/users/logout" element={
-        <ProtectedRoute>
-          <Logout />
-        </ProtectedRoute>
-      } />
-      <Route path="/admin/profile" element={
-        <ProtectedRoute>
-          <AdminProfile />
-        </ProtectedRoute>
-      } />
-      
-      {/* 404 - Not Found */}
+
+      {/* Rute Induk yang dilindungi dan menggunakan Layout */}
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        {/* Redirect dari "/" ke "/dashboard" jika sudah login */}
+        <Route index element={<Navigate to="/dashboard" replace />} />
+
+        {/* Semua halaman di bawah ini akan ditampilkan di dalam <Layout> */}
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="detail-sekolah" element={<SchoolDetailPage />} />
+        <Route path="anggaran" element={<Budget />} />
+        <Route path="lainnya" element={<Facilities />} />
+        <Route path="map" element={<Map />} />
+        <Route path="users/profile" element={<Profile />} />
+        <Route path="users/settings" element={<Settings />} />
+        <Route path="users/logout" element={<Logout />} />
+        <Route path="admin/profile" element={<AdminProfile />} />
+      </Route>
+
+      {/* Halaman 404 Not Found */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

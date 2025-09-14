@@ -1,44 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import Sidebar from '../Sidebar/Sidebar';
-import Header from '../Header/Header';
+// src/components/common/Layout/Layout.jsx - VERSI UPDATED
+
+import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import Sidebar from '../Sidebar/Sidebar'; 
+import Header from '../Header/Header';   
 import styles from './Layout.module.css';
 
-const Layout = ({ children }) => {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+const Layout = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Efek untuk memeriksa ukuran layar dan mengatur state isMobile
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768);
-    };
-
-    checkMobile(); // Cek saat pertama kali render
-    window.addEventListener('resize', checkMobile);
-
-    // Cleanup listener saat komponen di-unmount
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const handleSidebarToggle = (collapsed) => {
+    setSidebarCollapsed(collapsed);
+  };
 
   return (
     <div className={styles.layoutContainer}>
-      {/* Sidebar menerima state dan fungsi untuk mengubahnya */}
-      <Sidebar
-        isMobile={isMobile}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-      />
-
-      <div className={styles.mainContent}>
-        {/* Header menerima state dan fungsi untuk membuka sidebar */}
-        <Header
-          isMobile={isMobile}
-          onMenuClick={() => setIsSidebarOpen(true)}
-        />
+      {/* Sidebar dengan callback untuk handle toggle */}
+      <Sidebar onToggle={handleSidebarToggle} />
+      
+      {/* Main panel dengan class conditional untuk sidebar state */}
+      <div className={`${styles.mainPanel} ${sidebarCollapsed ? styles.sidebarCollapsed : ''}`}>
+        {/* Header fixed position */}
+        <Header />
         
-        {/* 'children' adalah <AppRoutes /> yang Anda kirim dari App.jsx */}
-        <main className={styles.pageContent}>
-          {children}
+        {/* Content area tempat Outlet dirender */}
+        <main className={styles.content}>
+          <Outlet />
         </main>
       </div>
     </div>

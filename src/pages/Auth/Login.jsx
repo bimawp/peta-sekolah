@@ -1,4 +1,5 @@
-// Login.jsx - SIMPLE VERSION
+// src/pages/Auth/Login.jsx - VERSI FINAL
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Login.module.css';
@@ -11,91 +12,47 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  console.log('🔍 Login component render:', {
-    isAuthenticated,
-    loading,
-    isSubmitting,
-    pathname: window.location.pathname
-  });
-
-  // Redirect jika sudah login
+  // PERBAIKAN UTAMA: Arahkan ke dashboard JIKA SUDAH LOGIN
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      console.log('✅ Login: User authenticated, redirecting to dashboard...');
       navigate('/dashboard', { replace: true });
     }
   }, [isAuthenticated, loading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (isSubmitting || loading) {
-      console.log('⏳ Login: Already submitting or loading, skipping...');
-      return;
-    }
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
-    clearError();
+    if (error) clearError();
     
-    console.log('🚀 Login: Starting login process for:', email);
-
-    try {
-      const result = await login({ email, password });
-      
-      console.log('🔍 Login: Login result:', result);
-      
-      if (result.success) {
-        console.log('✅ Login: Login successful!');
-        // Navigation akan dihandle oleh useEffect di atas
-      } else {
-        console.error('❌ Login: Login failed:', result.error);
-        alert(result.error || 'Login gagal. Silakan coba lagi.');
-      }
-    } catch (err) {
-      console.error('❌ Login: Exception during login:', err);
-      alert('Terjadi kesalahan saat login: ' + err.message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    await login({ email, password });
+    
+    // Biarkan listener di AuthContext yang menangani redirect setelah state terupdate
+    // Di sini kita hanya menghentikan loading di form
+    setIsSubmitting(false);
   };
-
-  // Jangan render form jika sedang loading
+  
+  // Jangan render apapun selagi context auth loading
+  // Ini mencegah "kedipan" singkat halaman login jika user sudah login
   if (loading) {
-    console.log('⏳ Login: Showing loading state');
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh' 
-      }}>
-        <div>Loading Authentication...</div>
-      </div>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div>Loading...</div>
+        </div>
     );
   }
 
-  console.log('📝 Login: Rendering login form');
-
   return (
     <div className={styles.loginContainer}>
-      {/* Kiri */}
       <div className={styles.loginLeft}>
-        <img
-          src="/assets/logo-disdik.png"
-          alt="Logo DISDIK"
-          className={styles.bgLogo}
-        />
+        <img src="/assets/logo-disdik.png" alt="Logo DISDIK" className={styles.bgLogo} />
         <div className={styles.loginContent}>
           <h1 className={styles.mainTitle}>e-PlanDISDIK</h1>
           <p className={styles.subtitle}>Electronic Planning Dinas Pendidikan</p>
           <p className={styles.subtitle}>Kabupaten - Garut</p>
           <br />
-          <a
-            href="https://disdikkabgarut.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.selengkapnyaBtn}
-          >
+          <a href="https://disdikkabgarut.org/" target="_blank" rel="noopener noreferrer" className={styles.selengkapnyaBtn}>
             Selengkapnya
           </a>
         </div>
@@ -103,24 +60,16 @@ const Login = () => {
           DINAS PENDIDIKAN KABUPATEN GARUT
         </div>
       </div>
-
-      {/* Kanan */}
       <div className={styles.loginRight}>
         <div className={styles.loginFormContainer}>
           <div className={styles.topLogoWrapper}>
-            <img
-              src="/assets/icon-disdik.png"
-              alt="Icon DISDIK"
-              className={styles.topLogo}
-            />
+            <img src="/assets/icon-disdik.png" alt="Icon DISDIK" className={styles.topLogo} />
           </div>
-
           <div className={styles.formHeader}>
             <h2>Selamat Datang di</h2>
             <h3>e-PlanDISDIK</h3>
             <p>Silahkan Login untuk mengelola data</p>
           </div>
-
           <form onSubmit={handleSubmit} className={styles.loginForm}>
             <div className={styles.inputGroup}>
               <div className={styles.inputWrapper}>
@@ -136,7 +85,6 @@ const Login = () => {
                 />
               </div>
             </div>
-
             <div className={styles.inputGroup}>
               <div className={styles.inputWrapper}>
                 <span className={styles.inputIcon}>🔒</span>
@@ -151,23 +99,11 @@ const Login = () => {
                 />
               </div>
             </div>
-
-            <button 
-              type="submit" 
-              className={styles.loginBtn} 
-              disabled={isSubmitting}
-            >
+            <button type="submit" className={styles.loginBtn} disabled={isSubmitting}>
               {isSubmitting ? 'Memproses...' : 'Masuk'}
             </button>
           </form>
-
-          {error && (
-            <p style={{ color: 'red', marginTop: '10px', textAlign: 'center' }}>
-              {error}
-            </p>
-          )}
-
-          {/* Debug Info - SELALU tampil untuk debugging */}
+          {error && <p style={{ color: 'red', marginTop: '10px', textAlign: 'center' }}>{error}</p>}
         </div>
       </div>
     </div>

@@ -1,72 +1,128 @@
-:root {
-  --color-bg-primary: #ffffff;
-  --color-bg-tertiary: #f3f4f6;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
-  --color-danger: #f44336;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --radius: 0.5rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
-  --z-dropdown: 1000;
+/* src/components/common/Header/Header.module.css - VERSI FINAL DENGAN LOGO DISDIK */
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* Header */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(102, 126, 234, 0.4); }
+  50% { box-shadow: 0 0 25px rgba(102, 126, 234, 0.6); }
+}
+
 .header {
-  background-color: var(--color-bg-primary);
-  border-bottom: 1px solid #e5e7eb;
-  height: 64px;
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+  height: 80px;
+  width: 100%;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  padding: 0 32px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  flex-shrink: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .container {
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* Left */
 .left {
   display: flex;
   align-items: center;
+  margin: 0;
+  padding: 0;
 }
 
-.brand {
+/* === LOGO SECTION STYLING === */
+.logoSection {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  cursor: pointer;
+  gap: 16px;
 }
 
-.logo {
+.logoIcon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(30, 64, 175, 0.3);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.logoIcon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.5s ease;
+}
+
+.logoIcon:hover {
+  transform: scale(1.05);
+  animation: pulseGlow 1.5s infinite;
+}
+
+.logoIcon:hover::before {
+  left: 100%;
+}
+
+.logoImage {
   width: 40px;
   height: 40px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  z-index: 2;
+  position: relative;
 }
 
-.brandText h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
+.logoText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mainTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
   margin: 0;
+  line-height: 1.2;
+  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.brandText span {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+.subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.2;
 }
 
-/* Right */
+/* === USER SECTION STYLING === */
 .right {
   display: flex;
   align-items: center;
@@ -79,398 +135,274 @@
 .userButton {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm);
-  border-radius: var(--radius);
-  background: none;
+  gap:12px;
+  background-color: transparent;
   border: none;
+  border-radius: 12px;
+  padding: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .userButton:hover {
-  background-color: var(--color-bg-tertiary);
-}
-
-.userAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: var(--color-primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background-color: rgba(102, 126, 234, 0.05);
+  transform: translateY(-1px);
 }
 
 .userInfo {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
 }
 
 .userName {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  line-height: 1.2;
 }
 
 .userRole {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-}
-
-/* Dropdown */
-.dropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  min-width: 240px;
-  background-color: var(--color-bg-primary);
-  border: 1px solid #e5e7eb;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  z-index: var(--z-dropdown);
-  animation: fadeIn 0.2s ease;
-}
-
-.dropdownBody {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Items */
-.dropdownItem {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--color-text-primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
-.dropdownItem:hover {
-  background-color: var(--color-bg-tertiary);
-  transform: translateX(4px);
-}
-
-/* Logout */
-.logoutButton {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--color-danger);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
-.logoutButton:hover {
-  background-color: rgba(244, 67, 54, 0.1);
-  transform: translateX(4px);
-}
-
-/* Overlay */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 900;
-  background: transparent;
-}
-
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .brandText span {
-    display: none;
-  }
-  .userInfo {
-    display: none;
-  }
-  .dropdown {
-    min-width: 200px;
-  }
-}
-/* Admin Profile (opsional styling) */
-.adminProfileButton {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
+  font-size: 12px;
+  color: #667eea;
+  line-height: 1.2;
   font-weight: 500;
-  color: #2563eb; /* biru accent */
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
 }
-
-.adminProfileButton:hover {
-  background-color: #eff6ff; /* biru muda */
-  transform: translateX(4px);
-}
-/* Tambahkan ini di akhir file Header.module.css */
-
-/* ... (CSS Anda yang sudah ada) ... */
 
 .userAvatar {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: #e2e8f0; /* Warna latar untuk inisial */
+  overflow: hidden;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4a5568; /* Warna teks untuk inisial */
+  color: white;
   font-weight: 600;
-  overflow: hidden; /* Penting agar gambar tidak keluar dari lingkaran */
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 2px solid white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
 }
 
-.avatarImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* Memastikan gambar memenuhi avatar tanpa distorsi */
+.userAvatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
-.avatarInitials {
-  font-size: 16px;
-}
-/* Tambahan CSS untuk Header.module.css */
-
-/* Avatar styling */
 .avatarImage {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 50%;
 }
 
 .avatarInitials {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-weight: 600;
   font-size: 14px;
-  border-radius: 50%;
 }
 
-/* Dropdown header styling */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 260px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  z-index: 101;
+  padding: 12px;
+  animation: fadeInDown 0.2s ease-out;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
 .dropdownHeader {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  border-radius: 12px;
+  margin-bottom: 12px;
 }
 
 .dropdownAvatar {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
-  position: relative;
-}
-
-.dropdownAvatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.dropdownInitials {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   font-weight: 600;
-  font-size: 16px;
 }
 
-.dropdownUserInfo {
-  flex: 1;
-  min-width: 0;
+.dropdownInitials { 
+  font-size: 16px; 
 }
 
-.dropdownUserName {
-  display: block;
-  font-weight: 600;
-  color: #111827;
+.dropdownUserInfo { 
+  overflow: hidden; 
+}
+
+.dropdownUserName { 
+  font-weight: 600; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis;
+  color: #1e293b;
   font-size: 14px;
-  margin-bottom: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.dropdownUserEmail {
   display: block;
-  font-size: 13px;
-  color: #6b7280;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 2px;
 }
 
-.dropdownUserRole {
-  display: inline-block;
-  font-size: 11px;
-  color: #6366f1;
-  background: #eef2ff;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 500;
+.dropdownUserEmail { 
+  font-size: 12px; 
+  color: #64748b; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
 }
 
 .dropdownDivider {
   height: 1px;
-  background: #e5e7eb;
-  margin: 8px 0;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  margin: 12px 0;
 }
 
-/* User button styling */
-.userButton {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.userButton:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.userAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  position: relative;
-  flex-shrink: 0;
-}
-
-.userInfo {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.userName {
-  font-weight: 600;
-  color: #111827;
-  font-size: 14px;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 120px;
-}
-
-.userRole {
-  font-size: 12px;
-  color: #6b7280;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 120px;
-}
-
-/* Dropdown styling */
-.dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  min-width: 280px;
-  overflow: hidden;
-}
-
-.dropdownBody {
-  padding: 8px;
-}
-
-.dropdownItem {
+.dropdownItem, .logoutButton {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 12px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   font-size: 14px;
   color: #374151;
+  text-align: left;
+  font-family: inherit;
+  font-weight: 500;
 }
 
 .dropdownItem:hover {
-  background: #f3f4f6;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  transform: translateX(4px);
 }
 
 .logoutButton {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 12px;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s ease;
-  font-size: 14px;
   color: #dc2626;
 }
 
 .logoutButton:hover {
-  background: #fef2f2;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%);
+  transform: translateX(4px);
 }
 
-/* Overlay */
 .overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 999;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+/* === GLOBAL LAYOUT FIX === */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* Layout adjustment untuk fixed header */
+.headerSpacer {
+  height: 80px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Pastikan container induk tidak ada padding yang mengganggu */
+.mainLayout {
+  padding-top: 80px;
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 20px;
+    height: 70px;
+  }
+  
+  .headerSpacer {
+    height: 70px;
+  }
+  
+  .logoSection {
+    gap: 10px;
+  }
+  
+  .logoIcon {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .logoImage {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .mainTitle {
+    font-size: 18px;
+  }
+  
+  .subtitle {
+    font-size: 12px;
+  }
+  
+  .userInfo {
+    display: none;
+  }
+  
+  .dropdown {
+    width: 240px;
+  }
+}
+
+@media (max-width: 480px) {
+  .logoText {
+    display: none;
+  }
+  
+  .logoIcon {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .logoImage {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .header {
+    padding: 0 16px;
+  }
 }

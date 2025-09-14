@@ -1,27 +1,79 @@
-/* Mengatur layout utama menggunakan flexbox */
+/* src/components/common/Layout/Layout.module.css - VERSI DENGAN PERBAIKAN */
+
+/* === LAYOUT CONTAINER === */
 .layoutContainer {
   display: flex;
-  background-color: #f8f9fa; /* Warna latar belakang konten */
   min-height: 100vh;
+  background: #f8fafc;
+  /* Tambahkan ini untuk mencegah scrollbar muncul dari container ini */
+  overflow-x: hidden;
 }
 
-/* Wadah untuk Header dan Konten Halaman */
-.mainContent {
-  flex-grow: 1; /* Mengisi sisa ruang yang tersedia */
+/* === MAIN PANEL (Area setelah sidebar) === */
+.mainPanel {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  width: 100%;
+  margin-left: 280px; /* Width sidebar expanded */
+  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Perbaikan: Mencegah flex item memanjang melebihi batasnya */
+  min-width: 0;
 }
 
-/* Konten utama halaman dengan padding */
-.pageContent {
+/* Ketika sidebar collapsed */
+.mainPanel.sidebarCollapsed {
+  margin-left: 80px;
+}
+
+/* === CONTENT AREA === */
+.content {
+  flex: 1;
   padding: 24px;
-  flex-grow: 1;
+  margin-top: 80px; /* Height header */
+  background: #f8fafc;
+  min-height: calc(100vh - 80px);
+  overflow-y: auto;
+  /* Perbaikan: Secara eksplisit sembunyikan overflow horizontal di area konten */
+  overflow-x: hidden;
 }
 
-/* Penyesuaian saat sidebar diciutkan (diterapkan oleh body class dari Sidebar.jsx) */
-/* Pastikan body.sidebar-collapsed bekerja atau gunakan state di Layout untuk ini */
-body.sidebar-collapsed + .layoutContainer .mainContent {
-  /* Anda bisa menambahkan transisi atau penyesuaian margin di sini jika diperlukan */
-  transition: margin-left 0.3s ease-in-out;
+/* === SCROLLBAR STYLING === */
+.content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* === MOBILE RESPONSIVE === */
+@media (max-width: 768px) {
+  .mainPanel {
+    margin-left: 0;
+  }
+  
+  .mainPanel.sidebarCollapsed {
+    margin-left: 0;
+  }
+  
+  .content {
+    padding: 16px;
+    margin-top: 70px; /* Height header mobile */
+    min-height: calc(100vh - 70px);
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: 12px;
+  }
 }

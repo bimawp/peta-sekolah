@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.jsx
+// src/contexts/AuthContext.jsx - FIXED VERSION 2.0
 
 import React, { createContext, useContext, useEffect, useReducer } from 'react';
 import { supabase } from '../utils/supabase';
@@ -7,15 +7,15 @@ const initialState = {
   user: null,
   profile: null,
   isAuthenticated: false,
-  loading: true, // SELALU mulai dengan loading = true
+  loading: true, // Mulai dengan loading = true
   error: null
 };
 
-// ... (Actions dan Reducer tidak berubah, Anda bisa biarkan)
 const authActions = {
     LOGIN: 'LOGIN', LOGOUT: 'LOGOUT', SET_LOADING: 'SET_LOADING', SET_ERROR: 'SET_ERROR', 
     CLEAR_ERROR: 'CLEAR_ERROR', UPDATE_PROFILE: 'UPDATE_PROFILE'
 };
+
 const authReducer = (state, action) => {
     switch (action.type) {
         case authActions.LOGIN: return { ...state, user: action.payload.user, profile: action.payload.profile, isAuthenticated: !!action.payload.user, loading: false, error: null };
@@ -28,14 +28,12 @@ const authReducer = (state, action) => {
     }
 };
 
-
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    // Fungsi ini sekarang lebih sederhana, hanya untuk fetch profil
     const fetchUserProfile = async (sessionUser) => {
       try {
         const { data: profileData, error } = await supabase
@@ -47,26 +45,39 @@ export const AuthProvider = ({ children }) => {
         return { ...profileData, email: sessionUser.email };
       } catch (error) {
         console.error("Error fetching profile:", error);
-        return null; // Kembalikan null jika gagal
+        return null;
       }
     };
 
-    // PERBAIKAN UTAMA ADA DI SINI
-    // Listener ini sekarang menjadi satu-satunya sumber kebenaran.
-    // Ia akan menangani sesi awal, login, logout, dan update.
+    // Fungsi untuk memeriksa sesi yang ada saat aplikasi dimuat
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const profile = await fetchUserProfile(session.user);
+        dispatch({
+          type: authActions.LOGIN,
+          payload: { user: session.user, profile },
+        });
+      } else {
+        // Jika tidak ada sesi, pastikan loading selesai
+        dispatch({ type: authActions.SET_LOADING, payload: false });
+      }
+    };
+    
+    // Panggil checkSession sekali saat komponen dimuat
+    checkSession();
+
+    // Listener untuk menangani perubahan status auth (login/logout di tab lain)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log(`Supabase Auth Event: ${event}`);
-        
-        if (session) {
-          // Jika ada sesi (setelah login atau verifikasi email)
+        if (event === 'SIGNED_IN' && session) {
           const profile = await fetchUserProfile(session.user);
           dispatch({
             type: authActions.LOGIN,
             payload: { user: session.user, profile },
           });
-        } else {
-          // Jika tidak ada sesi (setelah logout)
+        } else if (event === 'SIGNED_OUT') {
           dispatch({ type: authActions.LOGOUT });
         }
       }
@@ -75,7 +86,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []); // Cukup dijalankan sekali saat aplikasi dimuat
+  }, []);
 
   const login = async (credentials) => {
     const { error } = await supabase.auth.signInWithPassword(credentials);
@@ -98,11 +109,9 @@ export const AuthProvider = ({ children }) => {
     clearError: () => dispatch({ type: authActions.CLEAR_ERROR }),
   };
 
-  // Tampilkan anak komponen HANYA setelah loading selesai
-  // Ini mencegah redirect ke login terlalu dini
   return (
     <AuthContext.Provider value={value}>
-      {!state.loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
@@ -113,4 +122,4 @@ export const useAuth = () => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};  
+};

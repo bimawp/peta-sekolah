@@ -1,6 +1,6 @@
-// src/components/common/Sidebar/Sidebar.jsx
+// src/components/common/Sidebar/Sidebar.jsx - FIXED VERSION
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { 
@@ -49,162 +49,120 @@ const menuItems = [
 
 const Sidebar = () => {
   const location = useLocation();
-  const [collapsed, setCollapsed] = useState(() => {
-    // Restore collapsed state from localStorage
-    const saved = localStorage.getItem('sidebar-collapsed');
-    return saved ? JSON.parse(saved) : false;
-  });
+  const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const debounceRef = useRef(null);
+  const animationRef = useRef(null);
 
-  // Improved mobile detection with debouncing
+  // Simplified mobile detection
   const checkMobile = useCallback(() => {
     const mobile = window.innerWidth <= 768;
-    if (mobile !== isMobile) {
-      setIsMobile(mobile);
-      
-      // Close mobile sidebar when switching to desktop
-      if (!mobile && isOpen) {
-        setIsOpen(false);
-      }
+    setIsMobile(mobile);
+    if (!mobile && isOpen) {
+      setIsOpen(false);
     }
-  }, [isMobile, isOpen]);
+  }, [isOpen]);
 
+  // Initialize on mount
   useEffect(() => {
     checkMobile();
     
-    let timeoutId;
-    const debouncedResize = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(checkMobile, 150);
+    // Load saved state only once on mount
+    try {
+      const saved = localStorage.getItem('sidebar-collapsed');
+      if (saved) {
+        setCollapsed(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.warn('Failed to load sidebar state:', error);
+    }
+
+    const handleResize = () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(checkMobile, 100);
     };
 
-    window.addEventListener('resize', debouncedResize);
+    window.addEventListener('resize', handleResize, { passive: true });
+    
     return () => {
-      window.removeEventListener('resize', debouncedResize);
-      clearTimeout(timeoutId);
+      window.removeEventListener('resize', handleResize);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, [checkMobile]);
 
-  // Save collapsed state to localStorage
+  // Save collapsed state (debounced)
   useEffect(() => {
     if (!isMobile) {
-      localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
+        try {
+          localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
+        } catch (error) {
+          console.warn('Failed to save sidebar state:', error);
+        }
+      }, 300);
     }
   }, [collapsed, isMobile]);
 
-  // Update body class for layout adjustment with CSS custom properties
-  useEffect(() => {
-    const root = document.documentElement;
-    
-    if (isMobile) {
-      root.style.removeProperty('--sidebar-offset');
+  // Optimized toggle function
+  const toggleSidebar = useCallback(() => {
+    // Prevent rapid clicking
+    if (animationRef.current) {
       return;
     }
 
-    const sidebarWidth = collapsed ? 80 : 280;
-    root.style.setProperty('--sidebar-offset', `${sidebarWidth}px`);
-
-    return () => {
-      root.style.removeProperty('--sidebar-offset');
-    };
-  }, [collapsed, isMobile]);
-
-  // Enhanced toggle with animation state
-  const toggleSidebar = useCallback(() => {
-    if (isAnimating) return;
-    
-    setIsAnimating(true);
-    
-    if (isMobile) {
-      setIsOpen(prev => !prev);
-    } else {
-      setCollapsed(prev => !prev);
-    }
-    
-    // Reset animation state
-    setTimeout(() => setIsAnimating(false), 300);
-  }, [isMobile, isAnimating]);
+    animationRef.current = requestAnimationFrame(() => {
+      if (isMobile) {
+        setIsOpen(prev => !prev);
+      } else {
+        setCollapsed(prev => !prev);
+      }
+      
+      // Reset animation lock
+      setTimeout(() => {
+        animationRef.current = null;
+      }, 250);
+    });
+  }, [isMobile]);
 
   const closeSidebar = useCallback(() => {
     if (isMobile && isOpen) {
-      setIsAnimating(true);
       setIsOpen(false);
-      setTimeout(() => setIsAnimating(false), 300);
     }
   }, [isMobile, isOpen]);
 
-  // Keyboard accessibility
+  // Keyboard handling
   useEffect(() => {
+    if (!isMobile || !isOpen) return;
+
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && isMobile && isOpen) {
+      if (event.key === 'Escape') {
         closeSidebar();
       }
     };
 
-    if (isMobile && isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      // Prevent body scroll when mobile sidebar is open
-      document.body.style.overflow = 'hidden';
-      
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-        document.body.style.overflow = '';
-      };
-    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
   }, [isMobile, isOpen, closeSidebar]);
 
-  // Generate dynamic classes
+  // Dynamic classes
   const sidebarClasses = [
     styles.sidebar,
-    collapsed && !isMobile ? styles.collapsed : '',
-    isMobile && isOpen ? styles.open : '',
-    isAnimating ? styles.animating : ''
+    collapsed && !isMobile && styles.collapsed,
+    isMobile && isOpen && styles.open
   ].filter(Boolean).join(' ');
-
-  // Logo component for better organization
-  const LogoSection = () => (
-    <div className={styles.logoSection}>
-      <h1 className={styles.logo}>
-        Disdik Garut
-      </h1>
-      {!collapsed && !isMobile && (
-        <div className={styles.tagline}>
-          Pendidikan Berkualitas
-        </div>
-      )}
-    </div>
-  );
-
-  // Toggle button with better UX
-  const ToggleButton = () => {
-    const getIcon = () => {
-      if (isMobile) {
-        return isOpen ? <X size={24} /> : <Menu size={24} />;
-      }
-      return collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />;
-    };
-
-    const getAriaLabel = () => {
-      if (isMobile) {
-        return isOpen ? 'Tutup menu' : 'Buka menu';
-      }
-      return collapsed ? 'Perluas sidebar' : 'Perkecil sidebar';
-    };
-
-    return (
-      <button 
-        onClick={toggleSidebar} 
-        className={styles.toggleBtn}
-        aria-label={getAriaLabel()}
-        disabled={isAnimating}
-        type="button"
-      >
-        {getIcon()}
-      </button>
-    );
-  };
 
   return (
     <>
@@ -214,8 +172,31 @@ const Sidebar = () => {
         aria-label="Menu navigasi utama"
       >
         <div className={styles.header}>
-          {(!collapsed || isMobile) && <LogoSection />}
-          <ToggleButton />
+          {(!collapsed || isMobile) && (
+            <div className={styles.logoSection}>
+              <h1 className={styles.logo}>
+                Disdik Garut
+              </h1>
+              <div className={styles.tagline}>
+                Pendidikan Berkualitas
+              </div>
+            </div>
+          )}
+          
+          <button 
+            onClick={toggleSidebar} 
+            className={styles.toggleBtn}
+            aria-label={isMobile ? 
+              (isOpen ? 'Tutup menu' : 'Buka menu') : 
+              (collapsed ? 'Perluas sidebar' : 'Perkecil sidebar')
+            }
+            type="button"
+          >
+            {isMobile ? 
+              (isOpen ? <X size={24} /> : <Menu size={24} />) :
+              (collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)
+            }
+          </button>
         </div>
 
         <nav className={styles.menu} role="menubar">
@@ -234,7 +215,6 @@ const Sidebar = () => {
           ))}
         </nav>
 
-        {/* Footer section for additional info */}
         {!collapsed && !isMobile && (
           <div className={styles.footer}>
             <div className={styles.version}>
@@ -244,15 +224,14 @@ const Sidebar = () => {
         )}
       </aside>
 
-      {/* Enhanced mobile overlay with better accessibility */}
       {isMobile && isOpen && (
         <div 
           className={styles.sidebarOverlay} 
           onClick={closeSidebar}
-          onKeyDown={(e) => e.key === 'Enter' && closeSidebar()}
           role="button"
           tabIndex={0}
-          aria-label="Tutup menu dengan klik di luar"
+          aria-label="Tutup menu"
+          onKeyDown={(e) => e.key === 'Enter' && closeSidebar()}
         />
       )}
     </>

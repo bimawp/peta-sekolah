@@ -1,19 +1,19 @@
+// src/store/store.js - FIXED
+
 import { configureStore } from '@reduxjs/toolkit';
-import authSlice from './slices/authSlice.js';
-import budgetSlice from './slices/budgetSlice.js';
-import counterSlice from './slices/counterSlice.js';
-import facilitySlice from './slices/facilitySlice.js';
-import schoolSlice from './slices/schoolSlice.js';
-import uiSlice from './slices/uiSlice.js';
+// Tambahkan ekstensi .js pada setiap import slice
+import schoolReducer from './slices/schoolSlice.js';
+import budgetReducer from './slices/budgetSlice.js';
+import facilityReducer from './slices/facilitySlice.js';
+import uiReducer from './slices/uiSlice.js';
 
 const store = configureStore({
   reducer: {
-    auth: authSlice,
-    budget: budgetSlice,
-    counter: counterSlice,
-    facility: facilitySlice,
-    school: schoolSlice,
-    ui: uiSlice,
+    // Reducer auth sudah dihapus
+    school: schoolReducer,
+    budget: budgetReducer,
+    facility: facilityReducer,
+    ui: uiReducer,
   },
 });
 

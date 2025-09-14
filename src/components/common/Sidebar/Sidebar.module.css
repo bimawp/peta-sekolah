@@ -1,10 +1,11 @@
-/* --- Variabel Global untuk Tema Modern --- */
+/* src/components/common/Sidebar/Sidebar.module.css - FIXED VERSION */
+
 :root {
-  --header-height: 70px;
+  --header-height: 80px;
   --sidebar-width-expanded: 280px;
   --sidebar-width-collapsed: 80px;
   
-  /* Palet Warna Modern dengan Gradien */
+  /* Modern Color Palette */
   --primary-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --primary-bg-solid: #667eea;
   --secondary-bg: rgba(255, 255, 255, 0.1);
@@ -18,22 +19,22 @@
   --border-radius: 12px;
   --border-radius-small: 8px;
   
-  /* Animasi */
-  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-medium: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Optimized transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-medium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* --- Font Import --- */
+/* Font Import */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-/* --- Gaya Dasar Sidebar (Desktop) --- */
+/* === MAIN SIDEBAR STYLING === */
 .sidebar {
   background: var(--primary-bg);
   color: var(--primary-text);
   
-  position: sticky;
+  position: fixed;
   top: var(--header-height);
+  left: 0;
   height: calc(100vh - var(--header-height));
   
   display: flex;
@@ -42,18 +43,16 @@
   width: var(--sidebar-width-expanded);
   border-radius: 0 var(--border-radius) var(--border-radius) 0;
   box-shadow: 
-    0 10px 30px var(--shadow-dark),
+    0 8px 25px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 var(--shadow-light);
-  z-index: 1000;
+  z-index: 999;
   
-  /* Backdrop blur effect */
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  /* Hardware acceleration for smooth animations */
+  transform: translateZ(0);
+  will-change: width, transform;
   
-  /* Smooth transitions */
-  transition: 
-    width var(--transition-medium),
-    box-shadow var(--transition-fast);
+  /* Optimized transitions */
+  transition: width var(--transition-medium) ease-out;
   
   /* Subtle border */
   border-right: 1px solid rgba(255, 255, 255, 0.1);
@@ -76,7 +75,7 @@
   border-radius: inherit;
 }
 
-/* --- Header Internal Sidebar --- */
+/* === HEADER SECTION === */
 .header {
   display: flex;
   align-items: center;
@@ -88,17 +87,23 @@
   z-index: 2;
 }
 
+.logoSection {
+  overflow: hidden;
+}
+
 .logo {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   white-space: nowrap;
+  margin: 0;
+  
+  /* Smooth transitions for collapse */
   opacity: 1;
-  visibility: visible;
+  transform: translateX(0);
   transition: 
     opacity var(--transition-fast) ease,
-    visibility var(--transition-fast) ease,
     transform var(--transition-fast) ease;
   
   /* Gradient text effect */
@@ -107,15 +112,20 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   
-  /* Text shadow fallback */
-  text-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
-  
-  /* Subtle glow effect */
-  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.2));
+  /* Fallback for browsers that don't support background-clip */
+  color: #FFD700;
 }
 
-.logo:hover {
-  transform: scale(1.02);
+.tagline {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--secondary-text);
+  margin-top: 2px;
+  opacity: 1;
+  transform: translateX(0);
+  transition: 
+    opacity var(--transition-fast) ease,
+    transform var(--transition-fast) ease;
 }
 
 .toggleBtn {
@@ -130,63 +140,40 @@
   border-radius: 50%;
   width: 44px;
   height: 44px;
-  position: relative;
-  overflow: hidden;
+  flex-shrink: 0;
   
-  /* Modern glass effect */
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* Optimized styling */
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
-    0 4px 15px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   
+  /* Hardware acceleration */
+  transform: translateZ(0);
   transition: 
-    all var(--transition-fast),
-    transform var(--transition-fast);
-}
-
-.toggleBtn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
-  transition: left var(--transition-medium);
+    all var(--transition-fast) ease,
+    transform var(--transition-fast) ease;
 }
 
 .toggleBtn:hover {
   background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
-  box-shadow: 
-    0 6px 20px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.toggleBtn:hover::before {
-  left: 100%;
+  transform: scale(1.05) translateZ(0);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .toggleBtn:active {
-  transform: scale(0.95);
+  transform: scale(0.95) translateZ(0);
 }
 
-/* --- Menu Navigasi --- */
+/* === MENU NAVIGATION === */
 .menu {
   padding: 8px 16px 24px;
   flex-grow: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
   z-index: 2;
   
-  /* Custom scrollbar */
+  /* Optimized scrolling */
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
@@ -208,14 +195,32 @@
   background: rgba(255, 255, 255, 0.5);
 }
 
-/* --- State: Sidebar Diciutkan (Collapsed) --- */
+/* === FOOTER SECTION === */
+.footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 1;
+  transform: translateX(0);
+  transition: 
+    opacity var(--transition-fast) ease,
+    transform var(--transition-fast) ease;
+}
+
+.version {
+  font-size: 0.75rem;
+  color: var(--secondary-text);
+  text-align: center;
+}
+
+/* === COLLAPSED STATE === */
 .collapsed {
   width: var(--sidebar-width-collapsed);
 }
 
-.collapsed .logo {
+.collapsed .logo,
+.collapsed .tagline,
+.collapsed .footer {
   opacity: 0;
-  visibility: hidden;
   transform: translateX(-20px);
 }
 
@@ -223,53 +228,30 @@
   margin: 0 auto;
 }
 
-/* --- Animasi Masuk --- */
-@keyframes slideInFromLeft {
-  from {
-    transform: translateX(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-/* --- Responsif & Tampilan Mobile --- */
+/* === MOBILE STYLES === */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
     top: 0;
     left: 0;
     height: 100vh;
-    width: 320px;
-    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    width: 300px;
+    
+    /* Mobile positioning */
+    transform: translateX(-100%);
+    transition: transform var(--transition-medium) ease-out;
     
     /* Enhanced mobile shadows */
     box-shadow: 
       0 20px 60px rgba(0, 0, 0, 0.4),
       inset 0 1px 0 var(--shadow-light);
     
-    transform: translateX(-100%);
-    transition: transform var(--transition-medium);
-    
-    /* Mobile-specific backdrop blur */
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    /* Remove border radius on mobile */
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
   }
 
   .open {
     transform: translateX(0);
-    animation: slideInFromLeft var(--transition-medium) ease-out;
   }
 
   .toggleBtn {
@@ -278,9 +260,7 @@
     right: -22px;
     background: var(--primary-bg-solid);
     border-radius: 0 50% 50% 0;
-    box-shadow: 
-      0 6px 20px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
     padding: 16px 12px;
     z-index: 1001;
     width: 50px;
@@ -293,44 +273,71 @@
 
   .logo {
     font-size: 2rem;
-    padding-left: 0;
+  }
+
+  /* Reset collapsed states on mobile */
+  .collapsed .logo,
+  .collapsed .tagline,
+  .collapsed .footer {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
-/* --- Overlay untuk Mobile --- */
+/* === MOBILE OVERLAY === */
 .sidebarOverlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  z-index: 999;
-  opacity: 0;
-  animation: fadeIn var(--transition-medium) forwards;
+  z-index: 998;
+  
+  /* Smooth fade in */
+  animation: fadeIn var(--transition-medium) ease-out;
 }
 
-/* --- Efek Hover Global --- */
-.sidebar:hover {
-  box-shadow: 
-    0 15px 40px var(--shadow-dark),
-    inset 0 1px 0 var(--shadow-light);
-}
-
-/* --- Dark mode support --- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --shadow-dark: rgba(0, 0, 0, 0.5);
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
-/* --- Reduced motion support --- */
+/* === PERFORMANCE OPTIMIZATIONS === */
+
+/* Reduce animations for users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  .sidebar,
+  .toggleBtn,
+  .logo,
+  .tagline,
+  .footer,
+  .sidebarOverlay {
+    transition-duration: 0.05s !important;
+    animation-duration: 0.05s !important;
   }
+}
+
+/* Force hardware acceleration on key elements */
+.sidebar,
+.toggleBtn,
+.sidebarOverlay {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize rendering during animations */
+.sidebar.animating {
+  pointer-events: none;
+}
+
+.sidebar.animating * {
+  pointer-events: none;
 }
