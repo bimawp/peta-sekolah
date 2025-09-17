@@ -1,5 +1,4 @@
-// src/App.jsx - VERSI FINAL YANG SUDAH DIGABUNGKAN DAN BENAR
-
+// src/App.jsx
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -14,22 +13,17 @@ import AppRoutes from './routes/AppRoutes';
 import './App.css';
 import './styles/globals.css';
 
-// Komponen AppContent ini sekarang sudah tidak diperlukan lagi,
-// kita bisa langsung merender AppRoutes di dalam App.
-// Ini membuat kode lebih sederhana.
-
 function App() {
   return (
-    // 1. Provider untuk Redux (jika Anda menggunakannya)
+    // Provider untuk Redux menjadi satu-satunya sumber state global
     <Provider store={store}>
-      {/* 2. BrowserRouter untuk menangani routing di seluruh aplikasi */}
+      {/* BrowserRouter untuk menangani routing */}
       <BrowserRouter>
-        {/* 3. AuthProvider untuk mengelola status login pengguna */}
+        {/* Context Providers untuk tema, otentikasi, dan filter */}
         <AuthProvider>
-          {/* 4. Provider lain seperti Theme dan Filter */}
           <ThemeProvider>
             <FilterProvider>
-              {/* 5. AppRoutes akan menangani semua logika halaman/URL */}
+              {/* AppRoutes menangani semua logika halaman/rute */}
               <AppRoutes />
             </FilterProvider>
           </ThemeProvider>

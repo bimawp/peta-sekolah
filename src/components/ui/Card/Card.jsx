@@ -1,27 +1,15 @@
-import React from 'react';
 import styles from './Card.module.css';
+import clsx from 'clsx'; // Pastikan sudah install: npm install clsx
 
-const Card = ({ 
-  children, 
-  className = '', 
-  hover = false, 
-  padding = 'default',
-  shadow = 'default',
-  ...props 
-}) => {
-  const cardClasses = [
-    styles.card,
-    styles[`padding-${padding}`],
-    styles[`shadow-${shadow}`],
-    hover && styles.hover,
-    className
-  ].filter(Boolean).join(' ');
-
-  return (
-    <div className={cardClasses} {...props}>
-      {children}
-    </div>
-  );
+/**
+ * Komponen Card serbaguna.
+ * @param {React.ReactNode} children - Konten yang akan ditampilkan di dalam card.
+ * @param {string} className - Class CSS tambahan untuk kustomisasi.
+ * @param {React.ElementType} as - Elemen HTML yang akan dirender, defaultnya 'div'.
+ */
+const Card = ({ children, className, as: Component = 'div' }) => {
+  const finalClasses = clsx(styles.card, className);
+  return <Component className={finalClasses}>{children}</Component>;
 };
 
 export default Card;
