@@ -1,19 +1,17 @@
-// src/services/api/schoolApi.js
+// src/services/api/schoolApi.js - KODE LENGKAP PERBAIKAN
 
-// Ambil data sekolah berdasarkan provinsi dari backend (Supabase)
-export async function getSchoolsByProvince(provinceId) {
-  // Sesuaikan endpoint API kamu
-  const response = await fetch(`/api/schools?province=${provinceId}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch schools');
+// Ubah baris ini:
+// import supabase from '../../utils/supabase.js';
+
+// Menjadi baris ini:
+import { supabase } from '../../utils/supabase.js';
+
+export const getSchools = async () => {
+  const { data, error } = await supabase.from('schools').select('*');
+
+  if (error) {
+    throw new Error(error.message);
   }
-  const data = await response.json();
+
   return data;
-}
-
-// Default export untuk slice
-const schoolApi = {
-  getSchoolsByProvince,
 };
-
-export default schoolApi;

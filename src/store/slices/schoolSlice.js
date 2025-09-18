@@ -1,41 +1,47 @@
-// src/store/slices/schoolSlice.js
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import schoolApi from '../../services/api/schoolApi.js';
+// src/store/slices/schoolSlice.js - KODE LENGKAP PERBAIKAN
 
-// Async thunk untuk fetch sekolah berdasarkan provinsi
-export const fetchSchoolsByProvince = createAsyncThunk(
-  'schools/fetchByProvince',
-  async (provinceId, thunkAPI) => {
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+// Ubah cara impor dari default menjadi named import, dan tambahkan .js
+import { getSchools } from '../../services/api/schoolApi.js';
+
+// fetchSchools sekarang menggunakan createAsyncThunk
+export const fetchSchools = createAsyncThunk(
+  'schools/fetchSchools',
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await schoolApi.getSchoolsByProvince(provinceId);
+      // Panggil fungsi yang sudah diimpor dengan benar
+      const response = await getSchools();
       return response;
     } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
+      return rejectWithValue(error.message);
     }
   }
 );
 
+const initialState = {
+  data: [],
+  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: null,
+};
+
 const schoolSlice = createSlice({
-  name: 'schools',
-  initialState: {
-    list: [],
-    loading: false,
-    error: null,
+  name: 'school',
+  initialState,
+  reducers: {
+    // Reducer lain bisa ditambahkan di sini jika perlu
   },
-  reducers: {},
   extraReducers: (builder) => {
     builder
-      .addCase(fetchSchoolsByProvince.pending, (state) => {
-        state.loading = true;
-        state.error = null;
+      .addCase(fetchSchools.pending, (state) => {
+        state.status = 'loading';
       })
-      .addCase(fetchSchoolsByProvince.fulfilled, (state, action) => {
-        state.loading = false;
-        state.list = action.payload;
+      .addCase(fetchSchools.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.data = action.payload;
       })
-      .addCase(fetchSchoolsByProvince.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload || 'Failed to fetch schools';
+      .addCase(fetchSchools.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload;
       });
   },
 });

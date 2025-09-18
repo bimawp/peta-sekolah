@@ -1,0 +1,35 @@
+/* src/components/common/SuspenseLoader/SuspenseLoader.css - FILE BARU */
+
+.suspense-loader {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100%;
+  background-color: rgba(249, 250, 251, 0.8);
+}
+
+.suspense-loader p {
+  margin-top: 16px;
+  font-size: 1.1rem;
+  color: #374151;
+}
+
+.spinner {
+  width: 56px;
+  height: 56px;
+  border: 6px solid #f3f4f6;
+  border-top: 6px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
