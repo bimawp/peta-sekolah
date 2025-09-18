@@ -1,68 +1,111 @@
-// src/pages/Auth/Login.jsx - KODE LENGKAP FINAL
+// src/pages/Auth/Login.jsx - VERSI FINAL
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { useAuth } from '../../contexts/AuthContext';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Login.module.css';
-
-// Skema validasi
-const schema = yup.object().shape({
-  email: yup.string().email('Email tidak valid').required('Email wajib diisi'),
-  password: yup.string().min(6, 'Password minimal 6 karakter').required('Password wajib diisi'),
-});
+import { useAuth } from '../../contexts/AuthContext'; 
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, error, clearError, loading, isAuthenticated } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
-    resolver: yupResolver(schema),
-  });
-
-  const onSubmit = async (data) => {
-    try {
-      // Ganti dengan fungsi login Anda yang sebenarnya
-      await login(data.email, data.password);
-      navigate('/dashboard');
-    } catch (error) {
-      console.error("Login gagal:", error);
-      // Anda bisa menambahkan state untuk menampilkan pesan error di UI
-      // misalnya: setError('email', { type: 'manual', message: 'Email atau password salah' });
+  // PERBAIKAN UTAMA: Arahkan ke dashboard JIKA SUDAH LOGIN
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      navigate('/dashboard', { replace: true });
     }
+  }, [isAuthenticated, loading, navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    if (error) clearError();
+    
+    await login({ email, password });
+    
+    // Biarkan listener di AuthContext yang menangani redirect setelah state terupdate
+    // Di sini kita hanya menghentikan loading di form
+    setIsSubmitting(false);
   };
+  
+  // Jangan render apapun selagi context auth loading
+  // Ini mencegah "kedipan" singkat halaman login jika user sudah login
+  if (loading) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div>Loading...</div>
+        </div>
+    );
+  }
 
   return (
     <div className={styles.loginContainer}>
-      <form onSubmit={handleSubmit(onSubmit)} className={styles.loginForm}>
-        <h2>Login Admin</h2>
-
-        <div className={styles.inputGroup}>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            {...register('email')}
-          />
-          {errors.email && <p className={styles.error}>{errors.email.message}</p>}
+      <div className={styles.loginLeft}>
+        <img src="/assets/logo-disdik.png" alt="Logo DISDIK" className={styles.bgLogo} />
+        <div className={styles.loginContent}>
+          <h1 className={styles.mainTitle}>e-PlanDISDIK</h1>
+          <p className={styles.subtitle}>Electronic Planning Dinas Pendidikan</p>
+          <p className={styles.subtitle}>Kabupaten - Garut</p>
+          <br />
+          <a href="https://disdikkabgarut.org/" target="_blank" rel="noopener noreferrer" className={styles.selengkapnyaBtn}>
+            Selengkapnya
+          </a>
         </div>
-
-        <div className={styles.inputGroup}>
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            {...register('password')}
-          />
-          {errors.password && <p className={styles.error}>{errors.password.message}</p>}
+        <div className={styles.bottomText}>
+          DINAS PENDIDIKAN KABUPATEN GARUT
         </div>
-
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Memproses...' : 'Login'}
-        </button>
-      </form>
+      </div>
+      <div className={styles.loginRight}>
+        <div className={styles.loginFormContainer}>
+          <div className={styles.topLogoWrapper}>
+            <img src="/assets/icon-disdik.png" alt="Icon DISDIK" className={styles.topLogo} />
+          </div>
+          <div className={styles.formHeader}>
+            <h2>Selamat Datang di</h2>
+            <h3>e-PlanDISDIK</h3>
+            <p>Silahkan Login untuk mengelola data</p>
+          </div>
+          <form onSubmit={handleSubmit} className={styles.loginForm}>
+            <div className={styles.inputGroup}>
+              <div className={styles.inputWrapper}>
+                <span className={styles.inputIcon}>✉</span>
+                <input
+                  type="email"
+                  placeholder="Email Address"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={styles.formInput}
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+            <div className={styles.inputGroup}>
+              <div className={styles.inputWrapper}>
+                <span className={styles.inputIcon}>🔒</span>
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={styles.formInput}
+                  required
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+            <button type="submit" className={styles.loginBtn} disabled={isSubmitting}>
+              {isSubmitting ? 'Memproses...' : 'Masuk'}
+            </button>
+          </form>
+          {error && <p style={{ color: 'red', marginTop: '10px', textAlign: 'center' }}>{error}</p>}
+        </div>
+      </div>
     </div>
   );
 };
