@@ -22,6 +22,15 @@ const FacilitiesPage = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     
+    // Enhanced search states
+    const [searchType, setSearchType] = useState('semua'); // 'semua', 'npsn', 'nama', 'jenjang'
+    const [advancedSearch, setAdvancedSearch] = useState(false);
+    const [searchFilters, setSearchFilters] = useState({
+        npsn: '',
+        nama: '',
+        jenjang: ''
+    });
+    
     // Filter states
     const [selectedJenjang, setSelectedJenjang] = useState('Semua Jenjang');
     const [selectedKecamatan, setSelectedKecamatan] = useState('Semua Kecamatan');
@@ -76,6 +85,44 @@ const FacilitiesPage = () => {
         };
     };
 
+    // Enhanced search function
+    const performSearch = (data) => {
+        if (!advancedSearch) {
+            // Simple search
+            if (!searchQuery.trim()) return data;
+            
+            const query = searchQuery.toLowerCase().trim();
+            return data.filter(school => {
+                if (searchType === 'semua') {
+                    return (
+                        school.nama?.toLowerCase().includes(query) ||
+                        school.npsn?.toLowerCase().includes(query) ||
+                        school.jenjang?.toLowerCase().includes(query)
+                    );
+                } else if (searchType === 'npsn') {
+                    return school.npsn?.toLowerCase().includes(query);
+                } else if (searchType === 'nama') {
+                    return school.nama?.toLowerCase().includes(query);
+                } else if (searchType === 'jenjang') {
+                    return school.jenjang?.toLowerCase().includes(query);
+                }
+                return false;
+            });
+        } else {
+            // Advanced search
+            return data.filter(school => {
+                const matchNpsn = !searchFilters.npsn.trim() || 
+                    school.npsn?.toLowerCase().includes(searchFilters.npsn.toLowerCase().trim());
+                const matchNama = !searchFilters.nama.trim() || 
+                    school.nama?.toLowerCase().includes(searchFilters.nama.toLowerCase().trim());
+                const matchJenjang = !searchFilters.jenjang.trim() || 
+                    school.jenjang?.toLowerCase().includes(searchFilters.jenjang.toLowerCase().trim());
+                
+                return matchNpsn && matchNama && matchJenjang;
+            });
+        }
+    };
+
     // Enhanced sorting function
     const handleSort = (key) => {
         let direction = 'asc';
@@ -114,6 +161,15 @@ const FacilitiesPage = () => {
     // Clear search function
     const clearSearch = () => {
         setSearchQuery('');
+        setSearchFilters({ npsn: '', nama: '', jenjang: '' });
+        setCurrentPage(1);
+    };
+
+    // Toggle advanced search
+    const toggleAdvancedSearch = () => {
+        setAdvancedSearch(!advancedSearch);
+        setSearchQuery('');
+        setSearchFilters({ npsn: '', nama: '', jenjang: '' });
         setCurrentPage(1);
     };
 
@@ -240,29 +296,32 @@ const FacilitiesPage = () => {
         initializeData();
     }, []);
 
-    // Filter effect
+    // Enhanced filter effect with search integration
     useEffect(() => {
         if (schoolData.length === 0) return;
         let filtered = schoolData;
+        
+        // Apply dropdown filters first
         if (selectedJenjang !== 'Semua Jenjang') filtered = filtered.filter(s => s.jenjang === selectedJenjang);
         if (selectedKecamatan !== 'Semua Kecamatan') filtered = filtered.filter(s => s.kecamatan === selectedKecamatan);
         if (selectedDesa !== 'Semua Desa') filtered = filtered.filter(s => s.desa === selectedDesa);
-        if (searchQuery) {
-            filtered = filtered.filter(s => 
-                s.nama?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                s.npsn?.includes(searchQuery)
-            );
-        }
+        
+        // Apply search filters
+        filtered = performSearch(filtered);
+        
         setFilteredSchoolData(filtered);
         generateChartData(filtered, schoolData, kegiatanData);
         setCurrentPage(1); // Reset to first page when filtering
-    }, [schoolData, kegiatanData, selectedJenjang, selectedKecamatan, selectedDesa, searchQuery]);
+    }, [schoolData, kegiatanData, selectedJenjang, selectedKecamatan, selectedDesa, searchQuery, searchType, searchFilters, advancedSearch]);
     
     const resetAllFilters = () => {
         setSelectedJenjang('Semua Jenjang');
         setSelectedKecamatan('Semua Kecamatan');
         setSelectedDesa('Semua Desa');
         setSearchQuery('');
+        setSearchFilters({ npsn: '', nama: '', jenjang: '' });
+        setSearchType('semua');
+        setAdvancedSearch(false);
         setSortConfig({ key: null, direction: 'asc' });
         setCurrentPage(1);
     };
@@ -389,6 +448,107 @@ const FacilitiesPage = () => {
         );
     };
 
+    // Enhanced search component
+    const SearchComponent = () => (
+        <div className={styles.searchSection}>
+            <div className={styles.searchHeader}>
+                <label className={styles.filterLabel}>Pencarian Data Sekolah</label>
+                <button
+                    className={styles.toggleSearchButton}
+                    onClick={toggleAdvancedSearch}
+                >
+                    {advancedSearch ? 'Pencarian Sederhana' : 'Pencarian Lanjutan'}
+                </button>
+            </div>
+            
+            {!advancedSearch ? (
+                // Simple search
+                <div className={styles.simpleSearch}>
+                    <div className={styles.searchTypeSelector}>
+                        <label>Cari berdasarkan:</label>
+                        <select 
+                            value={searchType} 
+                            onChange={(e) => setSearchType(e.target.value)}
+                            className={styles.searchTypeSelect}
+                        >
+                            <option value="semua">Semua Field</option>
+                            <option value="npsn">NPSN</option>
+                            <option value="nama">Nama Sekolah</option>
+                            <option value="jenjang">Jenjang</option>
+                        </select>
+                    </div>
+                    <div className={styles.searchInputWrapper}>
+                        <input
+                            type="text"
+                            className={styles.searchInput}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder={
+                                searchType === 'semua' ? 'Cari NPSN, nama sekolah, atau jenjang...' :
+                                searchType === 'npsn' ? 'Cari berdasarkan NPSN...' :
+                                searchType === 'nama' ? 'Cari berdasarkan nama sekolah...' :
+                                'Cari berdasarkan jenjang (PAUD, SD, SMP, PKBM)...'
+                            }
+                        />
+                        {searchQuery && (
+                            <button
+                                className={styles.clearSearchButton}
+                                onClick={clearSearch}
+                                title="Hapus pencarian"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                // Advanced search
+                <div className={styles.advancedSearch}>
+                    <div className={styles.advancedSearchGrid}>
+                        <div className={styles.advancedSearchField}>
+                            <label>NPSN</label>
+                            <input
+                                type="text"
+                                value={searchFilters.npsn}
+                                onChange={(e) => setSearchFilters(prev => ({ ...prev, npsn: e.target.value }))}
+                                placeholder="Cari berdasarkan NPSN..."
+                                className={styles.advancedSearchInput}
+                            />
+                        </div>
+                        <div className={styles.advancedSearchField}>
+                            <label>Nama Sekolah</label>
+                            <input
+                                type="text"
+                                value={searchFilters.nama}
+                                onChange={(e) => setSearchFilters(prev => ({ ...prev, nama: e.target.value }))}
+                                placeholder="Cari berdasarkan nama sekolah..."
+                                className={styles.advancedSearchInput}
+                            />
+                        </div>
+                        <div className={styles.advancedSearchField}>
+                            <label>Jenjang</label>
+                            <input
+                                type="text"
+                                value={searchFilters.jenjang}
+                                onChange={(e) => setSearchFilters(prev => ({ ...prev, jenjang: e.target.value }))}
+                                placeholder="PAUD, SD, SMP, PKBM..."
+                                className={styles.advancedSearchInput}
+                            />
+                        </div>
+                    </div>
+                    <div className={styles.advancedSearchActions}>
+                        <button
+                            className={styles.clearSearchButton}
+                            onClick={clearSearch}
+                        >
+                            Hapus Semua Pencarian
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+
     // Main dashboard view
     const renderMainView = () => {
         if (loading) {
@@ -428,10 +588,10 @@ const FacilitiesPage = () => {
                 {/* Summary Statistics */}
                 <SummaryStats />
 
-                {/* Filters Section */}
+                {/* Basic Filters Section - Only for Charts */}
                 <section className={`${styles.card} ${styles.filtersCard}`}>
                     <header className={styles.cardHeader}>
-                        <h2>Filter & Pencarian</h2>
+                        <h2>Filter untuk Grafik</h2>
                     </header>
                     <div className={styles.filtersContent}>
                         <div className={styles.filtersRow}>
@@ -479,35 +639,22 @@ const FacilitiesPage = () => {
                             </div>
                         </div>
                         
-                        <div className={styles.searchRow}>
-                            <div className={styles.searchGroup}>
-                                <label className={styles.filterLabel}>Pencarian</label>
-                                <div className={styles.searchInputWrapper}>
-                                    <input
-                                        type="text"
-                                        className={styles.searchInput}
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Cari nama sekolah atau NPSN..."
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            className={styles.clearSearchButton}
-                                            onClick={clearSearch}
-                                            title="Hapus pencarian"
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                            
+                        <div className={styles.filterActions}>
                             <button
                                 className={styles.resetFiltersButton}
                                 onClick={resetAllFilters}
                             >
                                 Reset Semua Filter
                             </button>
+                            <div className={styles.searchResultsInfo}>
+                                {(selectedJenjang !== 'Semua Jenjang' || 
+                                  selectedKecamatan !== 'Semua Kecamatan' || 
+                                  selectedDesa !== 'Semua Desa') && (
+                                    <span className={styles.resultsText}>
+                                        Filter aktif: {filteredSchoolData.length} dari {schoolData.length} sekolah
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -663,11 +810,11 @@ const FacilitiesPage = () => {
                     </div>
                 </section>
 
-                {/* Data Table Section */}
+                {/* Data Table Section with Search */}
                 <section className={`${styles.card} ${styles.tableCard}`}>
                     <header className={styles.cardHeader}>
                         <div className={styles.tableHeaderContent}>
-                            <h2>Data Sekolah ({filteredSchoolData.length} sekolah)</h2>
+                            <h2>Data Sekolah</h2>
                             <div className={styles.tableControls}>
                                 <div className={styles.itemsPerPageSelector}>
                                     <label>Tampilkan:</label>
@@ -689,6 +836,173 @@ const FacilitiesPage = () => {
                             </div>
                         </div>
                     </header>
+
+                    {/* Filter & Search Section for Table */}
+                    <div className={styles.tableFilterSection}>
+                        <div className={styles.tableFilterHeader}>
+                            <h3>Filter & Pencarian Data Tabel</h3>
+                            <button
+                                className={styles.toggleSearchButton}
+                                onClick={toggleAdvancedSearch}
+                            >
+                                {advancedSearch ? 'Pencarian Sederhana' : 'Pencarian Lanjutan'}
+                            </button>
+                        </div>
+
+                        {/* Enhanced Search Component for Table */}
+                        <div className={styles.tableSearchSection}>
+                            {!advancedSearch ? (
+                                // Simple search
+                                <div className={styles.simpleTableSearch}>
+                                    <div className={styles.searchTypeSelector}>
+                                        <label>Cari berdasarkan:</label>
+                                        <select 
+                                            value={searchType} 
+                                            onChange={(e) => setSearchType(e.target.value)}
+                                            className={styles.searchTypeSelect}
+                                        >
+                                            <option value="semua">Semua Field</option>
+                                            <option value="npsn">NPSN</option>
+                                            <option value="nama">Nama Sekolah</option>
+                                            <option value="jenjang">Jenjang</option>
+                                        </select>
+                                    </div>
+                                    <div className={styles.searchInputWrapper}>
+                                        <input
+                                            type="text"
+                                            className={styles.searchInput}
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            placeholder={
+                                                searchType === 'semua' ? 'Cari NPSN, nama sekolah, atau jenjang...' :
+                                                searchType === 'npsn' ? 'Cari berdasarkan NPSN...' :
+                                                searchType === 'nama' ? 'Cari berdasarkan nama sekolah...' :
+                                                'Cari berdasarkan jenjang (PAUD, SD, SMP, PKBM)...'
+                                            }
+                                        />
+                                        {searchQuery && (
+                                            <button
+                                                className={styles.clearSearchButton}
+                                                onClick={clearSearch}
+                                                title="Hapus pencarian"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                // Advanced search
+                                <div className={styles.advancedTableSearch}>
+                                    <div className={styles.advancedSearchGrid}>
+                                        <div className={styles.advancedSearchField}>
+                                            <label>NPSN</label>
+                                            <input
+                                                type="text"
+                                                value={searchFilters.npsn}
+                                                onChange={(e) => setSearchFilters(prev => ({ ...prev, npsn: e.target.value }))}
+                                                placeholder="Cari berdasarkan NPSN..."
+                                                className={styles.advancedSearchInput}
+                                            />
+                                        </div>
+                                        <div className={styles.advancedSearchField}>
+                                            <label>Nama Sekolah</label>
+                                            <input
+                                                type="text"
+                                                value={searchFilters.nama}
+                                                onChange={(e) => setSearchFilters(prev => ({ ...prev, nama: e.target.value }))}
+                                                placeholder="Cari berdasarkan nama sekolah..."
+                                                className={styles.advancedSearchInput}
+                                            />
+                                        </div>
+                                        <div className={styles.advancedSearchField}>
+                                            <label>Jenjang</label>
+                                            <input
+                                                type="text"
+                                                value={searchFilters.jenjang}
+                                                onChange={(e) => setSearchFilters(prev => ({ ...prev, jenjang: e.target.value }))}
+                                                placeholder="PAUD, SD, SMP, PKBM..."
+                                                className={styles.advancedSearchInput}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Additional Table Filters */}
+                            <div className={styles.tableAdditionalFilters}>
+                                <div className={styles.additionalFilterRow}>
+                                    <div className={styles.filterGroup}>
+                                        <label className={styles.filterLabel}>Filter Jenjang</label>
+                                        <select 
+                                            className={styles.filterSelect}
+                                            value={selectedJenjang} 
+                                            onChange={(e) => setSelectedJenjang(e.target.value)}
+                                        >
+                                            <option value="Semua Jenjang">Semua Jenjang</option>
+                                            <option value="PAUD">PAUD</option>
+                                            <option value="SD">SD</option>
+                                            <option value="SMP">SMP</option>
+                                            <option value="PKBM">PKBM</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div className={styles.filterGroup}>
+                                        <label className={styles.filterLabel}>Filter Kecamatan</label>
+                                        <select 
+                                            className={styles.filterSelect}
+                                            value={selectedKecamatan} 
+                                            onChange={(e) => setSelectedKecamatan(e.target.value)}
+                                        >
+                                            <option value="Semua Kecamatan">Semua Kecamatan</option>
+                                            {kecamatanOptions.map(k => (
+                                                <option key={k} value={k}>{k}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    
+                                    <div className={styles.filterGroup}>
+                                        <label className={styles.filterLabel}>Filter Desa</label>
+                                        <select 
+                                            className={styles.filterSelect}
+                                            value={selectedDesa} 
+                                            onChange={(e) => setSelectedDesa(e.target.value)}
+                                        >
+                                            <option value="Semua Desa">Semua Desa</option>
+                                            {desaOptions.map(d => (
+                                                <option key={d} value={d}>{d}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className={styles.tableFilterActions}>
+                                    <button
+                                        className={styles.clearSearchButton}
+                                        onClick={clearSearch}
+                                    >
+                                        Hapus Pencarian
+                                    </button>
+                                    <button
+                                        className={styles.resetFiltersButton}
+                                        onClick={resetAllFilters}
+                                    >
+                                        Reset Semua Filter
+                                    </button>
+                                    <div className={styles.tableSearchResultsInfo}>
+                                        {(searchQuery || Object.values(searchFilters).some(v => v.trim()) || 
+                                          selectedJenjang !== 'Semua Jenjang' || 
+                                          selectedKecamatan !== 'Semua Kecamatan' || 
+                                          selectedDesa !== 'Semua Desa') && (
+                                            <span className={styles.resultsText}>
+                                                Menampilkan {filteredSchoolData.length} dari {schoolData.length} sekolah
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <div className={styles.tableWrapper}>
                         <div className={styles.tableScrollContainer}>
@@ -740,56 +1054,68 @@ const FacilitiesPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody className={styles.tableBody}>
-                                    {sortedAndPaginatedData.map((school, index) => (
-                                        <tr key={school.npsn || index} className={styles.tableRow}>
-                                            <td className={styles.tableCell}>
-                                                {startItem + index}
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <span className={styles.npsn}>{school.npsn}</span>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <div className={styles.schoolNameCell}>
-                                                    <span className={styles.schoolName}>{school.nama}</span>
+                                    {sortedAndPaginatedData.length > 0 ? (
+                                        sortedAndPaginatedData.map((school, index) => (
+                                            <tr key={school.npsn || index} className={styles.tableRow}>
+                                                <td className={styles.tableCell}>
+                                                    {startItem + index}
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <span className={styles.npsn}>{school.npsn}</span>
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <div className={styles.schoolNameCell}>
+                                                        <span className={styles.schoolName}>{school.nama}</span>
+                                                    </div>
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <JenjangBadge jenjang={school.jenjang} />
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <span className={styles.schoolType}>{school.tipe}</span>
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <span className={styles.location}>{school.desa}</span>
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <span className={styles.location}>{school.kecamatan}</span>
+                                                </td>
+                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
+                                                    <span className={styles.toiletGood}>{school.toiletBaik}</span>
+                                                </td>
+                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
+                                                    <span className={styles.toiletModerate}>{school.toiletRusakSedang}</span>
+                                                </td>
+                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
+                                                    <span className={styles.toiletBad}>{school.toiletRusakBerat}</span>
+                                                </td>
+                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
+                                                    <span className={styles.toiletTotal}>{school.totalToilet}</span>
+                                                </td>
+                                                <td className={styles.tableCell}>
+                                                    <button
+                                                        className={styles.detailButton}
+                                                        onClick={() => {
+                                                            setSelectedSchool(school);
+                                                            setCurrentView('detail');
+                                                        }}
+                                                    >
+                                                        Detail
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="12" className={styles.noDataCell}>
+                                                <div className={styles.noDataMessage}>
+                                                    <span className={styles.noDataIcon}>🔍</span>
+                                                    <h3>Tidak ada data yang ditemukan</h3>
+                                                    <p>Coba ubah filter atau kata kunci pencarian Anda</p>
                                                 </div>
                                             </td>
-                                            <td className={styles.tableCell}>
-                                                <JenjangBadge jenjang={school.jenjang} />
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <span className={styles.schoolType}>{school.tipe}</span>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <span className={styles.location}>{school.desa}</span>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <span className={styles.location}>{school.kecamatan}</span>
-                                            </td>
-                                            <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                <span className={styles.toiletGood}>{school.toiletBaik}</span>
-                                            </td>
-                                            <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                <span className={styles.toiletModerate}>{school.toiletRusakSedang}</span>
-                                            </td>
-                                            <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                <span className={styles.toiletBad}>{school.toiletRusakBerat}</span>
-                                            </td>
-                                            <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                <span className={styles.toiletTotal}>{school.totalToilet}</span>
-                                            </td>
-                                            <td className={styles.tableCell}>
-                                                <button
-                                                    className={styles.detailButton}
-                                                    onClick={() => {
-                                                        setSelectedSchool(school);
-                                                        setCurrentView('detail');
-                                                    }}
-                                                >
-                                                    Detail
-                                                </button>
-                                            </td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -887,7 +1213,7 @@ const FacilitiesPage = () => {
                         </div>
                     );
                 }
-                return <DetailComponent school={selectedSchool.originalData} onBack={() => setCurrentView('main')} />;
+                return <DetailComponent schoolData={{ ...selectedSchool.originalData, kecamatan: selectedSchool.kecamatan }} onBack={() => setCurrentView('main')} />;
             })()}
         </main>
     );

@@ -1,4 +1,4 @@
-// src/pages/SchoolDetail/SchoolDetailPage.jsx (LOGIKA FILTER DIPERBARUI)
+// src/pages/SchoolDetail/SchoolDetailPage.jsx (KODE LENGKAP YANG SUDAH DIPERBAIKI)
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
@@ -12,9 +12,8 @@ import SchoolDetailSmp from '../../components/schools/SchoolDetail/Smp/SchoolDet
 import SchoolDetailPkbm from '../../components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm';
 
 // ====================================================================
-// Komponen-komponen (ErrorBoundary, PieChart, BarChart, DataTable)
-// tidak berubah, jadi saya akan meringkasnya untuk menjaga kejelasan.
-// Anda tidak perlu menyalin bagian ini, cukup gunakan yang sudah ada di file Anda.
+// Komponen-komponen pembantu (ErrorBoundary, PieChart, BarChart, DataTable)
+// Tetap sama, tidak perlu diubah.
 // ====================================================================
 
 class ErrorBoundary extends React.Component {
@@ -38,6 +37,7 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
     const [currentPage, setCurrentPage] = useState(1); const [searchTerm, setSearchTerm] = useState(''); const [itemsPerPage, setItemsPerPage] = useState(10); const [sortField, setSortField] = useState(''); const [sortDirection, setSortDirection] = useState('asc'); const filteredData = useMemo(() => { let f = data; if (searchTerm) { f = data.filter(s => (s.namaSekolah||'').toLowerCase().includes(searchTerm.toLowerCase()) || (s.npsn||'').toString().includes(searchTerm) || (s.kecamatan||'').toLowerCase().includes(searchTerm.toLowerCase())); } if (sortField) { f = [...f].sort((a, b) => { let aVal = a[sortField]; let bVal = b[sortField]; if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); } if (sortDirection === 'asc') return aVal > bVal ? 1 : -1; else return aVal < bVal ? 1 : -1; }); } return f; }, [data, searchTerm, sortField, sortDirection]); const { data: paginatedData, totalPages, totalItems } = useMemo(() => { const t = Math.ceil(filteredData.length / itemsPerPage); const s = (currentPage - 1) * itemsPerPage; return { data: filteredData.slice(s, s + itemsPerPage), totalPages: t > 0 ? t : 1, totalItems: filteredData.length }; }, [filteredData, currentPage, itemsPerPage]); const handleSort = (field) => { if (sortField === field) setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDirection('asc'); } }; const handleReset = useCallback(() => { setSearchTerm(''); setCurrentPage(1); setItemsPerPage(10); setSortField(''); setSortDirection('asc'); }, []); useEffect(() => { setCurrentPage(1); }, [searchTerm, itemsPerPage]); return ( <div className={styles.tableContainer}><div className={styles.tableControls}><div className={styles.searchContainer}><div className={styles.searchIcon}>🔍</div><input type="text" placeholder="Cari nama sekolah, NPSN..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={styles.searchInput} />{searchTerm && ( <button className={styles.clearSearch} onClick={() => setSearchTerm('')}>✕</button> )}</div><div className={styles.controlGroup}><label>Tampilkan:</label><select value={itemsPerPage} onChange={e => setItemsPerPage(Number(e.target.value))} className={styles.itemsPerPageSelect}><option value={5}>5</option><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select><button onClick={handleReset} className={styles.resetTableButton}>Reset</button></div></div><div className={styles.tableScrollContainer}><table className={styles.table}><thead><tr><th>NO</th><th className={styles.sortableHeader} onClick={() => handleSort('npsn')}>NPSN {sortField === 'npsn' && (sortDirection === 'asc' ? '↑' : '↓')}</th><th className={styles.sortableHeader} onClick={() => handleSort('namaSekolah')}>NAMA SEKOLAH {sortField === 'namaSekolah' && (sortDirection === 'asc' ? '↑' : '↓')}</th><th className={styles.sortableHeader} onClick={() => handleSort('jenjang')}>JENJANG {sortField === 'jenjang' && (sortDirection === 'asc' ? '↑' : '↓')}</th><th>TIPE</th><th>DESA</th><th>KECAMATAN</th><th>SISWA</th><th>KLS BAIK</th><th>R. SEDANG</th><th>R. BERAT</th><th>KURANG RKB</th><th>REHAB</th><th>PEMBANGUNAN</th><th>DETAIL</th></tr></thead><tbody>{paginatedData.length > 0 ? paginatedData.map((school, index) => ( <tr key={`${school.npsn || index}-${index}`} className={styles.tableRow}><td>{((currentPage - 1) * itemsPerPage) + index + 1}</td><td><span className={styles.npsnBadge}>{school.npsn || '-'}</span></td><td className={styles.schoolNameCell}>{school.namaSekolah || '-'}</td><td><span className={`${styles.jenjangBadge} ${styles[school.jenjang?.toLowerCase()]}`}>{school.jenjang || '-'}</span></td><td>{school.tipeSekolah || '-'}</td><td>{school.desa || '-'}</td><td>{school.kecamatan || '-'}</td><td><span className={styles.numberBadge}>{school.student_count || 0}</span></td><td><span className={styles.conditionGood}>{(school.kondisiKelas?.baik || 0)}</span></td><td><span className={styles.conditionModerate}>{(school.kondisiKelas?.rusakSedang || 0)}</span></td><td><span className={styles.conditionBad}>{(school.kondisiKelas?.rusakBerat || 0)}</span></td><td><span className={styles.numberBadge}>{school.kurangRKB || 0}</span></td><td><span className={styles.numberBadge}>{school.rehabRuangKelas || 0}</span></td><td><span className={styles.numberBadge}>{school.pembangunanRKB || 0}</span></td><td><button className={styles.detailButton} onClick={() => onDetailClick && onDetailClick(school)}><span className={styles.detailIcon}>👁️</span> Detail</button></td></tr> )) : ( <tr><td colSpan="15" className={styles.noDataCell}><div className={styles.noDataState}><div className={styles.noDataIcon}>🔍</div><p>Tidak ada data</p>{searchTerm && ( <button onClick={() => setSearchTerm('')} className={styles.clearSearchButton}>Hapus Filter</button> )}</div></td></tr> )}</tbody></table></div><div className={styles.pagination}><div className={styles.paginationInfo}><span className={styles.pageInfo}>Menampilkan <strong>{paginatedData.length}</strong> dari <strong>{totalItems}</strong> data</span></div><div className={styles.pageButtons}><button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className={styles.pageButton}>⏮️</button><button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className={styles.pageButton}>⬅️</button><span className={styles.pageIndicator}><strong>{currentPage}</strong> / {totalPages}</span><button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className={styles.pageButton}>➡️</button><button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} className={styles.pageButton}>⏭️</button></div></div></div> );
 });
 
+
 // ====================================================================
 // Komponen Utama
 // ====================================================================
@@ -54,7 +54,6 @@ const SchoolDetailPage = () => {
     const [filterDesa, setFilterDesa] = useState('Semua Desa');
     const [jenjangList, setJenjangList] = useState([]);
     const [kecamatanList, setKecamatanList] = useState([]);
-    // **PERUBAHAN 1**: State baru untuk daftar semua desa
     const [desaList, setDesaList] = useState([]);
 
     const handleDetailClick = useCallback((school) => { 
@@ -134,6 +133,8 @@ const SchoolDetailPage = () => {
                             rusakBerat: parseInt(school.class_condition?.classrooms_heavy_damage) || 0, 
                           },
                           kurangRKB: parseInt(school.class_condition?.lacking_rkb) || 0,
+                          // === PERUBAHAN 1: Menyimpan data asli sekolah ===
+                          originalData: school 
                         });
                       }
                     });
@@ -178,7 +179,6 @@ const SchoolDetailPage = () => {
               setSchoolData(mergedSchoolData);
               setJenjangList([...new Set(mergedSchoolData.map(s => s.jenjang).filter(Boolean))].sort());
               setKecamatanList([...new Set(mergedSchoolData.map(s => s.kecamatan).filter(Boolean))].sort());
-              // **PERUBAHAN 2**: Isi daftar semua desa unik saat data dimuat
               setDesaList([...new Set(mergedSchoolData.map(s => s.desa).filter(Boolean))].sort());
               
             } catch (error) { 
@@ -270,7 +270,10 @@ const SchoolDetailPage = () => {
           case 'PKBM': DetailComponent = SchoolDetailPkbm; break; 
           default: return <div className={styles.noDetailAvailable}>Detail tidak tersedia.</div>;
         }
-        return <DetailComponent school={selectedSchool} onBack={handleBackToMain} />;
+        
+        // === PERUBAHAN 2: Mengirim data yang benar ke komponen detail ===
+        const detailData = { ...selectedSchool.originalData, kecamatan: selectedSchool.kecamatan };
+        return <DetailComponent schoolData={detailData} onBack={handleBackToMain} />;
     };
 
     const renderMainView = () => (
@@ -310,10 +313,8 @@ const SchoolDetailPage = () => {
                         </div>
                         <div className={styles.filterGroup}>
                             <label htmlFor="filter-desa" className={styles.filterLabel}><span className={styles.labelIcon}>🏠</span>Desa/Kelurahan</label>
-                            {/* **PERUBAHAN 3**: Hapus properti `disabled` */}
                             <select id="filter-desa" value={filterDesa} onChange={e => setFilterDesa(e.target.value)} className={styles.filterSelect}>
                                 <option>Semua Desa</option>
-                                {/* **PERUBAHAN 4**: Gunakan `desaList` sebagai sumber data */}
                                 {desaList.map((desa, idx) => (<option key={idx} value={desa}>{desa}</option>))}
                             </select>
                         </div>

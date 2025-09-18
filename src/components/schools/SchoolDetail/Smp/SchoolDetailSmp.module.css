@@ -296,3 +296,14 @@
     text-align: left;
   }
 }
+/* Tambahkan ini ke file SchoolDetailSmp.module.css Anda */
+
+.barPurple {
+  background-color: #8b5cf6; /* Ungu */
+  width: 100%;
+}
+
+.barOrange {
+  background-color: #f97316; /* Oranye */
+  width: 100%;
+}

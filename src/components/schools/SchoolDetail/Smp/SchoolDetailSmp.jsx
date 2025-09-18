@@ -1,124 +1,121 @@
+// src/components/schools/SchoolDetail/Smp/SchoolDetailSmp.jsx (KODE LENGKAP YANG SUDAH DIPERBAIKI)
 import React from 'react';
 import styles from './SchoolDetailSmp.module.css';
 import Button from '../../../ui/Button/Button';
 
-
-
 const SchoolDetailSmp = ({ schoolData, onBack }) => {
+  // Fungsi untuk membuka Google Maps di tab baru
   const handleLocationClick = () => {
-    if (schoolData?.coordinates) {
-      const [lat, lng] = schoolData.coordinates;
-      if (lat !== 0 && lng !== 0) {
-        const url = `https://www.google.com/maps?q=${lat},${lng}`;
-        window.open(url, '_blank');
-      } else {
-        alert('Koordinat untuk sekolah ini tidak tersedia.');
-      }
+    if (schoolData?.coordinates && schoolData.coordinates.length === 2) {
+      const lat = schoolData.coordinates[0];
+      const lng = schoolData.coordinates[1];
+      // Menggunakan URL yang lebih standar dan aman
+      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      alert('Koordinat lokasi untuk sekolah ini tidak tersedia.');
     }
   };
 
+  // Fungsi bantuan untuk mengambil data secara aman, mengembalikan 0 jika tidak ada
+  const getData = (path, defaultValue = 0) => {
+    // Fungsi ini bisa mengambil data bertingkat (nested) maupun data level atas
+    return path.reduce((obj, key) => (obj && obj[key] != null) ? obj[key] : defaultValue, schoolData);
+  };
+
+  // Pengecekan jika data tidak ada, untuk mencegah error
+  if (!schoolData) {
+    return (
+      <div className={styles.container}>
+        <button onClick={onBack} className={styles.backButton}>
+          ← Kembali
+        </button>
+        <p>Data sekolah tidak ditemukan.</p>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
-      {/* Back Button */}
+      {/* Tombol Kembali */}
       <button onClick={onBack} className={styles.backButton}>
         ← Kembali ke Daftar Sekolah
       </button>
 
-      {/* Header Section */}
+      {/* Bagian Header */}
       <div className={styles.header}>
         <h1 className={styles.schoolName}>{schoolData?.name || 'Nama Sekolah Tidak Tersedia'}</h1>
         <div className={styles.schoolInfo}>
-          <div className={styles.infoRow}>
-            <span className={styles.label}>NPSN</span>
-            <span className={styles.colon}>:</span>
-            <span className={styles.value}>{schoolData?.npsn || 'Tidak Tersedia'}</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.label}>Alamat</span>
-            <span className={styles.colon}>:</span>
-            <span className={styles.value}>{schoolData?.address || 'Tidak Tersedia'}</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.label}>Desa</span>
-            <span className={styles.colon}>:</span>
-            <span className={styles.value}>{schoolData?.village || 'Tidak Tersedia'}</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.label}>Kecamatan</span>
-            <span className={styles.colon}>:</span>
-            <span className={styles.value}>{schoolData?.kecamatan || 'Tidak Tersedia'}</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.label}>Jumlah Siswa</span>
-            <span className={styles.colon}>:</span>
-            <span className={styles.value}>{schoolData?.student_count || 'Tidak Tersedia'}</span>
-          </div>
+          {/* ... (bagian info sekolah tetap sama) ... */}
+          <div className={styles.infoRow}><span className={styles.label}>NPSN</span><span className={styles.colon}>:</span><span className={styles.value}>{schoolData?.npsn || '-'}</span></div>
+          <div className={styles.infoRow}><span className={styles.label}>Alamat</span><span className={styles.colon}>:</span><span className={styles.value}>{schoolData?.address || '-'}</span></div>
+          <div className={styles.infoRow}><span className={styles.label}>Desa</span><span className={styles.colon}>:</span><span className={styles.value}>{schoolData?.village || '-'}</span></div>
+          <div className={styles.infoRow}><span className={styles.label}>Kecamatan</span><span className={styles.colon}>:</span><span className={styles.value}>{schoolData?.kecamatan || '-'}</span></div>
+          <div className={styles.infoRow}><span className={styles.label}>Jumlah Siswa</span><span className={styles.colon}>:</span><span className={styles.value}>{schoolData?.student_count || '0'}</span></div>
         </div>
-        <button className={styles.locationButton} onClick={handleLocationClick}>
-          Lihat Lokasi {schoolData?.name || 'Nama Sekolah Tidak Tersedia'} di Google Maps
+        <button onClick={handleLocationClick} className={styles.locationButton}>
+          Lihat Lokasi {schoolData?.name || ''} di Google Maps ({schoolData?.kecamatan || ''})
         </button>
       </div>
 
-      {/* Kondisi Kelas Section */}
+      {/* Kondisi Kelas Section (DIPERBARUI DENGAN GRAFIK LENGKAP) */}
       <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Kondisi Kelas</h2>
+        <h2 className={styles.sectionTitle}>Kondisi & Intervensi Ruang Kelas</h2>
         <div className={styles.card}>
           <div className={styles.chartContainer}>
             <div className={styles.chart}>
-              <div className={styles.barContainer}>
-                <div className={`${styles.bar} ${styles.bar0}`}>
-                  <span className={styles.barLabel}>{schoolData?.class_condition?.total_mh || 0}</span>
+                <div className={styles.barContainer}>
+                    <div className={`${styles.bar} ${styles.barGreen}`}>
+                        <span className={styles.barLabel}>{getData(['class_condition', 'classrooms_good'])}</span>
+                    </div>
+                    <span className={styles.barText}>Baik</span>
                 </div>
-                <span className={styles.barText}>Rehabilitasi Ruang Kelas</span>
-              </div>
-              <div className={styles.barContainer}>
-                <div className={`${styles.bar} ${styles.bar0}`}>
-                  <span className={styles.barLabel}>{schoolData?.class_condition?.classrooms_heavy_damage || 0}</span>
+                <div className={styles.barContainer}>
+                    <div className={`${styles.bar} ${styles.barYellow}`}>
+                        <span className={styles.barLabel}>{getData(['class_condition', 'classrooms_moderate_damage'])}</span>
+                    </div>
+                    <span className={styles.barText}>Rusak Sedang</span>
                 </div>
-                <span className={styles.barText}>Rusak Berat</span>
-              </div>
-              <div className={styles.barContainer}>
-                <div className={`${styles.bar} ${styles.bar0}`}>
-                  <span className={styles.barLabel}>{schoolData?.class_condition?.classrooms_moderate_damage || 0}</span>
+                <div className={styles.barContainer}>
+                    <div className={`${styles.bar} ${styles.barRed}`}>
+                        <span className={styles.barLabel}>{getData(['class_condition', 'classrooms_heavy_damage'])}</span>
+                    </div>
+                    <span className={styles.barText}>Rusak Berat</span>
                 </div>
-                <span className={styles.barText}>Rusak Sedang</span>
-              </div>
-              <div className={styles.barContainer}>
-                <div className={`${styles.bar} ${styles.bar3}`}>
-                  <span className={styles.barLabel}>{schoolData?.class_condition?.classrooms_good || 0}</span>
+                <div className={styles.barContainer}>
+                    <div className={`${styles.bar} ${styles.barBlue}`}>
+                        <span className={styles.barLabel}>{getData(['class_condition', 'lacking_rkb'])}</span>
+                    </div>
+                    <span className={styles.barText}>Kurang RKB</span>
                 </div>
-                <span className={styles.barText}>Baik</span>
-              </div>
-              <div className={styles.barContainer}>
-                <div className={`${styles.bar} ${styles.bar0}`}>
-                  <span className={styles.barLabel}>{schoolData?.class_condition?.lacking_rkb || 0}</span>
+                {/* === BARU: Rehabilitasi Ruang Kelas === */}
+                <div className={styles.barContainer}>
+                    <div className={`${styles.bar} ${styles.barPurple}`}>
+                        <span className={styles.barLabel}>{getData(['rehabRuangKelas'])}</span>
+                    </div>
+                    <span className={styles.barText}>Rehabilitasi</span>
                 </div>
-                <span className={styles.barText}>Kurang RKB</span>
-              </div>
+                {/* === BARU: Pembangunan RKB === */}
+                <div className={styles.barContainer}>
+                    <div className={`${styles.bar} ${styles.barOrange}`}>
+                        <span className={styles.barLabel}>{getData(['pembangunanRKB'])}</span>
+                    </div>
+                    <span className={styles.barText}>Pembangunan RKB</span>
+                </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Data Perpustakaan Section */}
-      <div className={styles.section}>
+      {/* Sisa komponen tetap sama, menggunakan fungsi getData */}
+        <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Perpustakaan</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Perpustakaan Kondisi Baik: {schoolData?.library?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Perpustakaan Rusak Sedang: {schoolData?.library?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Perpustakaan Rusak Berat: {schoolData?.library?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Perpustakaan Rusak: {schoolData?.library?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Perpustakaan: {schoolData?.library?.total_all || 0}</span>
-          </div>
+          <div className={styles.dataRow}><span>Ruang Perpustakaan Kondisi Baik: {getData(['library', 'good'])}</span></div>
+          <div className={styles.dataRow}><span>Ruang Perpustakaan Rusak Sedang: {getData(['library', 'moderate_damage'])}</span></div>
+          <div className={styles.dataRow}><span>Ruang Perpustakaan Rusak Berat: {getData(['library', 'heavy_damage'])}</span></div>
+          <div className={styles.dataRow}><span>Total Ruang Perpustakaan Rusak: {getData(['library', 'total_mh'])}</span></div>
+          <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Perpustakaan: {getData(['library', 'total_all'])}</span></div>
         </div>
       </div>
 
@@ -126,21 +123,11 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Lab. Komputer</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Komputer Kondisi Baik: {schoolData?.laboratory_comp?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Komputer Rusak Sedang: {schoolData?.laboratory_comp?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Komputer Rusak Berat: {schoolData?.laboratory_comp?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Lab. Komputer Rusak: {schoolData?.laboratory_comp?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Lab. Komputer: {schoolData?.laboratory_comp?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Lab. Komputer Kondisi Baik: {getData(['laboratory_comp', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Komputer Rusak Sedang: {getData(['laboratory_comp', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Komputer Rusak Berat: {getData(['laboratory_comp', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Lab. Komputer Rusak: {getData(['laboratory_comp', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Lab. Komputer: {getData(['laboratory_comp', 'total_all'])}</span></div>
         </div>
       </div>
 
@@ -148,21 +135,11 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Lab. Bahasa</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Bahasa Kondisi Baik: {schoolData?.laboratory_langua?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Bahasa Rusak Sedang: {schoolData?.laboratory_langua?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Bahasa Rusak Berat: {schoolData?.laboratory_langua?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Lab. Bahasa Rusak: {schoolData?.laboratory_langua?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Lab. Bahasa: {schoolData?.laboratory_langua?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Lab. Bahasa Kondisi Baik: {getData(['laboratory_langua', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Bahasa Rusak Sedang: {getData(['laboratory_langua', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Bahasa Rusak Berat: {getData(['laboratory_langua', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Lab. Bahasa Rusak: {getData(['laboratory_langua', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Lab. Bahasa: {getData(['laboratory_langua', 'total_all'])}</span></div>
         </div>
       </div>
 
@@ -170,21 +147,11 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Lab. IPA</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. IPA Kondisi Baik: {schoolData?.laboratory_ipa?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. IPA Rusak Sedang: {schoolData?.laboratory_ipa?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. IPA Rusak Berat: {schoolData?.laboratory_ipa?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Lab. IPA Rusak: {schoolData?.laboratory_ipa?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Lab. IPA: {schoolData?.laboratory_ipa?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Lab. IPA Kondisi Baik: {getData(['laboratory_ipa', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. IPA Rusak Sedang: {getData(['laboratory_ipa', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. IPA Rusak Berat: {getData(['laboratory_ipa', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Lab. IPA Rusak: {getData(['laboratory_ipa', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Lab. IPA: {getData(['laboratory_ipa', 'total_all'])}</span></div>
         </div>
       </div>
 
@@ -192,21 +159,11 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Lab. Fisika</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Fisika Kondisi Baik: {schoolData?.laboratory_fisika?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Fisika Rusak Sedang: {schoolData?.laboratory_fisika?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Fisika Rusak Berat: {schoolData?.laboratory_fisika?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Lab. Fisika Rusak: {schoolData?.laboratory_fisika?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Lab. Fisika: {schoolData?.laboratory_fisika?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Lab. Fisika Kondisi Baik: {getData(['laboratory_fisika', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Fisika Rusak Sedang: {getData(['laboratory_fisika', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Fisika Rusak Berat: {getData(['laboratory_fisika', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Lab. Fisika Rusak: {getData(['laboratory_fisika', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Lab. Fisika: {getData(['laboratory_fisika', 'total_all'])}</span></div>
         </div>
       </div>
 
@@ -214,65 +171,35 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Lab. Biologi</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Biologi Kondisi Baik: {schoolData?.laboratory_biologi?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Biologi Rusak Sedang: {schoolData?.laboratory_biologi?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Lab. Biologi Rusak Berat: {schoolData?.laboratory_biologi?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Lab. Biologi Rusak: {schoolData?.laboratory_biologi?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Lab. Biologi: {schoolData?.laboratory_biologi?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Lab. Biologi Kondisi Baik: {getData(['laboratory_biologi', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Biologi Rusak Sedang: {getData(['laboratory_biologi', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Lab. Biologi Rusak Berat: {getData(['laboratory_biologi', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Lab. Biologi Rusak: {getData(['laboratory_biologi', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Lab. Biologi: {getData(['laboratory_biologi', 'total_all'])}</span></div>
         </div>
       </div>
-
+      
       {/* Ruang Kepala Sekolah Section */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Ruang Kepala Sekolah</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Kepala Sekolah Kondisi Baik: {schoolData?.kepsek_room?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Kepala Sekolah Rusak Sedang: {schoolData?.kepsek_room?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Kepala Sekolah Rusak Berat: {schoolData?.kepsek_room?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Kepala Sekolah Rusak: {schoolData?.kepsek_room?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Kepala Sekolah: {schoolData?.kepsek_room?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Kepala Sekolah Kondisi Baik: {getData(['kepsek_room', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Kepala Sekolah Rusak Sedang: {getData(['kepsek_room', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Kepala Sekolah Rusak Berat: {getData(['kepsek_room', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Kepala Sekolah Rusak: {getData(['kepsek_room', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Kepala Sekolah: {getData(['kepsek_room', 'total_all'])}</span></div>
         </div>
       </div>
-
+      
       {/* Ruang Guru Section */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Ruang Guru</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Guru Kondisi Baik: {schoolData?.teacher_room?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Guru Rusak Sedang: {schoolData?.teacher_room?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Guru Rusak Berat: {schoolData?.teacher_room?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Guru Rusak: {schoolData?.teacher_room?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Guru: {schoolData?.teacher_room?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Guru Kondisi Baik: {getData(['teacher_room', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Guru Rusak Sedang: {getData(['teacher_room', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Guru Rusak Berat: {getData(['teacher_room', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Guru Rusak: {getData(['teacher_room', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Guru: {getData(['teacher_room', 'total_all'])}</span></div>
         </div>
       </div>
 
@@ -280,21 +207,11 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Ruang Tata Usaha</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Ruang Tata Usaha Kondisi Baik: {schoolData?.administration_room?.good || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Tata Usaha Rusak Sedang: {schoolData?.administration_room?.moderate_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Ruang Tata Usaha Rusak Berat: {schoolData?.administration_room?.heavy_damage || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Total Ruang Tata Usaha Rusak: {schoolData?.administration_room?.total_mh || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Jumlah Keseluruhan Ruang Tata Usaha: {schoolData?.administration_room?.total_all || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Ruang Tata Usaha Kondisi Baik: {getData(['administration_room', 'good'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Tata Usaha Rusak Sedang: {getData(['administration_room', 'moderate_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Ruang Tata Usaha Rusak Berat: {getData(['administration_room', 'heavy_damage'])}</span></div>
+            <div className={styles.dataRow}><span>Total Ruang Tata Usaha Rusak: {getData(['administration_room', 'total_mh'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Keseluruhan Ruang Tata Usaha: {getData(['administration_room', 'total_all'])}</span></div>
         </div>
       </div>
 
@@ -302,42 +219,20 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Toilet Guru</h2>
         <div className={styles.card}>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Laki-laki</h3>
-            <div className={styles.dataRow}>
-              <span>Toilet Guru Laki-laki Kondisi Baik: {schoolData?.teachers_toilet?.male?.good || 0}</span>
+            <div className={styles.subsection}><h3 className={styles.subsectionTitle}>Laki-laki</h3>
+                <div className={styles.dataRow}><span>Kondisi Baik: {getData(['teachers_toilet', 'male', 'good'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Sedang: {getData(['teachers_toilet', 'male', 'moderate_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Berat: {getData(['teachers_toilet', 'male', 'heavy_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Total Rusak: {getData(['teachers_toilet', 'male', 'total_mh'])}</span></div>
+                <div className={styles.dataRow}><span>Jumlah Total: {getData(['teachers_toilet', 'male', 'total_all'])}</span></div>
             </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Guru Laki-laki Rusak Sedang: {schoolData?.teachers_toilet?.male?.moderate_damage || 0}</span>
+            <div className={styles.subsection}><h3 className={styles.subsectionTitle}>Perempuan</h3>
+                <div className={styles.dataRow}><span>Kondisi Baik: {getData(['teachers_toilet', 'female', 'good'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Sedang: {getData(['teachers_toilet', 'female', 'moderate_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Berat: {getData(['teachers_toilet', 'female', 'heavy_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Total Rusak: {getData(['teachers_toilet', 'female', 'total_mh'])}</span></div>
+                <div className={styles.dataRow}><span>Jumlah Total: {getData(['teachers_toilet', 'female', 'total_all'])}</span></div>
             </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Guru Laki-laki Rusak Berat: {schoolData?.teachers_toilet?.male?.heavy_damage || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Total Toilet Guru Laki-laki Rusak: {schoolData?.teachers_toilet?.male?.total_mh || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Jumlah Keseluruhan Toilet Guru Laki-laki: {schoolData?.teachers_toilet?.male?.total_all || 0}</span>
-            </div>
-          </div>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Perempuan</h3>
-            <div className={styles.dataRow}>
-              <span>Toilet Guru Perempuan Kondisi Baik: {schoolData?.teachers_toilet?.female?.good || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Guru Perempuan Rusak Sedang: {schoolData?.teachers_toilet?.female?.moderate_damage || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Guru Perempuan Rusak Berat: {schoolData?.teachers_toilet?.female?.heavy_damage || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Total Toilet Guru Perempuan Rusak: {schoolData?.teachers_toilet?.female?.total_mh || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Jumlah Keseluruhan Toilet Guru Perempuan: {schoolData?.teachers_toilet?.female?.total_all || 0}</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -345,42 +240,20 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Toilet Siswa</h2>
         <div className={styles.card}>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Laki-laki</h3>
-            <div className={styles.dataRow}>
-              <span>Toilet Siswa Laki-laki Kondisi Baik: {schoolData?.students_toilet?.male?.good || 0}</span>
+            <div className={styles.subsection}><h3 className={styles.subsectionTitle}>Laki-laki</h3>
+                <div className={styles.dataRow}><span>Kondisi Baik: {getData(['students_toilet', 'male', 'good'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Sedang: {getData(['students_toilet', 'male', 'moderate_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Berat: {getData(['students_toilet', 'male', 'heavy_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Total Rusak: {getData(['students_toilet', 'male', 'total_mh'])}</span></div>
+                <div className={styles.dataRow}><span>Jumlah Total: {getData(['students_toilet', 'male', 'total_all'])}</span></div>
             </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Siswa Laki-laki Rusak Sedang: {schoolData?.students_toilet?.male?.moderate_damage || 0}</span>
+            <div className={styles.subsection}><h3 className={styles.subsectionTitle}>Perempuan</h3>
+                <div className={styles.dataRow}><span>Kondisi Baik: {getData(['students_toilet', 'female', 'good'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Sedang: {getData(['students_toilet', 'female', 'moderate_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Rusak Berat: {getData(['students_toilet', 'female', 'heavy_damage'])}</span></div>
+                <div className={styles.dataRow}><span>Total Rusak: {getData(['students_toilet', 'female', 'total_mh'])}</span></div>
+                <div className={styles.dataRow}><span>Jumlah Total: {getData(['students_toilet', 'female', 'total_all'])}</span></div>
             </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Siswa Laki-laki Rusak Berat: {schoolData?.students_toilet?.male?.heavy_damage || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Total Toilet Siswa Laki-laki Rusak: {schoolData?.students_toilet?.male?.total_mh || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Jumlah Keseluruhan Toilet Siswa Laki-laki: {schoolData?.students_toilet?.male?.total_all || 0}</span>
-            </div>
-          </div>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Perempuan</h3>
-            <div className={styles.dataRow}>
-              <span>Toilet Siswa Perempuan Kondisi Baik: {schoolData?.students_toilet?.female?.good || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Siswa Perempuan Rusak Sedang: {schoolData?.students_toilet?.female?.moderate_damage || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Toilet Siswa Perempuan Rusak Berat: {schoolData?.students_toilet?.female?.heavy_damage || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Total Toilet Siswa Perempuan Rusak: {schoolData?.students_toilet?.female?.total_mh || 0}</span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>Jumlah Keseluruhan Toilet Siswa Perempuan: {schoolData?.students_toilet?.female?.total_all || 0}</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -388,22 +261,17 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Furnitur dan Komputer</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Meja Siswa: {schoolData?.furniture_computer?.tables || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Kursi Siswa: {schoolData?.furniture_computer?.chairs || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Papan Tulis: {schoolData?.furniture_computer?.boards || 0}</span>
-          </div>
-          <div className={styles.dataRow}>
-            <span>Komputer: {schoolData?.furniture_computer?.computer || 0}</span>
-          </div>
+            <div className={styles.dataRow}><span>Jumlah Meja: {getData(['furniture_computer', 'tables'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Kursi: {getData(['furniture_computer', 'chairs'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Papan Tulis: {getData(['furniture_computer', 'boards'])}</span></div>
+            <div className={styles.dataRow}><span>Jumlah Komputer: {getData(['furniture_computer', 'computer'])}</span></div>
         </div>
       </div>
-                      {/* Tombol Kembali */}
-                      <Button onClick={onBack}>Kembali</Button>
+
+      {/* Tombol Kembali di bagian bawah */}
+      <div style={{ marginTop: '20px' }}>
+        <Button onClick={onBack}>Kembali</Button>
+      </div>
     </div>
   );
 };
