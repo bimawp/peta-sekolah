@@ -1,17 +1,14 @@
-// src/store/slices/schoolSlice.js - KODE LENGKAP PERBAIKAN
-
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-// Ubah cara impor dari default menjadi named import, dan tambahkan .js
-import { getSchools } from '../../services/api/schoolApi.js';
+// TAMBAHKAN .js DI AKHIR PATH INI
+import { getSchoolsByRegion } from '../../services/api/schoolApi.js';
 
-// fetchSchools sekarang menggunakan createAsyncThunk
-export const fetchSchools = createAsyncThunk(
-  'schools/fetchSchools',
-  async (_, { rejectWithValue }) => {
+// Thunk untuk mengambil data sekolah berdasarkan wilayah
+export const fetchSchoolsByRegion = createAsyncThunk(
+  'schools/fetchByRegion',
+  async (region, { rejectWithValue }) => {
     try {
-      // Panggil fungsi yang sudah diimpor dengan benar
-      const response = await getSchools();
-      return response;
+      const data = await getSchoolsByRegion(region);
+      return data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -20,30 +17,36 @@ export const fetchSchools = createAsyncThunk(
 
 const initialState = {
   data: [],
+  filteredData: [],
   status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
 };
 
 const schoolSlice = createSlice({
-  name: 'school',
+  name: 'schools',
   initialState,
   reducers: {
-    // Reducer lain bisa ditambahkan di sini jika perlu
+    filterSchools: (state, action) => {
+      state.filteredData = state.data.filter(school => school.level === action.payload);
+    }
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchSchools.pending, (state) => {
+      .addCase(fetchSchoolsByRegion.pending, (state) => {
         state.status = 'loading';
       })
-      .addCase(fetchSchools.fulfilled, (state, action) => {
+      .addCase(fetchSchoolsByRegion.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.data = action.payload;
+        state.filteredData = action.payload;
       })
-      .addCase(fetchSchools.rejected, (state, action) => {
+      .addCase(fetchSchoolsByRegion.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       });
   },
 });
+
+export const { filterSchools } = schoolSlice.actions;
 
 export default schoolSlice.reducer;

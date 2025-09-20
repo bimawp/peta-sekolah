@@ -1,34 +1,31 @@
-// src/pages/Map/MapController.jsx
-import { useEffect } from "react";
-import { useMap } from "react-leaflet";
+import { useEffect, useRef } from 'react';
+import { useMap } from 'react-leaflet';
+import L from 'leaflet';
 
-// Komponen ini bertugas untuk mengontrol peta secara terprogram, seperti zoom otomatis
-const MapController = ({ filters, areaCenters, schools }) => {
+const MapController = ({ schools }) => {
     const map = useMap();
+    const isInitialLoad = useRef(true);
 
     useEffect(() => {
-        // Pastikan schools adalah array untuk mencegah error
-        if (!Array.isArray(schools)) return;
+        if (!schools || schools.length === 0) {
+            if (isInitialLoad.current) return;
+            map.flyTo([-7.2278, 107.9087], 10); // Zoom kembali ke Garut jika filter kosong
+            return;
+        }
 
-        const { jenjang, kecamatan, desa } = filters;
+        const bounds = new L.LatLngBounds(schools.map(s => [s.latitude, s.longitude]));
 
-        // Logika untuk zoom otomatis ketika filter desa lengkap dipilih
-        if (kecamatan !== 'all' && desa !== 'all') {
-            const desaKey = `${desa}-${kecamatan}`;
-            if (areaCenters.desa[desaKey]) {
-                map.flyTo(areaCenters.desa[desaKey], 15, { duration: 1.5 });
-            } else if (areaCenters.kecamatan[kecamatan]) {
-                // Fallback ke pusat kecamatan jika pusat desa tidak ditemukan
-                map.flyTo(areaCenters.kecamatan[kecamatan], 13, { duration: 1.5 });
-            }
-        } else if (kecamatan !== 'all') {
-             if (areaCenters.kecamatan[kecamatan]) {
-                map.flyTo(areaCenters.kecamatan[kecamatan], 13, { duration: 1.5 });
+        if (bounds.isValid()) {
+            if (isInitialLoad.current) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+                isInitialLoad.current = false;
+            } else {
+                map.flyToBounds(bounds, { padding: [50, 50], duration: 1.5 });
             }
         }
-    }, [filters, areaCenters, schools, map]); // Efek ini hanya berjalan saat dependensi berubah
+    }, [schools, map]);
 
-    return null; // Komponen ini tidak merender apapun di DOM
+    return null;
 };
 
 export default MapController;

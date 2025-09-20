@@ -1,21 +1,18 @@
-// src/store/store.js - FIXED
-
 import { configureStore } from '@reduxjs/toolkit';
-// Tambahkan ekstensi .js pada setiap import slice
-import schoolReducer from './slices/schoolSlice.js';
-import budgetReducer from './slices/budgetSlice.js';
-import facilityReducer from './slices/facilitySlice.js';
-import uiReducer from './slices/uiSlice.js';
-import filterReducer from './slices/filterSlice.js'; // <-- IMPOR BARU
 
-const store = configureStore({
+// Tambahkan ekstensi .js pada semua import di bawah ini
+import uiSlice from './slices/uiSlice.js';
+import filterSlice from './slices/filterSlice.js';
+import budgetSlice from './slices/budgetSlice.js';
+import schoolReducer from './slices/schoolSlice.js'; 
+
+export const store = configureStore({
   reducer: {
-    // Reducer auth sudah dihapus
-    school: schoolReducer,
-    filters: filterReducer,
-    budget: budgetReducer,
-    facility: facilityReducer,
-    ui: uiReducer,
+    // Kunci 'schools' di sini sudah cocok dengan useSelector(state => state.schools)
+    schools: schoolReducer,
+    ui: uiSlice,
+    filters: filterSlice,
+    budget: budgetSlice,
   },
 });
 
