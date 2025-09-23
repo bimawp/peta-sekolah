@@ -1,38 +1,178 @@
-// src/pages/Map/Popups.jsx (PERBAIKAN LENGKAP)
-import React from 'react';
-import { Hash, MapPin } from 'lucide-react';
-import { FACILITY_COLORS } from '../../config/mapConstants';
+// src/pages/Map/Popups.jsx - BUAT FILE BARU INI
 
-// Menggunakan React.memo untuk optimisasi performa
-export const SummaryPopup = React.memo(({ title, stats }) => (
-    <div style={{ width: 240, fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif` }}>
-        <div style={{ borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '10px' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>{title}</h3>
-        </div>
-        <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f7f7f7', padding: '8px 12px', borderRadius: '6px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '0.9rem' }}>Total Sekolah</span>
-                <strong style={{ fontSize: '1.2rem' }}>{stats.total}</strong>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px', fontSize: '0.85rem' }}>
-                {stats.rusakBerat > 0 && <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: FACILITY_COLORS['Rusak Berat'], marginRight: 8 }}></span>Rusak Berat: <strong style={{ marginLeft: 'auto' }}>{stats.rusakBerat}</strong></div>}
-                {stats.kekuranganRKB > 0 && <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: FACILITY_COLORS['Kekurangan RKB'], marginRight: 8 }}></span>Kurang RKB: <strong style={{ marginLeft: 'auto' }}>{stats.kekuranganRKB}</strong></div>}
-                {stats.rusakSedang > 0 && <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: FACILITY_COLORS['Rusak Sedang'], marginRight: 8 }}></span>Rusak Sedang: <strong style={{ marginLeft: 'auto' }}>{stats.rusakSedang}</strong></div>}
-                {stats.baik > 0 && <div style={{ display: 'flex', alignItems: 'center' }}><span style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: FACILITY_COLORS['Baik/Rehabilitasi'], marginRight: 8 }}></span>Baik/Rehab: <strong style={{ marginLeft: 'auto' }}>{stats.baik}</strong></div>}
-            </div>
-        </div>
-    </div>
-));
+import React, { memo } from 'react';
+import styles from './Popups.module.css';
 
-export const SchoolPopup = React.memo(({ school }) => (
-    <div style={{ width: 240, fontFamily: `system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, lineHeight: 1.3, marginRight: 8 }}>{school.nama}</h3>
-            <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '0.75rem', color: 'white', backgroundColor: '#6b7280' }}>{school.jenjang}</span>
+const Popups = memo(({ data }) => {
+  if (!data || data.type !== 'school' || !data.school) {
+    return (
+      <div className={styles.popup}>
+        <div className={styles.error}>
+          ⚠️ Data tidak tersedia
         </div>
-        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: '#555' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Hash size={14} /><span>NPSN: {school.npsn || '-'}</span></div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><MapPin size={14} /><span>{school.village}, {school.kecamatan}</span></div>
+      </div>
+    );
+  }
+
+  const { school } = data;
+
+  // Helper functions
+  const getJenjangIcon = (jenjang) => {
+    const icons = {
+      paud: '🧸',
+      sd: '🎒', 
+      smp: '📚',
+      pkbm: '🎓'
+    };
+    return icons[jenjang?.toLowerCase()] || '🏫';
+  };
+
+  const getJenjangLabel = (jenjang) => {
+    const labels = {
+      paud: 'PAUD',
+      sd: 'Sekolah Dasar',
+      smp: 'Sekolah Menengah Pertama', 
+      pkbm: 'Pusat Kegiatan Belajar Masyarakat'
+    };
+    return labels[jenjang?.toLowerCase()] || 'Sekolah';
+  };
+
+  const getConditionStatus = (condition) => {
+    if (!condition) return null;
+    
+    const statuses = [];
+    if (condition.classrooms_heavy_damage) {
+      statuses.push({ label: 'Rusak Berat', color: '#f44336', icon: '🔴' });
+    }
+    if (condition.classrooms_moderate_damage) {
+      statuses.push({ label: 'Rusak Sedang', color: '#ff9800', icon: '🟡' });
+    }
+    if (condition.lacking_rkb) {
+      statuses.push({ label: 'Kurang RKB', color: '#ff5722', icon: '🟠' });
+    }
+    
+    return statuses.length > 0 ? statuses : null;
+  };
+
+  const formatCoordinate = (coord) => {
+    if (!coord || isNaN(coord)) return 'N/A';
+    return parseFloat(coord).toFixed(6);
+  };
+
+  const conditionStatuses = getConditionStatus(school.class_condition);
+
+  return (
+    <div className={styles.popup}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div className={styles.icon}>
+          {getJenjangIcon(school.jenjang)}
         </div>
+        <div className={styles.titleSection}>
+          <h3 className={styles.schoolName}>
+            {school.nama_sekolah || school.school_name || 'Nama tidak tersedia'}
+          </h3>
+          <div className={styles.schoolType}>
+            {getJenjangLabel(school.jenjang)}
+          </div>
+        </div>
+      </div>
+
+      {/* Basic Info */}
+      <div className={styles.section}>
+        <div className={styles.infoGrid}>
+          <div className={styles.infoItem}>
+            <span className={styles.label}>📍 Kecamatan:</span>
+            <span className={styles.value}>{school.kecamatan || 'N/A'}</span>
+          </div>
+          
+          <div className={styles.infoItem}>
+            <span className={styles.label}>🏘️ Desa:</span>
+            <span className={styles.value}>{school.desa || school.village || 'N/A'}</span>
+          </div>
+
+          {school.npsn && (
+            <div className={styles.infoItem}>
+              <span className={styles.label}>🆔 NPSN:</span>
+              <span className={styles.value}>{school.npsn}</span>
+            </div>
+          )}
+
+          {(school.status_sekolah || school.school_status) && (
+            <div className={styles.infoItem}>
+              <span className={styles.label}>📋 Status:</span>
+              <span className={styles.value}>
+                {school.status_sekolah || school.school_status}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Condition Status */}
+      {conditionStatuses && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>
+            🏗️ Kondisi Bangunan
+          </div>
+          <div className={styles.conditionList}>
+            {conditionStatuses.map((status, index) => (
+              <div 
+                key={index}
+                className={styles.conditionItem}
+                style={{ borderLeft: `4px solid ${status.color}` }}
+              >
+                <span className={styles.conditionIcon}>{status.icon}</span>
+                <span className={styles.conditionLabel}>{status.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Additional Info */}
+      {(school.alamat || school.address) && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>
+            📍 Alamat
+          </div>
+          <div className={styles.address}>
+            {school.alamat || school.address}
+          </div>
+        </div>
+      )}
+
+      {/* Coordinates */}
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>
+          🌐 Koordinat
+        </div>
+        <div className={styles.coordinates}>
+          <div className={styles.coordinate}>
+            <span className={styles.coordinateLabel}>Lat:</span>
+            <span className={styles.coordinateValue}>
+              {formatCoordinate(school.latitude)}
+            </span>
+          </div>
+          <div className={styles.coordinate}>
+            <span className={styles.coordinateLabel}>Lng:</span>
+            <span className={styles.coordinateValue}>
+              {formatCoordinate(school.longitude)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className={styles.footer}>
+        <div className={styles.jenjangBadge}>
+          {getJenjangIcon(school.jenjang)} {school.jenjang?.toUpperCase()}
+        </div>
+      </div>
     </div>
-));
+  );
+});
+
+Popups.displayName = 'Popups';
+
+export default Popups;

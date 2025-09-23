@@ -1,117 +1,77 @@
 /* src/pages/Map/FilterPanel.module.css */
+
 .filterPanel {
-  padding: 1rem 1.5rem;
-  background-color: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  flex-shrink: 0;
+    background: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 800px;
+}
+
+.filterHeader {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: #333;
 }
 
 .filterGrid {
-  flex-grow: 1;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
 }
 
-.filterItem {
-  position: relative;
-}
-
-/* Atur agar select mengisi seluruh parent */
-.filterItem > :global(.react-select__container) {
-  width: 100%;
-}
-
-.filterIcon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  z-index: 2;
-  pointer-events: none;
-}
-
-/* Beri padding kiri agar teks tidak tertutup ikon */
-.filterItem :global(.react-select__control) {
-  padding-left: 28px !important;
-}
-
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.statsDisplay {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background-color: #f3f4f6;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #e5e7eb;
-}
-.statsIcon { color: #4f46e5; }
-.statsText {
-  display: flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  font-size: 0.875rem;
-  color: #4b5563;
-}
-.statsText strong {
-  font-size: 1.125rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.resetButton {
-  padding: 0.625rem 1rem; /* 10px 16px */
-  background-color: #f3f4f6;
-  color: #4b5563;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s ease;
-  white-space: nowrap; /* Mencegah teks pindah baris */
-}
-.resetButton:hover {
-  background-color: #e5e7eb;
-  border-color: #9ca3af;
-}
-
-/* === RESPONSIVE DESIGN === */
-@media (max-width: 1200px) {
-  .statsText span { display: none; }
-  .statsText strong::after { content: ' sekolah'; }
-}
-
-@media (max-width: 992px) {
-  .filterPanel {
+.filterGroup {
+    display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  .filterGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .controls {
-    justify-content: space-between;
-  }
 }
 
-@media (max-width: 576px) {
-  .filterPanel { padding: 1rem; }
-  .filterGrid {
-    grid-template-columns: 1fr;
-  }
+.filterGroup label {
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+}
+
+.filterGroup select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.filterGroup select:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.backButton {
+    padding: 6px 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.backButton:hover {
+    background-color: #0056b3;
 }

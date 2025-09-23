@@ -1,16 +1,12 @@
+// src/pages/SchoolDetail/DetailSekolahWrapper.jsx - GANTI SELURUH ISI FILE INI
+
 import React from 'react';
-import Map from '../Map/Map';
 import SchoolDetailPage from './SchoolDetailPage';
 
 const DetailSekolahWrapper = () => {
   return (
     <div>
-      <section>
-        <Map />
-      </section>
-      <section>
-        <SchoolDetailPage />
-      </section>
+      <SchoolDetailPage />
     </div>
   );
 };

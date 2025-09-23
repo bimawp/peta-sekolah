@@ -1,2 +1,17 @@
 // src/store/index.js
-export { default } from './store'
+import { configureStore } from '@reduxjs/toolkit';
+import schoolReducer from './slices/schoolSlice';
+
+export const store = configureStore({
+  reducer: {
+    schools: schoolReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST'],
+      },
+    }),
+});
+
+export default store;
