@@ -1,40 +1,39 @@
 // src/hooks/useMapData.js
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/mapConstants.js';
+import * as turf from '@turf/turf';
 
+// Fungsi fetch tetap sama, namun kita akan lebih memperhatikan hasilnya
 const fetchJSON = async (url) => {
-  const response = await fetch(url);
+  const response = await fetch(process.env.PUBLIC_URL + url); // Menggunakan PUBLIC_URL untuk path yang lebih aman
   if (!response.ok) {
-    throw new Error(`Gagal memuat data dari ${url}: Status ${response.status}`);
+    throw new Error(`Gagal memuat ${url}: Status ${response.status}`);
   }
   return response.json();
 };
 
-let dataCache = null;
+let dataCache = null; // Cache untuk menyimpan data yang sudah diproses
 
-const useMapData = (filters) => {
-  const [masterData, setMasterData] = useState({
-    allSchools: [],
-    kecamatanGeoJSON: null,
+const useMapData = () => {
+  const [processedData, setProcessedData] = useState({
+    schools: [],
+    kecamatanData: [],
     desaGeoJSON: null,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const loadAllData = async () => {
-      console.log("Memulai proses memuat data peta...");
-      setLoading(true);
-      setError(null);
-
+    const loadAndProcessData = async () => {
       if (dataCache) {
-        console.log("Menggunakan data dari cache.");
-        setMasterData(dataCache);
+        setProcessedData(dataCache);
         setLoading(false);
         return;
       }
 
+      console.log("MEMULAI PROSES PEMUATAN DAN PENGOLAHAN DATA PETA...");
+      setLoading(true);
       try {
         const [paud, pkbm, sd, smp, kecamatanGeoJSON, desaGeoJSON] = await Promise.all([
           fetchJSON(API_ENDPOINTS.paud),
@@ -44,62 +43,63 @@ const useMapData = (filters) => {
           fetchJSON(API_ENDPOINTS.kecamatan),
           fetchJSON(API_ENDPOINTS.desa),
         ]);
-        
-        console.log("Data GeoJSON Kecamatan diterima:", kecamatanGeoJSON);
-        console.log("Data GeoJSON Desa diterima:", desaGeoJSON);
 
         const allSchools = [
           ...Object.values(paud).flat(),
           ...Object.values(pkbm).flat(),
           ...Object.values(sd).flat(),
           ...Object.values(smp).flat(),
-        ].filter(school => {
-          const isValid = school.coordinates && Array.isArray(school.coordinates) && school.coordinates.length === 2;
-          if (!isValid && school.name) {
-            console.warn(`Sekolah "${school.name}" tidak memiliki koordinat yang valid.`);
-          }
-          return isValid;
-        });
-        
-        console.log(`Total sekolah dengan koordinat valid: ${allSchools.length}`);
+        ].filter(s => s.coordinates && s.coordinates.length === 2 && s.kecamatan);
 
-        const newData = { allSchools, kecamatanGeoJSON, desaGeoJSON };
-        dataCache = newData;
-        setMasterData(newData);
+        // **PERBAIKAN KUNCI #1: NORMALISASI DATA & AGREGASI**
+        // Buat peta (Map object) untuk menghitung sekolah, dengan kunci kecamatan dalam HURUF BESAR.
+        const schoolCounts = allSchools.reduce((acc, school) => {
+          const kecamatanKey = school.kecamatan.toUpperCase(); // Ubah jadi uppercase
+          acc[kecamatanKey] = (acc[kecamatanKey] || 0) + 1;
+          return acc;
+        }, {});
+        
+        console.log("Hasil Perhitungan Sekolah per Kecamatan:", schoolCounts);
+
+        // **PERBAIKAN KUNCI #2: PROSES DATA KECAMATAN DENGAN KUNCI NORMAL**
+        // Siapkan data akhir untuk dirender di peta
+        const kecamatanData = kecamatanGeoJSON.features.map(feature => {
+          const districtName = feature.properties.district; // Ini sudah UPPERCASE
+          const center = turf.centroid(feature.geometry).geometry.coordinates;
+          
+          return {
+            name: feature.properties.district, // Tetap gunakan nama asli untuk display
+            schoolCount: schoolCounts[districtName] || 0, // Mencocokkan dengan kunci UPPERCASE
+            center: [center[1], center[0]], // Balik ke format [lat, lon] untuk Leaflet
+          };
+        }).filter(kec => kec.schoolCount > 0); // Opsional: hanya tampilkan kecamatan yg ada sekolahnya
+
+        console.log("Data Kecamatan yang Siap Ditampilkan:", kecamatanData);
+        
+        if (kecamatanData.length === 0) {
+            console.error("Tidak ada data kecamatan yang berhasil diproses. Cek kembali logika pencocokan nama.");
+        }
+
+        const finalData = {
+          schools: allSchools,
+          kecamatanData,
+          desaGeoJSON,
+        };
+        dataCache = finalData;
+        setProcessedData(finalData);
 
       } catch (err) {
-        console.error("Kesalahan fatal saat memuat data peta:", err);
+        console.error("KESALAHAN FATAL SAAT MEMUAT DATA:", err);
         setError(err.message);
       } finally {
         setLoading(false);
-        console.log("Proses memuat data selesai.");
       }
     };
 
-    loadAllData();
+    loadAndProcessData();
   }, []);
 
-  const filteredSchools = useMemo(() => {
-    if (loading || !masterData.allSchools) return [];
-
-    return masterData.allSchools.filter(school => {
-      const { jenjang, kecamatan, desa } = filters;
-      let match = true;
-      if (jenjang !== 'semua' && school.type.toLowerCase() !== jenjang) {
-        match = false;
-      }
-      // Logika filter hanya berlaku jika KECAMATAN BUKAN 'semua'
-      if (kecamatan !== 'semua' && school.kecamatan !== kecamatan) {
-        match = false;
-      }
-      if (desa !== 'semua' && school.village !== desa) {
-        match = false;
-      }
-      return match;
-    });
-  }, [filters, masterData.allSchools, loading]);
-
-  return { ...masterData, allSchools: filteredSchools, loading, error };
+  return { ...processedData, loading, error };
 };
 
 export default useMapData;

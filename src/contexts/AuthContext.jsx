@@ -1,84 +1,56 @@
-// src/contexts/AuthContext.jsx - FIXED VERSION 2.0
-
-import React, { createContext, useContext, useEffect, useReducer } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../utils/supabase';
 
-const initialState = {
-  user: null,
-  profile: null,
-  isAuthenticated: false,
-  loading: true, // Mulai dengan loading = true
-  error: null
-};
-
-const authActions = {
-    LOGIN: 'LOGIN', LOGOUT: 'LOGOUT', SET_LOADING: 'SET_LOADING', SET_ERROR: 'SET_ERROR', 
-    CLEAR_ERROR: 'CLEAR_ERROR', UPDATE_PROFILE: 'UPDATE_PROFILE'
-};
-
-const authReducer = (state, action) => {
-    switch (action.type) {
-        case authActions.LOGIN: return { ...state, user: action.payload.user, profile: action.payload.profile, isAuthenticated: !!action.payload.user, loading: false, error: null };
-        case authActions.LOGOUT: return { ...state, user: null, profile: null, isAuthenticated: false, loading: false, error: null };
-        case authActions.UPDATE_PROFILE: return { ...state, profile: action.payload };
-        case authActions.SET_LOADING: return { ...state, loading: action.payload };
-        case authActions.SET_ERROR: return { ...state, error: action.payload, loading: false };
-        case authActions.CLEAR_ERROR: return { ...state, error: null };
-        default: return state;
-    }
-};
-
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(authReducer, initialState);
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserProfile = async (sessionUser) => {
+    console.log("[AuthProvider] Memulai pengecekan sesi...");
+
+    const checkSession = async () => {
       try {
-        const { data: profileData, error } = await supabase
-          .from('profile')
-          .select('*')
-          .eq('user_id', sessionUser.id)
-          .single();
-        if (error && error.code !== 'PGRST116') throw error;
-        return { ...profileData, email: sessionUser.email };
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-        return null;
+        // Langsung panggil getSession()
+        const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("[AuthProvider] Error saat getSession:", error.message);
+          setLoading(false); // Tetap selesaikan loading meskipun error
+          return;
+        }
+
+        if (session) {
+          console.log("[AuthProvider] Sesi ditemukan:", session.user.email);
+          setUser(session.user);
+          setIsAuthenticated(true);
+        } else {
+          console.log("[AuthProvider] Tidak ada sesi aktif.");
+        }
+
+      } catch (e) {
+        console.error("[AuthProvider] Terjadi kesalahan kritis:", e.message);
+      } finally {
+        // Ini adalah baris paling penting.
+        // Apapun yang terjadi, pastikan loading selesai.
+        console.log("✅ [AuthProvider] Pengecekan sesi selesai. Menghentikan loading.");
+        setLoading(false);
       }
     };
 
-    // Fungsi untuk memeriksa sesi yang ada saat aplikasi dimuat
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const profile = await fetchUserProfile(session.user);
-        dispatch({
-          type: authActions.LOGIN,
-          payload: { user: session.user, profile },
-        });
-      } else {
-        // Jika tidak ada sesi, pastikan loading selesai
-        dispatch({ type: authActions.SET_LOADING, payload: false });
-      }
-    };
-    
-    // Panggil checkSession sekali saat komponen dimuat
     checkSession();
 
-    // Listener untuk menangani perubahan status auth (login/logout di tab lain)
+    // Listener untuk login/logout di tab lain
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log(`Supabase Auth Event: ${event}`);
-        if (event === 'SIGNED_IN' && session) {
-          const profile = await fetchUserProfile(session.user);
-          dispatch({
-            type: authActions.LOGIN,
-            payload: { user: session.user, profile },
-          });
+      (event, session) => {
+        if (event === 'SIGNED_IN') {
+          setUser(session.user);
+          setIsAuthenticated(true);
         } else if (event === 'SIGNED_OUT') {
-          dispatch({ type: authActions.LOGOUT });
+          setUser(null);
+          setIsAuthenticated(false);
         }
       }
     );
@@ -86,27 +58,12 @@ export const AuthProvider = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // <-- Dependency array kosong, hanya berjalan sekali
 
-  const login = async (credentials) => {
-    const { error } = await supabase.auth.signInWithPassword(credentials);
-    if (error) {
-      dispatch({ type: authActions.SET_ERROR, payload: error.message });
-      return { success: false, error: error.message };
-    }
-    return { success: true };
-  };
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-  };
-  
   const value = {
-    ...state,
-    login,
-    logout,
-    setProfileData: (profileData) => dispatch({ type: authActions.UPDATE_PROFILE, payload: profileData }),
-    clearError: () => dispatch({ type: authActions.CLEAR_ERROR }),
+    user,
+    isAuthenticated,
+    loading,
   };
 
   return (

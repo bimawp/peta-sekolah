@@ -1,13 +1,14 @@
-// src/routes/AppRoutes.jsx - KODE LENGKAP FINAL
+// src/routes/AppRoutes.jsx - KEMBALIKAN KE VERSI INI
 
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 import Layout from '../components/common/Layout/Layout';
 import ProtectedRoute from './ProtectedRoute';
 import SuspenseLoader from '../components/common/SuspenseLoader/SuspenseLoader';
 
-// Impor komponen halaman secara dinamis
+// Impor komponen (pastikan path sudah benar)
 const Dashboard = lazy(() => import('../pages/Dashboard/Dashboard'));
 const BudgetPage = lazy(() => import('../pages/Budget/BudgetPage'));
 const NotFound = lazy(() => import('../pages/NotFound/NotFound'));
@@ -21,13 +22,16 @@ const Logout = lazy(() => import('../pages/Users/Logout'));
 const AdminProfile = lazy(() => import('../pages/AdminProfile/AdminProfile'));
 
 const AppRoutes = () => {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return <SuspenseLoader />;
+  }
+
   return (
     <Suspense fallback={<SuspenseLoader />}>
       <Routes>
-        {/* Rute publik */}
         <Route path="/login" element={<Login />} />
-
-        {/* Rute yang dilindungi */}
         <Route
           path="/"
           element={
@@ -47,8 +51,6 @@ const AppRoutes = () => {
           <Route path="users/logout" element={<Logout />} />
           <Route path="admin/profile" element={<AdminProfile />} />
         </Route>
-
-        {/* Rute Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

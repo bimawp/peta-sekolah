@@ -1,15 +1,21 @@
-// src/routes/ProtectedRoute.jsx - VERSI PERBAIKAN FINAL
+// src/routes/ProtectedRoute.jsx - VERSI DEBUGGING
 
 import React from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
-  // 1. Selama status autentikasi sedang diperiksa (saat refresh),
-  // tampilkan layar loading di tengah halaman.
+  // --- DEBUGGING LOG ---
+  console.log("[ProtectedRoute] Rendering with state:", {
+    isAuthenticated,
+    loading,
+    path: location.pathname
+  });
+  // --------------------
+
   if (loading) {
     return (
       <div style={{
@@ -17,24 +23,18 @@ const ProtectedRoute = ({ children }) => {
         justifyContent: 'center',
         alignItems: 'center',
         height: '100vh',
-        fontSize: '18px',
-        color: '#64748b',
-        fontFamily: 'sans-serif'
       }}>
-        Loading...
+        <div>Checking authentication...</div>
       </div>
     );
   }
 
-  // 2. Setelah selesai memeriksa, jika ternyata pengguna TIDAK login,
-  // paksa mereka kembali ke halaman login.
   if (!isAuthenticated) {
-    // Simpan halaman yang ingin mereka tuju agar bisa kembali setelah login
+    console.log("[ProtectedRoute] Not authenticated. Redirecting to /login.");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // 3. Jika pengguna SUDAH login, tampilkan konten yang seharusnya.
-  // 'children' di sini adalah komponen <Layout /> dari AppRoutes.jsx
+  console.log("[ProtectedRoute] Authenticated. Rendering children.");
   return children;
 };
 
