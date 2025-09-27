@@ -1,10 +1,10 @@
-// src/pages/Map/Popups.jsx - BUAT FILE BARU INI
+// src/pages/Map/Popups.jsx
 
 import React, { memo } from 'react';
 import styles from './Popups.module.css';
 
-const Popups = memo(({ data }) => {
-  if (!data || data.type !== 'school' || !data.school) {
+const Popups = memo(({ school }) => {
+  if (!school) {
     return (
       <div className={styles.popup}>
         <div className={styles.error}>
@@ -13,8 +13,6 @@ const Popups = memo(({ data }) => {
       </div>
     );
   }
-
-  const { school } = data;
 
   // Helper functions
   const getJenjangIcon = (jenjang) => {
@@ -70,7 +68,7 @@ const Popups = memo(({ data }) => {
         </div>
         <div className={styles.titleSection}>
           <h3 className={styles.schoolName}>
-            {school.nama_sekolah || school.school_name || 'Nama tidak tersedia'}
+            {school.nama_sekolah || school.name || 'Nama tidak tersedia'}
           </h3>
           <div className={styles.schoolType}>
             {getJenjangLabel(school.jenjang)}
@@ -83,7 +81,7 @@ const Popups = memo(({ data }) => {
         <div className={styles.infoGrid}>
           <div className={styles.infoItem}>
             <span className={styles.label}>📍 Kecamatan:</span>
-            <span className={styles.value}>{school.kecamatan || 'N/A'}</span>
+            <span className={styles.value}>{school.nama_kecamatan || school.kecamatan || 'N/A'}</span>
           </div>
           
           <div className={styles.infoItem}>
@@ -98,11 +96,11 @@ const Popups = memo(({ data }) => {
             </div>
           )}
 
-          {(school.status_sekolah || school.school_status) && (
+          {(school.status_sekolah || school.type) && (
             <div className={styles.infoItem}>
               <span className={styles.label}>📋 Status:</span>
               <span className={styles.value}>
-                {school.status_sekolah || school.school_status}
+                {school.status_sekolah || school.type}
               </span>
             </div>
           )}
@@ -151,13 +149,13 @@ const Popups = memo(({ data }) => {
           <div className={styles.coordinate}>
             <span className={styles.coordinateLabel}>Lat:</span>
             <span className={styles.coordinateValue}>
-              {formatCoordinate(school.latitude)}
+              {formatCoordinate(school.coordinates?.[0])}
             </span>
           </div>
           <div className={styles.coordinate}>
             <span className={styles.coordinateLabel}>Lng:</span>
             <span className={styles.coordinateValue}>
-              {formatCoordinate(school.longitude)}
+              {formatCoordinate(school.coordinates?.[1])}
             </span>
           </div>
         </div>

@@ -1,5 +1,3 @@
-// src/index.js - PERBAIKAN FINAL (TANPA STRICTMODE)
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -16,15 +14,15 @@ import './styles/globals.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  // <React.StrictMode> <-- HAPUS ATAU KOMENTARI BARIS INI
-    <Provider store={store}>
-      <BrowserRouter>
-        <AuthProvider>
-          <ThemeProvider>
-            <App />
-          </ThemeProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </Provider>
-  // </React.StrictMode> <-- HAPUS ATAU KOMENTARI BARIS INI
+  // <React.StrictMode> Dihapus untuk mencegah konflik dengan Supabase
+  <Provider store={store}>
+    <BrowserRouter>
+      <AuthProvider>
+        <ThemeProvider>
+          <App />
+        </ThemeProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  </Provider>
+  // </React.StrictMode>
 );

@@ -1,147 +1,98 @@
-// src/pages/Map/Map.jsx
-
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap } from 'react-leaflet';
+import React, { useState, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
-import MarkerClusterGroup from 'react-leaflet-cluster';
-import styles from './Map.module.css';
-import './MapMarkers.css';
 import 'leaflet/dist/leaflet.css';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import useSchoolData from '../../hooks/useSchoolData';
+import FilterPanel from './FilterPanel'; // <-- IMPORT FILTER PANEL
+import styles from './Map.module.css';
 
-import FilterPanel from './FilterPanel';
-import Popups from './Popups';
-import useMapData from '../../hooks/useMapData';
-
-// Ikon kustom untuk klaster kecamatan di tampilan awal
-const createKecamatanClusterIcon = (kecamatan) => L.divIcon({
-  className: 'kecamatan-cluster-icon',
-  html: `<div class="cluster-content"><div class="cluster-count">${kecamatan.schoolCount}</div><div class="cluster-name">${kecamatan.name}</div></div>`
+// Fix ikon Leaflet default
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-// Ikon kustom untuk sekolah individual
-const createSchoolIcon = (school) => L.divIcon({
-    className: 'custom-school-icon-container',
-    html: `<div class="custom-school-icon" title="${school.name}">${school.type.toUpperCase()}</div>`
-});
+const MapPage = () => {
+    const { schools, geoData, loading, error, stats } = useSchoolData();
+    const [map, setMap] = useState(null);
 
-// Komponen untuk mengontrol peta (zoom/pan) secara dinamis
-const MapController = ({ center, zoom }) => {
-    const map = useMap();
-    useEffect(() => {
-        if (center) map.flyTo(center, zoom, { animate: true, duration: 1.2 });
-    }, [center, zoom, map]);
-    return null;
-};
-
-// Komponen Peta Inti
-const MapContent = ({ schools, kecamatanData, desaGeoJSON }) => {
-  const [filters, setFilters] = useState({ jenjang: 'semua', kecamatan: 'Semua Kecamatan', desa: 'Semua Desa' });
-  const [mapView, setMapView] = useState({ center: [-7.2278, 107.9087], zoom: 10 });
-  const [viewMode, setViewMode] = useState('kabupaten'); // 'kabupaten' atau 'kecamatan'
-  const [selectedKecamatan, setSelectedKecamatan] = useState(null);
-
-  const kecamatanList = useMemo(() => ['Semua Kecamatan', ...kecamatanData.map(k => k.name)].sort(), [kecamatanData]);
-  const desaList = useMemo(() => {
-    if (!selectedKecamatan || !desaGeoJSON) return [];
-    const filtered = desaGeoJSON.features
-      .filter(f => f.properties.district === selectedKecamatan) // Cocokkan dengan 'district' (UPPERCASE)
-      .map(f => f.properties.DESA);
-    return ['Semua Desa', ...new Set(filtered)].sort();
-  }, [desaGeoJSON, selectedKecamatan]);
-
-  const zoomToKecamatan = useCallback((kecamatan) => {
-    setViewMode('kecamatan');
-    setSelectedKecamatan(kecamatan.name);
-    setFilters(prev => ({ ...prev, kecamatan: kecamatan.name, desa: 'Semua Desa' }));
-    setMapView({ center: kecamatan.center, zoom: 13 });
-  }, []);
-
-  const backToKabupatenView = () => {
-    setViewMode('kabupaten');
-    setSelectedKecamatan(null);
-    setFilters({ jenjang: 'semua', kecamatan: 'Semua Kecamatan', desa: 'Semua Desa' });
-    setMapView({ center: [-7.2278, 107.9087], zoom: 10 });
-  };
-
-  const filteredSchools = useMemo(() => {
-    if (viewMode !== 'kecamatan' || !selectedKecamatan) return [];
-    return schools.filter(school => {
-      const { jenjang, kecamatan, desa } = filters;
-      // Gunakan .toUpperCase() untuk mencocokkan dengan selectedKecamatan (dari geojson)
-      if (kecamatan !== 'Semua Kecamatan' && school.kecamatan.toUpperCase() !== kecamatan) return false;
-      if (jenjang !== 'semua' && school.type.toLowerCase() !== jenjang) return false;
-      if (desa !== 'Semua Desa' && school.village !== desa) return false;
-      return true;
+    // State untuk mengelola filter
+    const [filters, setFilters] = useState({
+        jenjang: 'Semua Jenjang',
+        kecamatan: 'Semua Kecamatan',
+        desa: 'Semua Desa',
     });
-  }, [filters, schools, viewMode, selectedKecamatan]);
-  
-  const visibleDesaLayer = useMemo(() => {
-    if (viewMode !== 'kecamatan' || !selectedKecamatan) return null;
-    return {
-      type: "FeatureCollection",
-      features: desaGeoJSON.features.filter(f => f.properties.district === selectedKecamatan)
-    };
-  }, [viewMode, desaGeoJSON, selectedKecamatan]);
 
-  return (
-    <>
-      <FilterPanel
-        filters={filters}
-        setFilters={setFilters}
-        kecamatanList={kecamatanList}
-        desaList={desaList}
-        onBack={backToKabupatenView}
-        canGoBack={viewMode !== 'kabupaten'}
-        onKecamatanChange={(kecName) => {
-          if (kecName === 'Semua Kecamatan') {
-            backToKabupatenView();
-          } else {
-            const kec = kecamatanData.find(k => k.name === kecName);
-            if(kec) zoomToKecamatan(kec);
-          }
-        }}
-      />
-      <MapContainer center={mapView.center} zoom={mapView.zoom} className={styles.map} scrollWheelZoom={true}>
-        <MapController center={mapView.center} zoom={mapView.zoom} />
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' />
-        
-        {viewMode === 'kabupaten' && kecamatanData.map(kec => (
-          <Marker
-            key={kec.name}
-            position={kec.center}
-            icon={createKecamatanClusterIcon(kec)}
-            eventHandlers={{ click: () => zoomToKecamatan(kec) }}
-          />
-        ))}
-        
-        {visibleDesaLayer && <GeoJSON data={visibleDesaLayer} style={{ weight: 1.5, color: '#ff6b6b' }} />}
-        {viewMode === 'kecamatan' && (
-          <MarkerClusterGroup>
-            {filteredSchools.map(school => (
-              <Marker key={school.id} position={school.coordinates} icon={createSchoolIcon(school)}>
-                <Popup><Popups school={school} /></Popup>
-              </Marker>
-            ))}
-          </MarkerClusterGroup>
-        )}
-      </MapContainer>
-    </>
-  );
+    // Memoize data yang difilter agar tidak dihitung ulang setiap render
+    const filteredSchools = useMemo(() => {
+        return schools
+            .filter(school => school.hasValidLocation) // Hanya tampilkan yang punya lokasi valid
+            .filter(school => {
+                if (filters.jenjang !== 'Semua Jenjang' && school.jenjang !== filters.jenjang) return false;
+                if (filters.kecamatan !== 'Semua Kecamatan' && school.kecamatan !== filters.kecamatan) return false;
+                if (filters.desa !== 'Semua Desa' && school.desa !== filters.desa) return false;
+                return true;
+            });
+    }, [schools, filters]);
+
+    if (loading) {
+        return <div className={styles.loadingContainer}>Memuat data peta...</div>;
+    }
+
+    if (error) {
+        return <div className={styles.errorContainer}>Gagal memuat data: {error}</div>;
+    }
+
+    return (
+        <div className={styles.mapPageLayout}>
+            {/* Tampilkan FilterPanel di sini */}
+            <FilterPanel 
+                schools={schools} 
+                filters={filters} 
+                setFilters={setFilters} 
+            />
+            <div className={styles.mapContainer}>
+                <MapContainer 
+                    center={[-7.21, 107.91]} 
+                    zoom={10} 
+                    style={{ height: '100%', width: '100%' }}
+                    whenCreated={setMap}
+                >
+                    <TileLayer
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    />
+
+                    {/* Tampilkan GeoJSON Kecamatan jika ada */}
+                    {geoData.kecamatan && (
+                        <GeoJSON 
+                            data={geoData.kecamatan} 
+                            style={{ color: '#4A90E2', weight: 1, fillOpacity: 0.1 }} 
+                        />
+                    )}
+
+                    <MarkerClusterGroup>
+                        {filteredSchools.map((school) => (
+                            <Marker
+                                key={school.npsn}
+                                position={[school.latitude, school.longitude]}
+                            >
+                                <Popup>
+                                    <b>{school.nama_sekolah}</b><br />
+                                    NPSN: {school.npsn}<br />
+                                    Jenjang: {school.jenjang}<br />
+                                    Kecamatan: {school.kecamatan}
+                                </Popup>
+                            </Marker>
+                        ))}
+                    </MarkerClusterGroup>
+                </MapContainer>
+            </div>
+        </div>
+    );
 };
 
-// Komponen Wrapper Utama untuk Loading & Error
-const Map = () => {
-  const { schools, kecamatanData, desaGeoJSON, loading, error } = useMapData();
-
-  if (loading) return <div className={styles.mapPageContainer}><div className={styles.loadingOverlay}>Menyiapkan Data Peta...</div></div>;
-  if (error) return <div className={styles.mapPageContainer}><div className={styles.errorOverlay}>Gagal Memuat Data: {error}</div></div>;
-  if (!kecamatanData) return <div className={styles.mapPageContainer}><div className={styles.errorOverlay}>Data Kecamatan Tidak Ditemukan.</div></div>;
-
-  return (
-    <div className={styles.mapPageContainer}>
-      <MapContent schools={schools} kecamatanData={kecamatanData} desaGeoJSON={desaGeoJSON} />
-    </div>
-  );
-};
-
-export default Map;
+export default MapPage;

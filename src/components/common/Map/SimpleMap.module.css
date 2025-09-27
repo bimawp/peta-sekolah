@@ -1,0 +1,32 @@
+/* src/components/common/Map/SimpleMap.module.css */
+
+.mapContainer {
+  height: 600px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+.map {
+  height: 100%;
+  width: 100%;
+}
+
+.noDataState {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  text-align: center;
+  color: #a0aec0;
+  font-size: 16px;
+  background-color: #f8fafc;
+}
+
+.noDataIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
