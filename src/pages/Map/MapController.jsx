@@ -1,121 +1,91 @@
-// src/pages/Map/MapController.jsx - VERSI BARU DENGAN SEMUA LOGIKA
+// src/pages/Map/MapController.jsx
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Marker, Popup, useMap } from 'react-leaflet';
+import { useNavigate } from 'react-router-dom'; // <-- Impor useNavigate
 import L from 'leaflet';
-import { createClusterIcon } from '../../services/utils/mapUtils';
-import KecamatanPopup from './Popups'; // Popup untuk klaster
-import SchoolFacilityPopup from './SchoolFacilityPopup'; // Popup baru untuk detail sekolah
+import styles from './Popups.module.css';
 
-// Fungsi helper untuk mendapatkan koordinat pusat kecamatan dari GeoJSON
-const getKecamatanCenter = (kecamatanName, geoJson) => {
-    if (!geoJson || !geoJson.features) return null;
-    const feature = geoJson.features.find(
-        f => f.properties.KECAMATAN?.toLowerCase() === kecamatanName?.toLowerCase()
-    );
-    if (!feature) return null;
-    
-    // Hitung centroid dari poligon
-    const coords = feature.geometry.coordinates[0][0];
-    if (!coords) return null;
-    let latSum = 0, lonSum = 0;
-    coords.forEach(coord => {
-        lonSum += coord[0];
-        latSum += coord[1];
-    });
-    return [latSum / coords.length, lonSum / coords.length];
+// Fungsi untuk membuat ikon kustom
+const createCustomIcon = (jenjang) => {
+  let iconUrl;
+  switch (jenjang) {
+    case 'SD':
+      iconUrl = '/assets/marker-icon-sd.png'; // Ganti dengan path ikon Anda jika ada
+      break;
+    case 'SMP':
+      iconUrl = '/assets/marker-icon-smp.png';
+      break;
+    default:
+      iconUrl = '/assets/marker-icon.png';
+  }
+  return new L.Icon({
+    iconUrl: iconUrl,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowUrl: '/assets/marker-shadow.png',
+    shadowSize: [41, 41]
+  });
 };
 
+const MapController = ({ schools, geoData }) => {
+  const map = useMap();
+  const navigate = useNavigate(); // <-- Gunakan hook useNavigate
 
-const MapController = ({ schools, geoData, viewMode, filters }) => {
-    const map = useMap();
+  const schoolMarkers = useMemo(() => {
+    if (!Array.isArray(schools)) return null;
 
-    // Memoize kalkulasi klaster untuk performa
-    const kecamatanClusters = useMemo(() => {
-        if (viewMode === 'DETAIL_MARKERS' || !schools || !geoData?.kecamatan) {
-            return [];
+    return schools.map(school => {
+      if (!school.latitude || !school.longitude) return null;
+
+      // [PERBAIKAN]: Fungsi tombol detail
+      const handleDetailClick = () => {
+        if (school.npsn) {
+          navigate(`/detail-sekolah/${school.npsn}`); // <-- Arahkan ke URL yang benar
+        } else {
+          alert('NPSN tidak tersedia untuk sekolah ini.');
         }
+      };
 
-        const clusters = {};
+      return (
+        <Marker
+          key={school.npsn}
+          position={[school.latitude, school.longitude]}
+          icon={createCustomIcon(school.level)}
+        >
+          <Popup>
+            <div className={styles.popupContainer}>
+              <h4 className={styles.popupTitle}>{school.name}</h4>
+              <p className={styles.popupInfo}>
+                <strong>NPSN:</strong> {school.npsn || '-'} <br />
+                <strong>Jenjang:</strong> {school.level || '-'} <br />
+                <strong>Kecamatan:</strong> {school.kecamatan || '-'}
+              </p>
+              <button onClick={handleDetailClick} className={styles.detailButton}>
+                Lihat Detail
+              </button>
+            </div>
+          </Popup>
+        </Marker>
+      );
+    }).filter(Boolean);
+  }, [schools, navigate]);
 
-        schools.forEach(school => {
-            const kec = school.kecamatan;
-            if (!kec) return;
-
-            if (!clusters[kec]) {
-                clusters[kec] = {
-                    count: 0,
-                    jenjangCount: { PAUD: 0, SD: 0, SMP: 0, PKBM: 0 },
-                    position: getKecamatanCenter(kec, geoData.kecamatan)
-                };
-            }
-            
-            clusters[kec].count++;
-            if (clusters[kec].jenjangCount[school.jenjang] !== undefined) {
-                clusters[kec].jenjangCount[school.jenjang]++;
-            }
-        });
-        
-        // Jika posisi dari GeoJSON tidak ada, hitung dari rata-rata sekolah
-        Object.keys(clusters).forEach(kec => {
-            if (!clusters[kec].position) {
-                const schoolsInKec = schools.filter(s => s.kecamatan === kec);
-                if(schoolsInKec.length > 0) {
-                    const avgLat = schoolsInKec.reduce((sum, s) => sum + s.latitude, 0) / schoolsInKec.length;
-                    const avgLon = schoolsInKec.reduce((sum, s) => sum + s.longitude, 0) / schoolsInKec.length;
-                    clusters[kec].position = [avgLat, avgLon];
-                }
-            }
-        });
-
-        return Object.entries(clusters)
-            .map(([name, data]) => ({ name, ...data }))
-            .filter(c => c.count > 0 && c.position);
-
-    }, [schools, viewMode, geoData]);
-
-    // RENDER BERDASARKAN VIEW MODE
-    if (viewMode === 'INITIAL_CLUSTER' || viewMode === 'CONDITION_CLUSTER') {
-        return (
-            <>
-                {kecamatanClusters.map(cluster => (
-                    <Marker
-                        key={cluster.name}
-                        position={cluster.position}
-                        icon={createClusterIcon(cluster.count)}
-                    >
-                        <Popup>
-                            <KecamatanPopup 
-                                kecamatanName={cluster.name}
-                                total={cluster.count}
-                                jenjangCount={cluster.jenjangCount}
-                                activeFilter={filters.kondisi}
-                            />
-                        </Popup>
-                    </Marker>
-                ))}
-            </>
-        );
+  useEffect(() => {
+    if (schools && schools.length > 0) {
+        const validCoords = schools
+            .filter(s => s.latitude && s.longitude)
+            .map(s => [s.latitude, s.longitude]);
+      
+        if (validCoords.length > 0) {
+            const bounds = L.latLngBounds(validCoords);
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
     }
+  }, [schools, map]);
 
-    if (viewMode === 'DETAIL_MARKERS') {
-        return (
-            <>
-                {schools.map(school => (
-                    <Marker
-                        key={school.id}
-                        position={[school.latitude, school.longitude]}
-                    >
-                        <Popup>
-                            <SchoolFacilityPopup school={school} />
-                        </Popup>
-                    </Marker>
-                ))}
-            </>
-        );
-    }
-
-    return null; // Tampilan default jika tidak ada mode yang cocok
+  return <>{schoolMarkers}</>;
 };
 
 export default MapController;

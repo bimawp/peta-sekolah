@@ -1,79 +1,59 @@
-/* src/components/common/Layout/Layout.module.css - VERSI DENGAN PERBAIKAN */
-
-/* === LAYOUT CONTAINER === */
-.layoutContainer {
+/* Layout Container */
+.layout {
   display: flex;
   min-height: 100vh;
-  background: #f8fafc;
-  /* Tambahkan ini untuk mencegah scrollbar muncul dari container ini */
-  overflow-x: hidden;
+  background-color: #f0f2f5;
+  position: relative;
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
-/* === MAIN PANEL (Area setelah sidebar) === */
-.mainPanel {
+/* Main Content Area */
+.mainContent {
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-left: 280px; /* Width sidebar expanded */
-  transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  /* Perbaikan: Mencegah flex item memanjang melebihi batasnya */
-  min-width: 0;
+  min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 280px;
+  max-width: calc(100vw - 280px); /* PENTING: Batasi lebar */
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
-/* Ketika sidebar collapsed */
-.mainPanel.sidebarCollapsed {
+.mainContentCollapsed {
   margin-left: 80px;
+  max-width: calc(100vw - 80px); /* PENTING: Batasi lebar */
 }
 
-/* === CONTENT AREA === */
-.content {
+/* Content Area */
+.contentArea {
   flex: 1;
   padding: 24px;
-  margin-top: 80px; /* Height header */
-  background: #f8fafc;
-  min-height: calc(100vh - 80px);
+  margin-top: 80px;
   overflow-y: auto;
-  /* Perbaikan: Secara eksplisit sembunyikan overflow horizontal di area konten */
-  overflow-x: hidden;
+  overflow-x: hidden; /* PENTING: Prevent horizontal scroll */
+  background-color: #f0f2f5;
+  min-height: calc(100vh - 80px);
+  max-width: 100%; /* PENTING: Batasi lebar */
 }
 
-/* === SCROLLBAR STYLING === */
-.content::-webkit-scrollbar {
-  width: 6px;
+/* Responsive untuk Tablet */
+@media (max-width: 1024px) {
+  .contentArea {
+    padding: 20px;
+  }
 }
 
-.content::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-.content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-
-.content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* === MOBILE RESPONSIVE === */
+/* Responsive untuk Mobile */
 @media (max-width: 768px) {
-  .mainPanel {
+  .mainContent,
+  .mainContentCollapsed {
     margin-left: 0;
+    max-width: 100vw;
   }
-  
-  .mainPanel.sidebarCollapsed {
-    margin-left: 0;
-  }
-  
-  .content {
-    padding: 16px;
-    margin-top: 70px; /* Height header mobile */
-    min-height: calc(100vh - 70px);
-  }
-}
 
-@media (max-width: 480px) {
-  .content {
-    padding: 12px;
+  .contentArea {
+    padding: 16px;
+    margin-top: 70px;
+    min-height: calc(100vh - 70px);
   }
 }

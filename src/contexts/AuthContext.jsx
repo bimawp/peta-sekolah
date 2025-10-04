@@ -1,8 +1,11 @@
+// src/contexts/AuthContext.jsx
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../utils/supabase';
 import { useNavigate } from 'react-router-dom';
 
-const AuthContext = createContext(null);
+// [PERBAIKAN]: Tambahkan 'export' di sini agar bisa diimpor di file lain.
+export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -42,13 +45,9 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user]);
 
-  // --- PERUBAHAN DI SINI ---
   const login = async ({ email, password }) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    
-    // Alihkan ke dasbor SETELAH login berhasil dan sebelum
-    // komponen lain sempat bereaksi terhadap perubahan state.
     navigate('/dashboard', { replace: true }); 
   };
 
@@ -66,9 +65,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
   };
-
-  // PENTING: Jangan me-render apapun sampai status loading awal selesai
-  // Ini mencegah ProtectedRoute berjalan dengan state yang belum siap.
+  
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>

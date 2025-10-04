@@ -1,4 +1,4 @@
-// src/pages/SchoolDetail/SchoolDetailPage.jsx - VERSI FINAL DENGAN PERBAIKAN LEAFLET
+// src/pages/SchoolDetail/SchoolDetailPage.jsx - VERSI GABUNGAN LENGKAP
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -6,10 +6,8 @@ import {
     PieChart, Pie, Cell, Legend, Tooltip
 } from 'recharts';
 
-// --- PERBAIKAN UTAMA UNTUK MAP LEAFLET ---
 import 'leaflet/dist/leaflet.css'; 
 import '../../services/utils/mapUtils.js'; 
-// ----------------------------------------
 
 import SimpleMap from '../../components/common/Map/SimpleMap';
 import styles from './SchoolDetailPage.module.css';
@@ -52,7 +50,7 @@ class ErrorBoundary extends React.Component {
     }
 }
 
-// PieChart Component (DIPERTAHANKAN)
+// PieChart Component
 const PieChartComponent = React.memo(({ title, data }) => {
     const [hoveredIndex, setHoveredIndex] = useState(-1);
     const validData = data.filter(item => item && typeof item.value === 'number' && item.value > 0);
@@ -135,7 +133,7 @@ const PieChartComponent = React.memo(({ title, data }) => {
     );
 });
 
-// BarChart Component (DIPERTAHANKAN)
+// BarChart Component
 const BarChartComponent = React.memo(({ title, data, colors }) => {
     const [hoveredIndex, setHoveredIndex] = useState(-1);
     
@@ -221,7 +219,7 @@ const BarChartComponent = React.memo(({ title, data, colors }) => {
     );
 });
 
-// DataTable Component (DIPERTAHANKAN)
+// DataTable Component
 const DataTable = React.memo(({ data, onDetailClick }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
@@ -501,14 +499,12 @@ const SchoolDetailPage = () => {
 
                 const combinedSchoolData = [];
                 
-                // ========== FUNGSI YANG DIPERBAIKI ==========
                 const processSchoolData = (data, jenjang) => {
                     if (!data) return;
                     
                     const processSingleSchool = (school, kecamatanName) => {
                         if (!school || typeof school !== 'object') return;
                         
-                        // ## START PERBAIKAN LOGIKA ##
                         let student_count = 0;
                         let kondisiKelas = {};
                         
@@ -519,7 +515,7 @@ const SchoolDetailPage = () => {
                                 rusakSedang: parseInt(school.class_condition?.moderate_damage) || 0,
                                 rusakBerat: parseInt(school.class_condition?.heavy_damage) || 0,
                             };
-                        } else { // Untuk SD, SMP, PKBM
+                        } else {
                             student_count = parseInt(school.student_count) || 0;
                             kondisiKelas = {
                                 baik: parseInt(school.class_condition?.classrooms_good) || 0,
@@ -527,7 +523,6 @@ const SchoolDetailPage = () => {
                                 rusakBerat: parseInt(school.class_condition?.classrooms_heavy_damage) || 0,
                             };
                         }
-                        // ## END PERBAIKAN LOGIKA ##
                         
                         const rawCoords = school.coordinates;
                         if (!Array.isArray(rawCoords) || rawCoords.length !== 2) return;
@@ -546,11 +541,11 @@ const SchoolDetailPage = () => {
                             tipeSekolah: school.type || school.status || '-',
                             desa: school.village || '-',
                             kecamatan: kecamatanName,
-                            student_count: student_count, // Menggunakan data yang sudah diproses
+                            student_count: student_count,
                             coordinates: [lat, lng],
-                            kondisiKelas: kondisiKelas, // Menggunakan data yang sudah diproses
+                            kondisiKelas: kondisiKelas,
                             kurangRKB: parseInt(school.class_condition?.lacking_rkb) || 0,
-                            originalData: school // **PENTING**: Menyimpan data asli untuk halaman detail
+                            originalData: school
                         });
                     };
                     
@@ -564,7 +559,6 @@ const SchoolDetailPage = () => {
                         });
                     }
                 };
-                // ========== END FUNGSI YANG DIPERBAIKI ==========
 
                 processSchoolData(paudData, 'PAUD');
                 processSchoolData(sdData, 'SD');

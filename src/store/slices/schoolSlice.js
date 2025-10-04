@@ -1,46 +1,45 @@
 // src/store/slices/schoolSlice.js
 
-import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
-// PERBAIKAN: Menggunakan fungsi yang benar, yang sudah kita optimalkan
-import { getSchoolsForDashboard } from '../../services/api/schoolApi.js'; 
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-const initialState = {
-  all: [],
-  status: 'idle',
-  error: null,
-};
+// [PERBAIKAN]: Impor fungsi yang dibutuhkan secara langsung (named import).
+import { getAllSchools } from '../../services/api/schoolApi'; 
+import { calculateTotals } from '../../services/utils/calculationUtils';
 
-// fetchAllSchools sekarang menggunakan getSchoolsForDashboard
+// Async thunk untuk mengambil semua data sekolah
 export const fetchAllSchools = createAsyncThunk(
-  'schools/fetchAllSchools',
+  'schools/fetchAll',
   async (_, { rejectWithValue }) => {
     try {
-      // PERBAIKAN: Memanggil fungsi yang benar dan efisien
-      const response = await getSchoolsForDashboard(); 
-
-      // Proses mapping data seperti biasa
-      return response.map(school => {
-        const conditions = school.class_conditions?.[0] || {};
-        return {
-          id: school.id,
-          npsn: school.npsn,
-          nama: school.name,
-          address: school.address,
-          kecamatan: school.kecamatan,
-          desa: school.village,
-          jenjang: school.level,
-          latitude: school.latitude,
-          longitude: school.longitude,
-          kondisi_ruang_kelas_rusak_berat: conditions.classrooms_heavy_damage || 0,
-          kondisi_ruang_kelas_rusak_sedang: conditions.classrooms_moderate_damage || 0,
-          kekurangan_rkb: conditions.lacking_rkb || 0,
-        };
-      });
+      // Panggil fungsi yang sudah diimpor
+      const schools = await getAllSchools(); 
+      if (!Array.isArray(schools)) {
+        throw new Error('Data sekolah yang diterima bukan array.');
+      }
+      return schools;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
+
+const initialState = {
+  all: [],
+  status: 'idle', // 'idle' | 'loading' | 'succeeded' | 'failed'
+  error: null,
+  totals: {
+    totalSchools: 0,
+    totalStudents: 0,
+    classroomTotals: {
+      total: 0,
+      good: 0,
+      moderateDamage: 0,
+      heavyDamage: 0,
+      lacking: 0
+    },
+    byLevel: {}
+  }
+};
 
 const schoolSlice = createSlice({
   name: 'schools',
@@ -54,75 +53,51 @@ const schoolSlice = createSlice({
       .addCase(fetchAllSchools.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.all = action.payload;
+        // Hitung total setelah data berhasil diambil
+        state.totals = calculateTotals(action.payload);
       })
       .addCase(fetchAllSchools.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload;
       });
-  },
+  }
 });
 
+// Selectors
 export const selectAllSchools = (state) => state.schools.all;
 export const selectSchoolsStatus = (state) => state.schools.status;
-const selectFilters = (state) => state.filter;
+export const selectSchoolTotals = (state) => state.schools.totals;
 
-export const selectFilteredSchools = createSelector(
-  [selectAllSchools, selectFilters],
-  (schools, filters) => {
-    if (!Array.isArray(schools)) return [];
-    
-    return schools.filter(school => {
-      if (filters.jenjang !== 'Semua Jenjang' && school.jenjang !== filters.jenjang) return false;
-      if (filters.kecamatan !== 'Semua Kecamatan' && school.kecamatan !== filters.kecamatan) return false;
-      if (filters.kecamatan !== 'Semua Kecamatan' && filters.desa !== 'Semua Desa' && school.desa !== filters.desa) return false;
-      if (filters.kondisi !== 'Semua Kondisi') {
-        if (filters.kondisi === 'Rusak Berat' && school.kondisi_ruang_kelas_rusak_berat === 0) return false;
-        if (filters.kondisi === 'Rusak Sedang' && school.kondisi_ruang_kelas_rusak_sedang === 0) return false;
-        if (filters.kondisi === 'Kebutuhan RKB' && school.kekurangan_rkb === 0) return false;
-      }
-      return true;
-    });
-  }
-);
+// Selector kompleks untuk memfilter sekolah berdasarkan filter aktif
+export const selectFilteredSchools = (state) => {
+  const { all } = state.schools;
+  const { jenjang, kecamatan, desa, kondisi } = state.filter;
 
-export const selectSchoolsByKecamatan = createSelector(
-    [selectAllSchools],
-    (schools) => {
-        if (!Array.isArray(schools) || schools.length === 0) return [];
-        
-        const aggregation = schools.reduce((acc, school) => {
-            if (!school.kecamatan || !school.latitude || !school.longitude) return acc;
+  if (!Array.isArray(all)) return [];
 
-            if (!acc[school.kecamatan]) {
-                acc[school.kecamatan] = {
-                    nama: school.kecamatan,
-                    totalSekolah: 0,
-                    jenjang: { PAUD: 0, SD: 0, SMP: 0, PKBM: 0 },
-                    latitudes: [],
-                    longitudes: [],
-                };
-            }
-            
-            acc[school.kecamatan].totalSekolah++;
-            const jenjang = school.jenjang?.toUpperCase() || 'LAINNYA';
-            if (acc[school.kecamatan].jenjang[jenjang] !== undefined) {
-                acc[school.kecamatan].jenjang[jenjang]++;
-            }
-            acc[school.kecamatan].latitudes.push(school.latitude);
-            acc[school.kecamatan].longitudes.push(school.longitude);
-            
-            return acc;
-        }, {});
-        
-        return Object.values(aggregation).map(kec => {
-            const avgLat = kec.latitudes.reduce((a, b) => a + b, 0) / kec.latitudes.length;
-            const avgLng = kec.longitudes.reduce((a, b) => a + b, 0) / kec.longitudes.length;
-            return {
-                ...kec,
-                position: [avgLat, avgLng],
-            };
-        });
+  return all.filter(school => {
+    // Filter Jenjang
+    if (jenjang !== 'Semua Jenjang' && school.level !== jenjang) {
+      return false;
     }
-);
+    // Filter Kecamatan
+    if (kecamatan !== 'Semua Kecamatan' && school.kecamatan !== kecamatan) {
+      return false;
+    }
+    // Filter Desa
+    if (desa !== 'Semua Desa' && school.village !== desa) {
+      return false;
+    }
+    // Filter Kondisi Kelas
+    if (kondisi !== 'Semua Kondisi') {
+      const conditions = school.class_conditions?.[0] || {};
+      if (kondisi === 'Baik' && (conditions.classrooms_good || 0) === 0) return false;
+      if (kondisi === 'Rusak Sedang' && (conditions.classrooms_moderate_damage || 0) === 0) return false;
+      if (kondisi === 'Rusak Berat' && (conditions.classrooms_heavy_damage || 0) === 0) return false;
+      if (kondisi === 'Kurang RKB' && (conditions.lacking_rkb || 0) === 0) return false;
+    }
+    return true;
+  });
+};
 
 export default schoolSlice.reducer;

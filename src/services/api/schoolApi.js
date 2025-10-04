@@ -2,13 +2,9 @@
 
 import { supabase } from '../../utils/supabase.js';
 
-/**
- * FUNGSI UNTUK STATISTIK KARTU DASHBOARD (DIKEMBALIKAN)
- * Ini adalah fungsi yang hilang dan menyebabkan error pada dashboardSlice.
- */
+// [PERBAIKAN 1]: Ekspor setiap fungsi secara individual (named export).
 export const getDashboardStats = async () => {
     try {
-      // Pastikan fungsi 'get_dashboard_stats' ada di database Supabase Anda
       const { data, error } = await supabase.rpc('get_dashboard_stats');
       if (error) throw new Error(`Database RPC error: ${error.message}`);
       return data[0];
@@ -18,10 +14,6 @@ export const getDashboardStats = async () => {
     }
 };
 
-/**
- * FUNGSI UTAMA UNTUK HALAMAN PETA/DASBOR (VERSI FINAL & STABIL)
- * Mengambil data sekolah beserta info kondisi kelas yang dibutuhkan chart.
- */
 export const getSchoolsForDashboard = async () => {
   try {
     const { data, error } = await supabase
@@ -44,9 +36,6 @@ export const getSchoolsForDashboard = async () => {
   }
 };
 
-/**
- * FUNGSI UNTUK HALAMAN DETAIL INDIVIDU (SUPER CEPAT)
- */
 export const getSchoolById = async (npsn) => {
   try {
     if (!npsn) throw new Error("NPSN dibutuhkan.");
@@ -63,8 +52,13 @@ export const getSchoolById = async (npsn) => {
   }
 };
 
-/**
- * FUNGSI INI DIKEMBALIKAN untuk kompatibilitas dengan schoolSlice.js
- * Ini akan mencegah error 'getAllSchools is not exported' di masa depan.
- */
+// [PERBAIKAN 2]: Tetap sediakan alias untuk kompatibilitas.
 export const getAllSchools = getSchoolsForDashboard;
+
+// [PERBAIKAN 3]: Ekspor juga objek 'schoolApi' untuk file yang membutuhkannya.
+export const schoolApi = {
+  getDashboardStats,
+  getSchoolsForDashboard,
+  getSchoolById,
+  getAllSchools
+};

@@ -1,24 +1,28 @@
-// src/index.jsx - GANTI SELURUH ISI FILE DENGAN INI
+// src/index.jsx
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from './store/store'; // Pastikan path ini benar
+import { store } from './store/store';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import App from './App';
 import './index.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    {/* Provider ini akan membuat Redux 'store' tersedia 
-      untuk semua komponen di dalam aplikasi Anda 
-    */}
+    {/* Provider untuk Redux */}
     <Provider store={store}>
+      {/* Provider untuk Router */}
       <BrowserRouter>
+        {/* Provider untuk Autentikasi (sekarang di dalam Router) */}
         <AuthProvider>
-          <App />
+          {/* Provider untuk Tema */}
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
         </AuthProvider>
       </BrowserRouter>
     </Provider>

@@ -1,26 +1,13 @@
-import { Provider } from 'react-redux';
-import { store } from './store/store';
-import { AuthProvider } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { SchoolDataProvider } from './contexts/SchoolDataContext';
-import AppRoutes from './routes/AppRoutes';
+// src/App.jsx
 
-// Tidak perlu import BrowserRouter di sini lagi
+import React from 'react';
+import AppRoutes from './routes/AppRoutes'; // Langsung gunakan AppRoutes
+import './App.css';
 
 function App() {
-  return (
-    <Provider store={store}>
-      <AuthProvider>
-        <ThemeProvider>
-          {/* Provider data akan membungkus semua rute/halaman */}
-          <SchoolDataProvider>
-            {/* Langsung render AppRoutes tanpa BrowserRouter tambahan */}
-            <AppRoutes />
-          </SchoolDataProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </Provider>
-  );
+  // Tidak perlu ada provider apa pun di sini lagi.
+  // Langsung render komponen yang berisi semua rute aplikasi Anda.
+  return <AppRoutes />;
 }
 
 export default App;
