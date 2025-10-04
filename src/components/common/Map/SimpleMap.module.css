@@ -1,32 +1,44 @@
 /* src/components/common/Map/SimpleMap.module.css */
 
-.mapContainer {
-  height: 600px;
-  width: 100%;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e0e0e0;
+.custom-cluster-icon {
+    background-color: #3b82f6; /* Warna default */
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+    transition: all 0.2s ease-in-out;
 }
 
-.map {
-  height: 100%;
-  width: 100%;
+.custom-cluster-icon span {
+    font-size: 14px;
+    line-height: 1;
 }
 
-.noDataState {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  text-align: center;
-  color: #a0aec0;
-  font-size: 16px;
-  background-color: #f8fafc;
+/* Ukuran cluster berdasarkan jumlah sekolah */
+.custom-cluster-small {
+    width: 30px;
+    height: 30px;
 }
 
-.noDataIcon {
-  font-size: 48px;
-  margin-bottom: 16px;
+.custom-cluster-medium {
+    width: 40px;
+    height: 40px;
+    background-color: #f59e0b; /* Orange untuk jumlah menengah */
+}
+
+.custom-cluster-large {
+    width: 50px;
+    height: 50px;
+    background-color: #ef4444; /* Merah untuk jumlah besar */
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.4);
+}
+
+/* Mengatasi styling default MarkerClusterGroup */
+.marker-cluster {
+    background: none !important; 
+    /* Menggunakan !important jika diperlukan, tetapi sebaiknya periksa urutan import CSS */
 }

@@ -1,28 +1,26 @@
+// src/index.jsx - GANTI SELURUH ISI FILE DENGAN INI
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from './store/store.js';
-import { AuthProvider } from './contexts/AuthContext.jsx';
-import { ThemeProvider } from './contexts/ThemeContext.jsx';
-import App from './App.jsx';
+import { store } from './store/store'; // Pastikan path ini benar
+import { AuthProvider } from './contexts/AuthContext';
+import App from './App';
 import './index.css';
-import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import './styles/globals.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
-  // <React.StrictMode> Dihapus untuk mencegah konflik dengan Supabase
-  <Provider store={store}>
-    <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider>
+  <React.StrictMode>
+    {/* Provider ini akan membuat Redux 'store' tersedia 
+      untuk semua komponen di dalam aplikasi Anda 
+    */}
+    <Provider store={store}>
+      <BrowserRouter>
+        <AuthProvider>
           <App />
-        </ThemeProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  </Provider>
-  // </React.StrictMode>
+        </AuthProvider>
+      </BrowserRouter>
+    </Provider>
+  </React.StrictMode>
 );

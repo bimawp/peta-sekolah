@@ -1,54 +1,11 @@
-/* === ISI BARU UNTUK Paud/SchoolDetailPaud.module.css === */
+/* === KODE LENGKAP SchoolDetailPaud.module.css === */
 
 .container {
-  max-width: 800px; /* Lebar container disesuaikan agar tidak terlalu lebar */
+  max-width: 800px;
   margin: 20px auto;
   padding: 20px;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f9f9f9; /* Sedikit lebih lembut dari abu-abu sebelumnya */
-}
-
-/* Header Utama (Informasi Sekolah) */
-.header {
-  background: white;
-  border-radius: 8px;
-  padding: 25px;
-  margin-bottom: 25px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-}
-
-.header h1 {
-  color: #333; /* Warna judul lebih standar */
-  font-size: 26px;
-  font-weight: 700;
-  margin-top: 0;
-  margin-bottom: 15px;
-}
-
-.header p {
-  margin: 5px 0;
-  font-size: 15px;
-  color: #555;
-  line-height: 1.6;
-}
-
-/* Tombol Lokasi */
-.locationButton {
-  background-color: #d4851a;
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  margin-top: 20px;
-  transition: background-color 0.3s ease;
-  width: 100%; /* Tombol memenuhi lebar header */
-}
-
-.locationButton:hover {
-  background-color: #b8731a;
+  background-color: #f9f9f9;
 }
 
 /* Tombol Kembali */
@@ -66,46 +23,230 @@
   color: #000;
 }
 
-/* Ini adalah pembungkus untuk semua kartu detail di bawah header */
-/* Menggantikan .detailsGrid dengan tumpukan vertikal */
-.detailsGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px; /* Jarak antar kartu */
-}
-
-/* Gaya untuk setiap kartu detail (Status Tanah, Data Siswa, dll.) */
-.detailCard {
-  background: #ffffff;
+/* Header Utama (Informasi Sekolah) */
+.header {
+  background: white;
   border-radius: 8px;
-  padding: 20px;
+  padding: 25px;
+  margin-bottom: 25px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
-/* Judul di dalam setiap kartu (H2) */
-.detailCard h2 {
+.schoolName {
+  color: #333;
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.schoolInfo {
+  margin-bottom: 15px;
+}
+
+.infoRow {
+  display: flex;
+  margin: 5px 0;
+  font-size: 15px;
+  color: #555;
+  line-height: 1.6;
+}
+
+.label {
+  min-width: 140px;
+  font-weight: 500;
+}
+
+.colon {
+  margin: 0 10px;
+}
+
+.value {
+  flex: 1;
+}
+
+/* Tombol Lokasi */
+.locationButton {
+  background-color: #d4851a;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 20px;
+  transition: background-color 0.3s ease;
+  width: 100%;
+}
+
+.locationButton:hover {
+  background-color: #b8731a;
+}
+
+/* Section Container */
+.section {
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
   font-size: 18px;
   font-weight: 600;
   color: #333;
   margin-top: 0;
   margin-bottom: 15px;
   padding-left: 15px;
-  /* Ini adalah garis oranye vertikal di sebelah kiri judul */
   border-left: 4px solid #d4851a;
   line-height: 1.4;
 }
 
-.detailCard p {
+/* Card untuk setiap section */
+.card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.subsection {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.subsection:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.subsectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #444;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.dataRow {
   margin: 8px 0;
   font-size: 15px;
   color: #555;
 }
 
-/* Judul sub-bagian di dalam kartu (H3) */
-.detailCard h3 {
+/* === STYLING UNTUK BAR CHART === */
+.chartContainer {
+  width: 100%;
+  padding: 20px 0;
+}
+
+.chart {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 200px;
+  gap: 20px;
+  padding: 0 20px;
+}
+
+.barContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.bar {
+  width: 100%;
+  max-width: 80px;
+  min-height: 30px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.bar:hover {
+  opacity: 0.8;
+  transform: translateY(-2px);
+}
+
+.barLabel {
+  color: white;
+  font-weight: 700;
   font-size: 16px;
-  font-weight: 600;
-  color: #444;
-  margin-top: 20px;
-  margin-bottom: 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.barRed {
+  background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
+}
+
+.barYellow {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.barBlue {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.barText {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #555;
+  text-align: center;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* Responsive untuk layar kecil */
+@media (max-width: 600px) {
+  .container {
+    padding: 15px;
+    margin: 10px;
+  }
+
+  .header {
+    padding: 20px;
+  }
+
+  .schoolName {
+    font-size: 22px;
+  }
+
+  .infoRow {
+    flex-direction: column;
+  }
+
+  .label {
+    min-width: auto;
+    margin-bottom: 2px;
+  }
+
+  .colon {
+    display: none;
+  }
+
+  .chart {
+    height: 150px;
+    gap: 10px;
+    padding: 0 10px;
+  }
+
+  .bar {
+    max-width: 60px;
+  }
+
+  .barLabel {
+    font-size: 14px;
+  }
+
+  .barText {
+    font-size: 11px;
+  }
 }

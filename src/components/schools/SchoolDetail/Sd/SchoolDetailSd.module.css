@@ -1,3 +1,4 @@
+/* src/components/schools/SchoolDetail/Sd/SchoolDetailSd.module.css - PERBAIKAN TAMPILAN */
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -26,11 +27,13 @@
 
 .basicInfo {
   display: grid;
+  /* Gunakan grid 2 kolom agar info tidak padat */
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 10px;
 }
 
 .basicInfo p {
-  margin: 8px 0;
+  margin: 0; /* Hapus margin di p */
   font-size: 16px;
   color: #333;
   line-height: 1.5;
@@ -39,6 +42,9 @@
 .basicInfo strong {
   color: #2c3e50;
   font-weight: 600;
+  /* Tambahkan lebar agar sejajar */
+  display: inline-block;
+  min-width: 120px;
 }
 
 .mapButton {
@@ -52,6 +58,7 @@
   font-weight: 500;
   margin-top: 15px;
   transition: background-color 0.3s ease;
+  grid-column: 1 / -1; /* Tombol ambil lebar penuh */
 }
 
 .mapButton:hover {
@@ -153,17 +160,19 @@
 
 .bar {
   width: 60px;
-  background-color: #e0e0e0;
+  /* Warna default sudah diganti di JSX agar lebih informatif */
+  background-color: #e0e0e0; 
   border-radius: 4px 4px 0 0;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  color: #333;
+  color: #fff;
   font-weight: bold;
   font-size: 14px;
   padding-bottom: 5px;
   min-height: 20px;
   transition: all 0.3s ease;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); /* Shadow untuk label */
 }
 
 .chartBar span {
@@ -188,6 +197,10 @@
   .header h1 {
     font-size: 24px;
   }
+
+  .basicInfo {
+    grid-template-columns: 1fr;
+  }
   
   .section {
     padding: 20px;
@@ -210,6 +223,11 @@
     width: 50px;
     height: 30px;
     border-radius: 4px;
+  }
+  
+  .chartBar span {
+    max-width: none;
+    text-align: right;
   }
 }
 

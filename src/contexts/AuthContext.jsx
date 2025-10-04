@@ -11,26 +11,20 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Efek 1: HANYA menangani status autentikasi pengguna (login/logout)
   useEffect(() => {
-    // onAuthStateChange akan langsung memberikan status sesi saat aplikasi dimuat
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null;
       setUser(currentUser);
       setIsAuthenticated(!!currentUser);
-      // Hentikan loading segera setelah kita mengetahui status login
       setLoading(false);
     });
 
-    // Hentikan listener saat komponen tidak lagi digunakan
     return () => {
       subscription.unsubscribe();
     };
   }, []);
 
-  // Efek 2: HANYA menangani pengambilan data profil SETELAH pengguna diketahui
   useEffect(() => {
-    // Jika ada pengguna yang login, ambil profilnya
     if (user) {
       supabase
         .from('profile')
@@ -44,21 +38,24 @@ export const AuthProvider = ({ children }) => {
           setProfile(data);
         });
     } else {
-      // Jika pengguna logout, kosongkan data profil
       setProfile(null);
     }
-  }, [user]); // <-- Efek ini hanya berjalan saat 'user' berubah
+  }, [user]);
 
+  // --- PERUBAHAN DI SINI ---
   const login = async ({ email, password }) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    // Listener di atas akan menangani pembaruan state dan redirect
+    
+    // Alihkan ke dasbor SETELAH login berhasil dan sebelum
+    // komponen lain sempat bereaksi terhadap perubahan state.
+    navigate('/dashboard', { replace: true }); 
   };
 
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
-    navigate('/login'); // Arahkan ke login secara manual untuk respons yang lebih cepat
+    navigate('/login');
   };
 
   const value = {
@@ -69,6 +66,16 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
   };
+
+  // PENTING: Jangan me-render apapun sampai status loading awal selesai
+  // Ini mencegah ProtectedRoute berjalan dengan state yang belum siap.
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <div>Initializing application...</div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={value}>
@@ -84,4 +91,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

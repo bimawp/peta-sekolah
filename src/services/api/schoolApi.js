@@ -1,17 +1,13 @@
-// src/services/api/schoolApi.js
+// src/services/api/schoolApi.js - GANTI SELURUH ISI FILE DENGAN INI
 
-import { supabase } from '../../utils/supabase.js';
+import { supabase } from '../../utils/supabase.js'; // Pastikan path ini benar
 
-/**
- * Mengambil data sekolah berdasarkan region bounds
- * @param {Object} regionBounds - Object berisi min_lat, min_lng, max_lat, max_lng
- * @returns {Promise<Array>} - Array berisi data sekolah
- */
+// TAMBAHKAN 'export' DI DEPAN SETIAP FUNGSI
+
 export const getSchoolsByRegion = async (regionBounds = {}) => {
   try {
     const { min_lat, min_lng, max_lat, max_lng } = regionBounds;
     
-    // Jika ada bounds, coba gunakan fungsi database dulu
     if (min_lat && min_lng && max_lat && max_lng) {
       try {
         const { data: functionData, error: functionError } = await supabase
@@ -23,7 +19,6 @@ export const getSchoolsByRegion = async (regionBounds = {}) => {
           });
 
         if (!functionError && functionData) {
-          console.log(`Berhasil memuat ${functionData.length} sekolah menggunakan fungsi database`);
           return functionData;
         }
       } catch (funcErr) {
@@ -31,27 +26,12 @@ export const getSchoolsByRegion = async (regionBounds = {}) => {
       }
     }
 
-    // Fallback: gunakan query biasa jika fungsi tidak tersedia
     let query = supabase
       .from('schools')
-      .select(`
-        id,
-        name,
-        npsn,
-        address,
-        village,
-        type,
-        level,
-        st_male,
-        st_female,
-        student_count,
-        latitude,
-        longitude
-      `)
+      .select(`id, name, npsn, address, village, type, level, student_count, latitude, longitude`)
       .not('latitude', 'is', null)
       .not('longitude', 'is', null);
 
-    // Jika ada bounds, terapkan filter
     if (min_lat && min_lng && max_lat && max_lng) {
       query = query
         .gte('latitude', min_lat)
@@ -61,50 +41,29 @@ export const getSchoolsByRegion = async (regionBounds = {}) => {
     }
 
     const { data, error } = await query.order('name');
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
-    console.log(`Berhasil memuat ${data?.length || 0} sekolah menggunakan query alternatif`);
+    if (error) throw new Error(`Database error: ${error.message}`);
     return data || [];
-
   } catch (error) {
     console.error('Error dalam getSchoolsByRegion:', error);
     throw error;
   }
 };
 
-/**
- * Mengambil semua data sekolah
- * @returns {Promise<Array>} - Array berisi semua data sekolah
- */
 export const getAllSchools = async () => {
   try {
     const { data, error } = await supabase
       .from('schools')
       .select(`
-        id,
-        name,
-        npsn,
-        address,
-        village,
-        type,
-        level,
-        st_male,
-        st_female,
-        student_count,
-        latitude,
-        longitude
+        id, name, npsn, address, village, kecamatan, type, level,
+        student_count, latitude, longitude,
+        class_conditions (
+          classrooms_good, classrooms_moderate_damage, classrooms_heavy_damage, lacking_rkb
+        )
       `)
       .not('latitude', 'is', null)
       .not('longitude', 'is', null)
       .order('name');
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
+    if (error) throw new Error(`Database error: ${error.message}`);
     return data || [];
   } catch (error) {
     console.error('Error dalam getAllSchools:', error);
@@ -112,80 +71,43 @@ export const getAllSchools = async () => {
   }
 };
 
-/**
- * Mengambil data sekolah berdasarkan ID
- * @param {number} schoolId - ID sekolah
- * @returns {Promise<Object>} - Data sekolah lengkap dengan relasi
- */
-export const getSchoolById = async (schoolId) => {
+export const getSchoolById = async (npsn) => {
   try {
+    if (!npsn) throw new Error("NPSN dibutuhkan untuk mencari data sekolah.");
+
     const { data, error } = await supabase
       .from('schools')
-      .select(`
-        *,
-        class_conditions (*),
-        furniture (*),
-        furniture_computer (*),
-        laboratory (*),
-        library (*),
-        teacher_room (*),
-        toilets (*),
-        building_status (*),
-        rombel (*),
-        kepsek (*),
-        ape (*),
-        playground_area (*),
-        uks (*),
-        official_residences (*)
-      `)
-      .eq('id', schoolId)
+      .select(`*, class_conditions(*)`)
+      .eq('npsn', npsn)
       .single();
-
+      
     if (error) {
-      throw new Error(`Database error: ${error.message}`);
+      if (error.code === 'PGRST116') {
+        throw new Error(`Sekolah dengan NPSN ${npsn} tidak ditemukan.`);
+      }
+      throw error;
     }
-
     return data;
   } catch (error) {
-    console.error('Error dalam getSchoolById:', error);
+    console.error('Error dalam getSchoolById:', error.message);
     throw error;
   }
 };
 
-/**
- * Mencari sekolah berdasarkan nama atau NPSN
- * @param {string} searchTerm - Term pencarian
- * @returns {Promise<Array>} - Array berisi hasil pencarian
- */
 export const searchSchools = async (searchTerm) => {
   try {
-    if (!searchTerm || searchTerm.trim().length === 0) {
-      return [];
-    }
-
+    if (!searchTerm || searchTerm.trim().length === 0) return [];
+    
     const { data, error } = await supabase
       .from('schools')
-      .select(`
-        id,
-        name,
-        npsn,
-        address,
-        village,
-        type,
-        level,
-        latitude,
-        longitude
-      `)
+      .select(`id, name, npsn, address, village, type, level, latitude, longitude`)
       .or(`name.ilike.%${searchTerm}%,npsn.ilike.%${searchTerm}%,address.ilike.%${searchTerm}%,village.ilike.%${searchTerm}%`)
       .not('latitude', 'is', null)
       .not('longitude', 'is', null)
       .order('name')
-      .limit(50); // Batasi hasil untuk performa
-
-    if (error) {
-      throw new Error(`Database error: ${error.message}`);
-    }
-
+      .limit(50);
+      
+    if (error) throw new Error(`Database error: ${error.message}`);
     return data || [];
   } catch (error) {
     console.error('Error dalam searchSchools:', error);

@@ -1,239 +1,121 @@
-import React, { useEffect, useState } from 'react';
-import styles from './MapController.module.css';
+// src/pages/Map/MapController.jsx - VERSI BARU DENGAN SEMUA LOGIKA
 
-const MapController = ({ map, mapMode, filters }) => {
-  const [viewMode, setViewMode] = useState('default');
-  const [isVisible, setIsVisible] = useState(true);
+import React, { useMemo } from 'react';
+import { Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import { createClusterIcon } from '../../services/utils/mapUtils';
+import KecamatanPopup from './Popups'; // Popup untuk klaster
+import SchoolFacilityPopup from './SchoolFacilityPopup'; // Popup baru untuk detail sekolah
 
-  // Auto-hide controller after a delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [filters, mapMode]);
-
-  // Show controller on mouse movement
-  useEffect(() => {
-    const showController = () => setIsVisible(true);
-    
-    if (map) {
-      const mapContainer = map.getContainer();
-      mapContainer.addEventListener('mousemove', showController);
-      
-      return () => {
-        mapContainer.removeEventListener('mousemove', showController);
-      };
-    }
-  }, [map]);
-
-  const handleViewModeChange = (mode) => {
-    setViewMode(mode);
-    
-    if (map) {
-      switch (mode) {
-        case 'satellite':
-          // Switch to satellite view (you'll need to implement this)
-          break;
-        case 'terrain':
-          // Switch to terrain view
-          break;
-        default:
-          // Default map view
-          break;
-      }
-    }
-  };
-
-  const zoomToGarut = () => {
-    if (map) {
-      map.setView([-7.2186, 107.8934], 10);
-    }
-  };
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
-  };
-
-  const getCurrentModeDescription = () => {
-    if (mapMode === 'kecamatan') {
-      if (filters.kondisi !== 'semua') {
-        return `Tampilan kecamatan - Filter kondisi: ${filters.kondisi.replace('_', ' ')}`;
-      }
-      return 'Tampilan ringkasan per kecamatan';
-    } else {
-      const activeFilters = [];
-      if (filters.jenjang !== 'semua') activeFilters.push(`Jenjang: ${filters.jenjang.toUpperCase()}`);
-      if (filters.kecamatan !== 'semua') activeFilters.push(`Kecamatan: ${filters.kecamatan}`);
-      if (filters.desa !== 'semua') activeFilters.push(`Desa: ${filters.desa}`);
-      if (filters.kondisi !== 'semua') activeFilters.push(`Kondisi: ${filters.kondisi.replace('_', ' ')}`);
-      
-      return `Tampilan detail sekolah${activeFilters.length > 0 ? ' - ' + activeFilters.join(', ') : ''}`;
-    }
-  };
-
-  if (!isVisible) {
-    return (
-      <div className={styles.hiddenController}>
-        <button 
-          className={styles.showButton}
-          onClick={() => setIsVisible(true)}
-          title="Tampilkan kontrol peta"
-        >
-          ⚙️
-        </button>
-      </div>
+// Fungsi helper untuk mendapatkan koordinat pusat kecamatan dari GeoJSON
+const getKecamatanCenter = (kecamatanName, geoJson) => {
+    if (!geoJson || !geoJson.features) return null;
+    const feature = geoJson.features.find(
+        f => f.properties.KECAMATAN?.toLowerCase() === kecamatanName?.toLowerCase()
     );
-  }
+    if (!feature) return null;
+    
+    // Hitung centroid dari poligon
+    const coords = feature.geometry.coordinates[0][0];
+    if (!coords) return null;
+    let latSum = 0, lonSum = 0;
+    coords.forEach(coord => {
+        lonSum += coord[0];
+        latSum += coord[1];
+    });
+    return [latSum / coords.length, lonSum / coords.length];
+};
 
-  return (
-    <div className={styles.controller}>
-      {/* Mode Description */}
-      <div className={styles.modeDescription}>
-        <div className={styles.modeIcon}>
-          {mapMode === 'kecamatan' ? '🏘️' : '🏫'}
-        </div>
-        <div className={styles.modeText}>
-          <div className={styles.modeTitle}>
-            {mapMode === 'kecamatan' ? 'Mode Kecamatan' : 'Mode Detail Sekolah'}
-          </div>
-          <div className={styles.modeSubtitle}>
-            {getCurrentModeDescription()}
-          </div>
-        </div>
-      </div>
 
-      {/* View Controls */}
-      <div className={styles.controlSection}>
-        <h4>🗺️ Tampilan Peta</h4>
-        <div className={styles.buttonGroup}>
-          <button 
-            className={`${styles.controlButton} ${viewMode === 'default' ? styles.active : ''}`}
-            onClick={() => handleViewModeChange('default')}
-            title="Peta standar"
-          >
-            📍 Standar
-          </button>
-          <button 
-            className={`${styles.controlButton} ${viewMode === 'satellite' ? styles.active : ''}`}
-            onClick={() => handleViewModeChange('satellite')}
-            title="Tampilan satelit"
-          >
-            🛰️ Satelit
-          </button>
-        </div>
-      </div>
+const MapController = ({ schools, geoData, viewMode, filters }) => {
+    const map = useMap();
 
-      {/* Navigation Controls */}
-      <div className={styles.controlSection}>
-        <h4>🧭 Navigasi</h4>
-        <div className={styles.buttonGroup}>
-          <button 
-            className={styles.controlButton}
-            onClick={zoomToGarut}
-            title="Kembali ke tampilan Garut"
-          >
-            🏠 Reset Zoom
-          </button>
-          <button 
-            className={styles.controlButton}
-            onClick={toggleFullscreen}
-            title="Mode layar penuh"
-          >
-            📺 Layar Penuh
-          </button>
-        </div>
-      </div>
+    // Memoize kalkulasi klaster untuk performa
+    const kecamatanClusters = useMemo(() => {
+        if (viewMode === 'DETAIL_MARKERS' || !schools || !geoData?.kecamatan) {
+            return [];
+        }
 
-      {/* Legend */}
-      <div className={styles.controlSection}>
-        <h4>🏷️ Legenda</h4>
-        <div className={styles.legend}>
-          {mapMode === 'sekolah' && (
-            <div className={styles.legendGroup}>
-              <div className={styles.legendTitle}>Jenis Sekolah</div>
-              <div className={styles.legendItems}>
-                <div className={styles.legendItem}>
-                  <span className={styles.legendIcon}>🧸</span>
-                  <span>PAUD</span>
-                </div>
-                <div className={styles.legendItem}>
-                  <span className={styles.legendIcon}>🎒</span>
-                  <span>SD</span>
-                </div>
-                <div className={styles.legendItem}>
-                  <span className={styles.legendIcon}>📚</span>
-                  <span>SMP</span>
-                </div>
-                <div className={styles.legendItem}>
-                  <span className={styles.legendIcon}>🎓</span>
-                  <span>PKBM</span>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className={styles.legendGroup}>
-            <div className={styles.legendTitle}>Kondisi Bangunan</div>
-            <div className={styles.legendItems}>
-              <div className={styles.legendItem}>
-                <div className={`${styles.legendColor} ${styles.goodColor}`}></div>
-                <span>Baik</span>
-              </div>
-              <div className={styles.legendItem}>
-                <div className={`${styles.legendColor} ${styles.warningColor}`}></div>
-                <span>Rusak Sedang</span>
-              </div>
-              <div className={styles.legendItem}>
-                <div className={`${styles.legendColor} ${styles.dangerColor}`}></div>
-                <span>Rusak Berat</span>
-              </div>
-              <div className={styles.legendItem}>
-                <div className={`${styles.legendColor} ${styles.infoColor}`}></div>
-                <span>Kurang RKB</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+        const clusters = {};
 
-      {/* Instructions */}
-      <div className={styles.controlSection}>
-        <h4>💡 Petunjuk</h4>
-        <div className={styles.instructions}>
-          {mapMode === 'kecamatan' ? (
-            <ul>
-              <li>Klik wilayah kecamatan untuk melihat statistik</li>
-              <li>Pilih kecamatan/desa di filter untuk detail sekolah</li>
-              <li>Gunakan filter kondisi untuk melihat sebaran masalah</li>
-            </ul>
-          ) : (
-            <ul>
-              <li>Klik ikon sekolah untuk detail lengkap</li>
-              <li>Hover untuk informasi cepat</li>
-              <li>Gunakan filter untuk menyaring data</li>
-            </ul>
-          )}
-        </div>
-      </div>
+        schools.forEach(school => {
+            const kec = school.kecamatan;
+            if (!kec) return;
 
-      {/* Hide Button */}
-      <div className={styles.controlSection}>
-        <button 
-          className={styles.hideButton}
-          onClick={() => setIsVisible(false)}
-          title="Sembunyikan panel kontrol"
-        >
-          👁️ Sembunyikan Panel
-        </button>
-      </div>
-    </div>
-  );
+            if (!clusters[kec]) {
+                clusters[kec] = {
+                    count: 0,
+                    jenjangCount: { PAUD: 0, SD: 0, SMP: 0, PKBM: 0 },
+                    position: getKecamatanCenter(kec, geoData.kecamatan)
+                };
+            }
+            
+            clusters[kec].count++;
+            if (clusters[kec].jenjangCount[school.jenjang] !== undefined) {
+                clusters[kec].jenjangCount[school.jenjang]++;
+            }
+        });
+        
+        // Jika posisi dari GeoJSON tidak ada, hitung dari rata-rata sekolah
+        Object.keys(clusters).forEach(kec => {
+            if (!clusters[kec].position) {
+                const schoolsInKec = schools.filter(s => s.kecamatan === kec);
+                if(schoolsInKec.length > 0) {
+                    const avgLat = schoolsInKec.reduce((sum, s) => sum + s.latitude, 0) / schoolsInKec.length;
+                    const avgLon = schoolsInKec.reduce((sum, s) => sum + s.longitude, 0) / schoolsInKec.length;
+                    clusters[kec].position = [avgLat, avgLon];
+                }
+            }
+        });
+
+        return Object.entries(clusters)
+            .map(([name, data]) => ({ name, ...data }))
+            .filter(c => c.count > 0 && c.position);
+
+    }, [schools, viewMode, geoData]);
+
+    // RENDER BERDASARKAN VIEW MODE
+    if (viewMode === 'INITIAL_CLUSTER' || viewMode === 'CONDITION_CLUSTER') {
+        return (
+            <>
+                {kecamatanClusters.map(cluster => (
+                    <Marker
+                        key={cluster.name}
+                        position={cluster.position}
+                        icon={createClusterIcon(cluster.count)}
+                    >
+                        <Popup>
+                            <KecamatanPopup 
+                                kecamatanName={cluster.name}
+                                total={cluster.count}
+                                jenjangCount={cluster.jenjangCount}
+                                activeFilter={filters.kondisi}
+                            />
+                        </Popup>
+                    </Marker>
+                ))}
+            </>
+        );
+    }
+
+    if (viewMode === 'DETAIL_MARKERS') {
+        return (
+            <>
+                {schools.map(school => (
+                    <Marker
+                        key={school.id}
+                        position={[school.latitude, school.longitude]}
+                    >
+                        <Popup>
+                            <SchoolFacilityPopup school={school} />
+                        </Popup>
+                    </Marker>
+                ))}
+            </>
+        );
+    }
+
+    return null; // Tampilan default jika tidak ada mode yang cocok
 };
 
 export default MapController;

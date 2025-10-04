@@ -1,21 +1,66 @@
-/* src/pages/Map/Map.module.css */
+/* src/pages/Map/Map.module.css - PERBAIKAN CSS LENGKAP */
 
-.mapPageLayout {
-    display: flex;
-    height: calc(100vh - 60px); /* Sesuaikan tinggi berdasarkan tinggi header Anda */
-    width: 100%;
+.mapPage { 
+  display: flex; 
+  /* Tinggi total dikurangi tinggi header (asumsi 80px) */
+  height: calc(100vh - 80px); 
+  width: 100%;
+  padding: 0;
+  gap: 24px;
+  /* Atur margin atas agar konten sejajar dengan panel filter yang fixed */
+  margin-top: -24px; 
 }
 
-.mapContainer {
-    flex-grow: 1;
-    height: 100%;
+/* Kontainer utama peta agar mengambil sisa ruang */
+.mapWrapper {
+  flex: 1; /* Ambil sisa lebar setelah FilterPanel */
+  min-width: 0; 
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding-right: 24px; 
 }
 
-.loadingContainer,
-.errorContainer {
+/* Elemen MapContainer */
+.map {
+  height: 100%; /* Peta mengisi penuh mapWrapper */
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* Mobile responsive fix */
+@media (max-width: 768px) {
+  .mapPage {
+    flex-direction: column;
+    height: auto;
+    gap: 16px;
+    margin-top: 0;
+    padding: 16px;
+  }
+  
+  .mapWrapper {
+    padding-right: 0;
+    margin: 0;
+    height: 400px; /* Atur tinggi tetap untuk peta di mobile */
+  }
+}
+
+/* Cluster styles from the original file (kept as is) */
+.custom-marker-cluster {
+    background-clip: padding-box;
+    border-radius: 20px;
+}
+.custom-marker-cluster span {
     display: flex;
-    justify-content: center;
     align-items: center;
-    height: 100%;
-    font-size: 1.2rem;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: rgba(51, 136, 255, 0.9);
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
 }

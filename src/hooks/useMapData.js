@@ -1,94 +1,42 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+// src/hooks/useMapData.js - PERBAIKAN NAMA EKSPOR
 
-// Fungsi helper untuk mengambil dan mem-parsing JSON dengan aman
+import { useState, useEffect, useCallback } from 'react';
+
 const loadJSON = async (path) => {
     try {
         const response = await fetch(path);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status} for ${path}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status} for ${path}`);
         return await response.json();
     } catch (error) {
         console.error(`Gagal memuat ${path}:`, error);
-        // Mengembalikan array/objek kosong agar Promise.all tidak gagal total
-        return Array.isArray(path) ? [] : {};
+        return {};
     }
 };
 
-const useSchoolData = () => {
-    const [allData, setAllData] = useState({
-        schools: [],
-        geoData: { kecamatan: null, desa: null },
-        stats: {},
-    });
+// [FIX] Nama fungsi diubah menjadi useMapData agar konsisten
+const useMapData = () => {
+    const [data, setData] = useState({ schools: [], geoData: { kecamatan: null, desa: null } });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const processData = useCallback((rawData) => {
-        const {
-            paudData, sdData, smpData, pkbmData,
-            kegiatanPaudData, kegiatanSdData, kegiatanSmpData, kegiatanPkbmData,
-            kecGeoData, desaGeoData
-        } = rawData;
+        const { paudData, sdData, smpData, pkbmData, kecGeoData, desaGeoData } = rawData;
+        let allSchools = [];
 
-        // 1. Gabungkan semua data kegiatan ke dalam satu map untuk lookup cepat
-        const kegiatanMap = [
-            ...(kegiatanPaudData || []),
-            ...(kegiatanSdData || []),
-            ...(kegiatanSmpData || []),
-            ...(kegiatanPkbmData || [])
-        ].reduce((acc, kegiatan) => {
-            if (kegiatan && kegiatan.npsn) {
-                const npsn = String(kegiatan.npsn);
-                if (!acc[npsn]) {
-                    acc[npsn] = { rehabRuangKelas: 0, pembangunanRKB: 0 };
-                }
-                const lokalCount = parseInt(kegiatan.Lokal, 10) || 0;
-                if (kegiatan.Kegiatan?.includes('Rehab')) {
-                    acc[npsn].rehabRuangKelas += lokalCount;
-                }
-                if (kegiatan.Kegiatan?.includes('Pembangunan')) {
-                    acc[npsn].pembangunanRKB += lokalCount;
-                }
-            }
-            return acc;
-        }, {});
-
-        // 2. Normalisasi dan gabungkan semua data sekolah
-        const allSchools = [];
-        const process = (data, jenjang) => {
-            if (!data) return;
-            // Menangani format data yang berbeda (array langsung atau objek dengan key kecamatan)
-            const schools = Array.isArray(data) ? data : Object.values(data).flat();
-
+        const process = (dataObj, jenjang) => {
+            if (!dataObj) return;
+            const schools = Array.isArray(dataObj) ? dataObj : Object.values(dataObj).flat();
             schools.forEach(school => {
                 if (!school || !school.coordinates || school.coordinates.length !== 2) return;
-                
                 const lat = parseFloat(school.coordinates[0]);
                 const lng = parseFloat(school.coordinates[1]);
                 if (isNaN(lat) || isNaN(lng)) return;
-
-                const npsn = String(school.npsn || `${jenjang}-${Math.random()}`);
-                const kegiatan = kegiatanMap[npsn] || { rehabRuangKelas: 0, pembangunanRKB: 0 };
-                
                 allSchools.push({
                     ...school,
                     jenjang,
-                    npsn,
                     latitude: lat,
                     longitude: lng,
-                    nama_sekolah: school.name || school.nama_sekolah || 'Nama Tidak Diketahui',
-                    kecamatan: school.kecamatan,
-                    desa: school.village || 'Desa Tidak Diketahui',
-                    student_count: parseInt(school.student_count, 10) || 0,
-                    kondisi_ruang_kelas_baik: parseInt(school.class_condition?.classrooms_good, 10) || 0,
-                    kondisi_ruang_kelas_rusak_sedang: parseInt(school.class_condition?.classrooms_moderate_damage, 10) || 0,
-                    kondisi_ruang_kelas_rusak_berat: parseInt(school.class_condition?.classrooms_heavy_damage, 10) || 0,
-                    jumlah_rombel: parseInt(school.class_condition?.total_rombel, 10) || 0,
-                    jumlah_ruang_kelas: parseInt(school.class_condition?.total_classrooms, 10) || 0,
-                    kekurangan_rkb: parseInt(school.class_condition?.lacking_rkb, 10) || 0,
-                    ...kegiatan,
-                    originalData: school, // Simpan data asli jika diperlukan
+                    nama: school.name || school.nama_sekolah || 'Nama Tidak Diketahui',
                 });
             });
         };
@@ -110,41 +58,29 @@ const useSchoolData = () => {
             setError(null);
             try {
                 const [
-                    paudData, sdData, smpData, pkbmData,
-                    kegiatanPaudData, kegiatanSdData, kegiatanSmpData, kegiatanPkbmData,
-                    kecGeoData, desaGeoData
+                    paudData, sdData, smpData, pkbmData, kecGeoData, desaGeoData
                 ] = await Promise.all([
                     loadJSON('/data/paud.json'), loadJSON('/data/sd_new.json'),
                     loadJSON('/data/smp.json'), loadJSON('/data/pkbm.json'),
-                    loadJSON('/data/data_kegiatan_paud.json'), loadJSON('/data/data_kegiatan_sd.json'),
-                    loadJSON('/data/data_kegiatan_smp.json'), loadJSON('/data/data_kegiatan_pkbm.json'),
                     loadJSON('/data/kecamatan.geojson'), loadJSON('/data/desa.geojson')
                 ]);
 
-                // Periksa apakah data penting (sekolah atau geojson) berhasil dimuat
                 if (!kecGeoData || (!paudData && !sdData && !smpData && !pkbmData)) {
-                     throw new Error('Data utama sekolah atau geografi gagal dimuat. Periksa path file di folder public dan konsol untuk error 400/404.');
+                     throw new Error('Data utama sekolah atau geografi gagal dimuat.');
                 }
-
-                const processed = processData({
-                    paudData, sdData, smpData, pkbmData,
-                    kegiatanPaudData, kegiatanSdData, kegiatanSmpData, kegiatanPkbmData,
-                    kecGeoData, desaGeoData
-                });
-                
-                setAllData(processed);
-
+                const processed = processData({ paudData, sdData, smpData, pkbmData, kecGeoData, desaGeoData });
+                setData(processed);
             } catch (err) {
                 setError(err.message);
             } finally {
                 setLoading(false);
             }
         };
-
         fetchAndProcessData();
     }, [processData]);
 
-    return { ...allData, loading, error };
+    return { ...data, loading, error };
 };
 
-export default useSchoolData;
+// [FIX] Ekspor dengan nama yang konsisten
+export default useMapData;

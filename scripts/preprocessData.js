@@ -2,114 +2,75 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Dapatkan path direktori saat ini menggunakan sintaks ES Module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const INPUT_DIR = path.join(__dirname, '../public/data');
 
-// Tentukan path ke folder public dan data
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
-const DATA_DIR = path.join(PUBLIC_DIR, 'data');
-const OUTPUT_FILE = path.join(DATA_DIR, 'all_schools_processed.json');
+console.log('Memulai proses penggabungan dan pembersihan data sekolah...');
 
-// --- Fungsi helper (tidak berubah) ---
-const cleanAndValidateCoordinate = (rawCoord) => {
-    if (rawCoord === null || typeof rawCoord === 'undefined') return null;
-    let coordStr = String(rawCoord).trim().replace(',', '.');
-    if (!isFinite(coordStr) || coordStr === '') return null;
-    const coord = parseFloat(coordStr);
-    return isNaN(coord) ? null : coord;
-};
-
-const readJsonFile = (filePath) => {
+const readAndExtractArray = (filePath) => {
     try {
-        const fileContent = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(fileContent);
+        const fileContent = fs.readFileSync(filePath, 'utf8');
+        const jsonData = JSON.parse(fileContent);
+        if (Array.isArray(jsonData)) return jsonData;
+        for (const key in jsonData) {
+            if (Array.isArray(jsonData[key])) {
+                console.log(`  -> Ditemukan array dalam properti '${key}' di file ${path.basename(filePath)}`);
+                return jsonData[key];
+            }
+        }
+        throw new Error(`Tidak dapat menemukan data array di dalam ${path.basename(filePath)}.`);
     } catch (error) {
-        console.error(`Error membaca file ${filePath}:`, error);
-        return null;
+        console.error(`ERROR saat memproses file ${path.basename(filePath)}: ${error.message}`);
+        return [];
     }
 };
 
-// --- Logika Utama Skrip (tidak berubah) ---
-async function main() {
-    console.log('🚀 Memulai pra-pemrosesan data sekolah...');
+try {
+    const sdSchools = readAndExtractArray(path.join(INPUT_DIR, 'sd_new.json'));
+    const smpSchools = readAndExtractArray(path.join(INPUT_DIR, 'smp.json'));
+    const paudSchools = readAndExtractArray(path.join(INPUT_DIR, 'paud.json'));
+    const pkbmSchools = readAndExtractArray(path.join(INPUT_DIR, 'pkbm.json'));
+    let uniqueIdCounter = 0;
 
-    const paudData = readJsonFile(path.join(DATA_DIR, 'paud.json'));
-    const sdData = readJsonFile(path.join(DATA_DIR, 'sd_new.json'));
-    const smpData = readJsonFile(path.join(DATA_DIR, 'smp.json'));
-    const pkbmData = readJsonFile(path.join(DATA_DIR, 'pkbm.json'));
-    const kegiatanPaud = readJsonFile(path.join(DATA_DIR, 'data_kegiatan_paud.json'));
-    const kegiatanSd = readJsonFile(path.join(DATA_DIR, 'data_kegiatan_sd.json'));
-    const kegiatanSmp = readJsonFile(path.join(DATA_DIR, 'data_kegiatan_smp.json'));
-    const kegiatanPkbm = readJsonFile(path.join(DATA_DIR, 'data_kegiatan_pkbm.json'));
-
-    const kegiatanMap = [
-        ...(kegiatanPaud || []), ...(kegiatanSd || []),
-        ...(kegiatanSmp || []), ...(kegiatanPkbm || [])
-    ].reduce((acc, kegiatan) => {
-        if (kegiatan?.npsn) {
-            const npsn = String(kegiatan.npsn);
-            if (!acc[npsn]) acc[npsn] = { rehab: 0, pembangunan: 0 };
-            const lokal = parseInt(kegiatan.Lokal, 10) || 0;
-            if (String(kegiatan.Kegiatan).includes('Rehab')) acc[npsn].rehab += lokal;
-            if (String(kegiatan.Kegiatan).includes('Pembangunan')) acc[npsn].pembangunan += lokal;
+    const processSchool = (school, jenjang) => {
+        const latitude = parseFloat(school.latitude);
+        const longitude = parseFloat(school.longitude);
+        let npsnValue = (school.npsn && String(school.npsn).trim()) ? String(school.npsn).trim() : '';
+        if (!npsnValue) {
+            npsnValue = `TEMP_ID_${uniqueIdCounter++}`;
+            console.warn(`  -> Peringatan: Ditemukan sekolah "${school.nama || 'Tanpa Nama'}" tanpa NPSN. Diberikan ID sementara: ${npsnValue}`);
         }
-        return acc;
-    }, {});
-
-    let combinedSchools = [];
-    const processJenjang = (data, jenjang) => {
-        if (!data) return;
-        const schoolList = Array.isArray(data) ? data : Object.values(data).flat();
-
-        schoolList.forEach((school, index) => {
-            if (!school) return;
-            const npsn = String(school.npsn || school.NPSN || `NO-NPSN-${jenjang}-${index}`);
-            let latitude = null, longitude = null, hasValidLocation = false;
-            
-            if (school.coordinates && school.coordinates.length === 2) {
-                latitude = cleanAndValidateCoordinate(school.coordinates[0]);
-                longitude = cleanAndValidateCoordinate(school.coordinates[1]);
-            } else if (school.latitude && school.longitude) {
-                latitude = cleanAndValidateCoordinate(school.latitude);
-                longitude = cleanAndValidateCoordinate(school.longitude);
-            }
-
-            if (latitude !== null && longitude !== null && Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180 && (latitude !== 0 || longitude !== 0)) {
-                hasValidLocation = true;
-            }
-
-            combinedSchools.push({
-                npsn,
-                nama_sekolah: school.name || school.nama_sekolah || 'N/A',
-                jenjang,
-                status_sekolah: school.status || school.type || 'N/A',
-                alamat: school.address || 'N/A',
-                kecamatan: school.kecamatan || 'N/A',
-                desa: school.village || 'N/A',
-                latitude,
-                longitude,
-                hasValidLocation,
-                jumlah_siswa: parseInt(school.student_count, 10) || 0,
-                kondisi_baik: parseInt(school.class_condition?.classrooms_good, 10) || 0,
-                kondisi_rusak_sedang: parseInt(school.class_condition?.classrooms_moderate_damage, 10) || 0,
-                kondisi_rusak_berat: parseInt(school.class_condition?.classrooms_heavy_damage, 10) || 0,
-                kekurangan_rkb: parseInt(school.class_condition?.lacking_rkb, 10) || 0,
-                rehab: kegiatanMap[npsn]?.rehab || 0,
-                pembangunan: kegiatanMap[npsn]?.pembangunan || 0,
-            });
-        });
+        return {
+            npsn: npsnValue,
+            nama: school.nama || 'Nama Tidak Tersedia',
+            jenjang,
+            kecamatan: school.kecamatan || 'Tidak Terdata',
+            desa: school.desa || 'Tidak Terdata',
+            alamat: school.alamat || 'Tidak Terdata',
+            status: school.status || 'N/A',
+            latitude, longitude,
+            validLocation: !isNaN(latitude) && !isNaN(longitude) && latitude !== 0 && longitude !== 0,
+            kondisi_baik: parseInt(school.kondisi_baik, 10) || 0,
+            kondisi_rusak_sedang: parseInt(school.kondisi_rusak_sedang, 10) || 0,
+            kondisi_rusak_berat: parseInt(school.kondisi_rusak_berat, 10) || 0,
+            kebutuhan_rkb: parseInt(school.kebutuhan_rkb, 10) || 0,
+        };
     };
 
-    processJenjang(paudData, 'PAUD');
-    processJenjang(sdData, 'SD');
-    processJenjang(smpData, 'SMP');
-    processJenjang(pkbmData, 'PKBM');
-    
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(combinedSchools, null, 2));
-    
-    console.log(`✅ SUKSES: ${combinedSchools.length} data sekolah telah diproses dan disimpan ke:`);
-    console.log(OUTPUT_FILE);
-}
+    const allSchools = [
+        ...sdSchools.map(s => processSchool(s, 'SD')),
+        ...smpSchools.map(s => processSchool(s, 'SMP')),
+        ...paudSchools.map(s => processSchool(s, 'PAUD')),
+        ...pkbmSchools.map(s => processSchool(s, 'PKBM')),
+    ];
 
-main();
+    const outputPath = path.join(INPUT_DIR, 'all_schools_processed.json');
+    fs.writeFileSync(outputPath, JSON.stringify(allSchools, null, 2));
+
+    console.log(`\n✅ Proses Selesai! Total ${allSchools.length} data sekolah diproses.`);
+    console.log(`File output tersimpan di: public/data/all_schools_processed.json`);
+
+} catch (error) {
+    console.error('\n❌ Terjadi kesalahan fatal:', error.message);
+}

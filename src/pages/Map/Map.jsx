@@ -1,98 +1,102 @@
-import React, { useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import MarkerClusterGroup from 'react-leaflet-cluster';
-import useSchoolData from '../../hooks/useSchoolData';
-import FilterPanel from './FilterPanel'; // <-- IMPORT FILTER PANEL
+// src/pages/Map/Map.jsx - VERSI PERBAIKAN LENGKAP
+
+import React, { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { MapContainer, TileLayer } from 'react-leaflet';
+
+// [PERBAIKAN 1]: Impor file CSS Leaflet yang hilang.
+// Ini akan memperbaiki masalah peta yang pecah-pecah.
+import 'leaflet/dist/leaflet.css'; 
+
+// [PERBAIKAN 2]: Impor file utilitas map untuk memperbaiki ikon.
+// Baris ini akan menjalankan kode di mapUtils.js yang memperbaiki path ikon default Leaflet.
+import '../../services/utils/mapUtils.js'; 
+
+import { 
+  fetchAllSchools, 
+  selectFilteredSchools, 
+  selectSchoolsStatus, 
+  selectAllSchools 
+} from '../../store/slices/schoolSlice';
+import { setFilter, resetFilters } from '../../store/slices/filterSlice';
 import styles from './Map.module.css';
+import MapController from './MapController';
+import FilterPanel from './FilterPanel';
+import SuspenseLoader from '../../components/common/SuspenseLoader/SuspenseLoader';
+import ErrorMessage from '../../components/common/ErrorMessage/ErrorMessage';
+// [PERBAIKAN 3]: Impor hook untuk data geografi
+import useGeoData from '../../hooks/useGeoData'; // <--- BARIS BARU
 
-// Fix ikon Leaflet default
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-  iconUrl: require('leaflet/dist/images/marker-icon.png'),
-  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
-});
+const Map = () => {
+  const dispatch = useDispatch();
+  
+  // Mengambil data dari Redux Store (tidak ada perubahan di sini)
+  const filteredSchools = useSelector(selectFilteredSchools);
+  const allSchools = useSelector(selectAllSchools); 
+  const status = useSelector(selectSchoolsStatus);
+  const filters = useSelector((state) => state.filter);
+  const error = useSelector((state) => state.schools.error);
 
-const MapPage = () => {
-    const { schools, geoData, loading, error, stats } = useSchoolData();
-    const [map, setMap] = useState(null);
+  // [PERBAIKAN 4]: Panggil hook untuk memuat data geografi
+  const { geoData, loading: geoDataLoading, error: geoDataError } = useGeoData(); // <--- BARIS BARU
 
-    // State untuk mengelola filter
-    const [filters, setFilters] = useState({
-        jenjang: 'Semua Jenjang',
-        kecamatan: 'Semua Kecamatan',
-        desa: 'Semua Desa',
-    });
+  useEffect(() => {
+    if (status === 'idle') {
+      dispatch(fetchAllSchools());
+    }
+  }, [status, dispatch]);
 
-    // Memoize data yang difilter agar tidak dihitung ulang setiap render
-    const filteredSchools = useMemo(() => {
-        return schools
-            .filter(school => school.hasValidLocation) // Hanya tampilkan yang punya lokasi valid
-            .filter(school => {
-                if (filters.jenjang !== 'Semua Jenjang' && school.jenjang !== filters.jenjang) return false;
-                if (filters.kecamatan !== 'Semua Kecamatan' && school.kecamatan !== filters.kecamatan) return false;
-                if (filters.desa !== 'Semua Desa' && school.desa !== filters.desa) return false;
-                return true;
-            });
-    }, [schools, filters]);
+  const center = [-7.213, 107.900];
+  const zoom = 11;
 
-    if (loading) {
-        return <div className={styles.loadingContainer}>Memuat data peta...</div>;
+  const handleFilterChange = (filterType, value) => {
+    dispatch(setFilter({ filterType, value }));
+  };
+
+  const handleResetFilters = () => {
+    dispatch(resetFilters());
+  };
+
+  const renderContent = () => {
+    // [PERBAIKAN 5]: Tambahkan pengecekan loading untuk geoData
+    if ((status === 'loading' && allSchools.length === 0) || geoDataLoading) { // <--- MODIFIKASI: Tambahkan geoDataLoading
+      return <SuspenseLoader />;
     }
 
-    if (error) {
-        return <div className={styles.errorContainer}>Gagal memuat data: {error}</div>;
+    if (status === 'failed') {
+      return <ErrorMessage message={error || 'Gagal memuat data sekolah.'} />;
+    }
+    
+    // [PERBAIKAN 6]: Tambahkan pengecekan error untuk geoData
+    if (geoDataError) { // <--- BARIS BARU
+        return <ErrorMessage message={geoDataError} />;
     }
 
     return (
-        <div className={styles.mapPageLayout}>
-            {/* Tampilkan FilterPanel di sini */}
-            <FilterPanel 
-                schools={schools} 
-                filters={filters} 
-                setFilters={setFilters} 
-            />
-            <div className={styles.mapContainer}>
-                <MapContainer 
-                    center={[-7.21, 107.91]} 
-                    zoom={10} 
-                    style={{ height: '100%', width: '100%' }}
-                    whenCreated={setMap}
-                >
-                    <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    />
-
-                    {/* Tampilkan GeoJSON Kecamatan jika ada */}
-                    {geoData.kecamatan && (
-                        <GeoJSON 
-                            data={geoData.kecamatan} 
-                            style={{ color: '#4A90E2', weight: 1, fillOpacity: 0.1 }} 
-                        />
-                    )}
-
-                    <MarkerClusterGroup>
-                        {filteredSchools.map((school) => (
-                            <Marker
-                                key={school.npsn}
-                                position={[school.latitude, school.longitude]}
-                            >
-                                <Popup>
-                                    <b>{school.nama_sekolah}</b><br />
-                                    NPSN: {school.npsn}<br />
-                                    Jenjang: {school.jenjang}<br />
-                                    Kecamatan: {school.kecamatan}
-                                </Popup>
-                            </Marker>
-                        ))}
-                    </MarkerClusterGroup>
-                </MapContainer>
-            </div>
-        </div>
+      <MapContainer center={center} zoom={zoom} className={styles.map}>
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+        <MapController schools={filteredSchools} />
+      </MapContainer>
     );
+  };
+
+  return (
+    <div className={styles.mapPage}>
+      <FilterPanel 
+        schools={Array.isArray(allSchools) ? allSchools : []}
+        geoData={geoData} // <--- PERBAIKAN: Pass geoData ke FilterPanel
+        filters={filters}
+        setFilter={handleFilterChange}
+        resetFilters={handleResetFilters}
+      />
+      <div className={styles.mapWrapper}>
+        {renderContent()}
+      </div>
+    </div>
+  );
 };
 
-export default MapPage;
+export default Map;
