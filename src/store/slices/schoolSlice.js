@@ -1,7 +1,7 @@
 // src/store/slices/schoolSlice.js
 
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
-// PERBAIKAN: Menggunakan fungsi yang benar untuk dasbor
+// PERBAIKAN: Menggunakan fungsi yang benar, yang sudah kita optimalkan
 import { getSchoolsForDashboard } from '../../services/api/schoolApi.js'; 
 
 const initialState = {
@@ -15,7 +15,7 @@ export const fetchAllSchools = createAsyncThunk(
   'schools/fetchAllSchools',
   async (_, { rejectWithValue }) => {
     try {
-      // PERBAIKAN: Memanggil fungsi yang benar
+      // PERBAIKAN: Memanggil fungsi yang benar dan efisien
       const response = await getSchoolsForDashboard(); 
 
       // Proses mapping data seperti biasa

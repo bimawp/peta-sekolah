@@ -19,16 +19,16 @@ const SimpleMap = ({ schools, geoData, initialCenter, initialZoom, isDesaFiltere
     
     // Logika untuk mengelompokkan sekolah per kecamatan
     const schoolsByKecamatan = useMemo(() => {
-        if (isDesaFiltered) return []; // Jangan hitung jika sudah filter desa
+        if (isDesaFiltered || !schools) return [];
 
         const aggregation = schools.reduce((acc, school) => {
-            if (!school.kecamatan || !school.coordinates) return acc;
+            if (!school.kecamatan || !school.coordinates || !school.coordinates[0] || !school.coordinates[1]) return acc;
             
             if (!acc[school.kecamatan]) {
                 acc[school.kecamatan] = {
                     nama: school.kecamatan,
                     totalSekolah: 0,
-                    jenjang: { PAUD: 0, SD: 0, SMP: 0, PKBM: 0 },
+                    jenjang: { PAUD: 0, SD: 0, SMP: 0, PKBM: 0, LAINNYA: 0 },
                     latitudes: [],
                     longitudes: []
                 };
@@ -38,6 +38,8 @@ const SimpleMap = ({ schools, geoData, initialCenter, initialZoom, isDesaFiltere
             const jenjang = school.jenjang?.toUpperCase() || 'LAINNYA';
             if (acc[school.kecamatan].jenjang[jenjang] !== undefined) {
                 acc[school.kecamatan].jenjang[jenjang]++;
+            } else {
+                acc[school.kecamatan].jenjang['LAINNYA']++;
             }
             acc[school.kecamatan].latitudes.push(school.coordinates[0]);
             acc[school.kecamatan].longitudes.push(school.coordinates[1]);
@@ -59,18 +61,18 @@ const SimpleMap = ({ schools, geoData, initialCenter, initialZoom, isDesaFiltere
             return schools.map(school => (
                 <Marker key={school.npsn} position={school.coordinates}>
                     <Popup>
-                        <b>{school.nama}</b><br/>
+                        <b>{school.namaSekolah}</b><br/>
                         NPSN: {school.npsn}<br/>
-                        Fasilitas: 
-                        Baik ({school.fasilitas?.baik || 0}), 
-                        Rusak Sedang ({school.fasilitas?.rusakSedang || 0}), 
-                        Rusak Berat ({school.fasilitas?.rusakBerat || 0})
+                        Kondisi Fasilitas:<br/>
+                        - Baik: {school.kondisiKelas?.baik || 0}<br/>
+                        - Rusak Sedang: {school.kondisiKelas?.rusakSedang || 0}<br/>
+                        - Rusak Berat: {school.kondisiKelas?.rusakBerat || 0}
                     </Popup>
                 </Marker>
             ));
         }
 
-        // PERMINTAAN #2: Jika tidak, tampilkan cluster per kecamatan (logika awal Anda)
+        // PERMINTAAN #2: Jika tidak, tampilkan cluster per kecamatan
         return schoolsByKecamatan.map(kec => (
             <Marker key={kec.nama} position={kec.position} icon={createKecamatanIcon(kec.totalSekolah)}>
                 <Popup>
@@ -96,8 +98,7 @@ const SimpleMap = ({ schools, geoData, initialCenter, initialZoom, isDesaFiltere
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             />
-            {/* PERMINTAAN #4: Batas wilayah Garut */}
-            {geoData && <GeoJSON data={geoData} style={() => ({ color: '#3b82f6', weight: 2, opacity: 0.6 })} />}
+            {geoData && geoData.kecamatan && <GeoJSON data={geoData.kecamatan} style={() => ({ color: '#3b82f6', weight: 2, opacity: 0.6 })} />}
             {renderMarkers()}
         </MapContainer>
     );

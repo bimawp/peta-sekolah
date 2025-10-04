@@ -45,8 +45,8 @@ const SchoolDetailPaud = ({ schoolData, onBack }) => {
   }
 
   // === DATA UNTUK BAR CHART KONDISI KELAS (SESUAI paud.json) ===
-  const rusakBerat = Number(getData(schoolData, ['class_condition', 'classrooms_heavy_damage'], 0));
-  const rusakSedang = Number(getData(schoolData, ['class_condition', 'classrooms_moderate_damage'], 0));
+  const rusakBerat = Number(getData(schoolData, ['class_condition', 'heavy_damage'], 0));
+  const rusakSedang = Number(getData(schoolData, ['class_condition', 'moderate_damage'], 0));
   const kurangRkb = Number(getData(schoolData, ['class_condition', 'lacking_rkb'], 0));
   
   const rehabKegiatan = Number(getData(schoolData, ['rehabRuangKelas'], 0)); 
@@ -63,7 +63,7 @@ const SchoolDetailPaud = ({ schoolData, onBack }) => {
   };
   // =============================================================
   
-  const totalSiswa = Number(getData(schoolData, ['student_count'], 0));
+  const totalSiswa = Number(getData(schoolData, ['student_data', 'male_students'], 0)) + Number(getData(schoolData, ['student_data', 'female_students'], 0));
   const landOwnership = findOwner(getData(schoolData, ['building_status', 'tanah'], null), 'Tidak Ada');
   const buildingOwnership = findOwner(getData(schoolData, ['building_status', 'gedung'], null), 'Tidak Diketahui');
 
@@ -137,8 +137,8 @@ const SchoolDetailPaud = ({ schoolData, onBack }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Siswa</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}><span>Jumlah Siswa Laki-Laki : {getData(schoolData, ['st_male'], 0)}</span></div>
-          <div className={styles.dataRow}><span>Jumlah Siswa Perempuan : {getData(schoolData, ['st_female'], 0)}</span></div>
+          <div className={styles.dataRow}><span>Jumlah Siswa Laki-Laki : {getData(schoolData, ['student_data', 'male_students'], 0)}</span></div>
+          <div className={styles.dataRow}><span>Jumlah Siswa Perempuan : {getData(schoolData, ['student_data', 'female_students'], 0)}</span></div>
           <div className={styles.subsection}>
             <h3 className={styles.subsectionTitle}>Rombel</h3>
             <div className={styles.dataRow}><span>KB: {getData(schoolData, ['rombel', 'kb'], 0)}</span></div>

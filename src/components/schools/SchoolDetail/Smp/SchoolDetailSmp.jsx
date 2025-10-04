@@ -20,7 +20,7 @@ const SchoolDetailSmp = ({ schoolData, onBack }) => {
       const lat = schoolData.coordinates[0];
       const lng = schoolData.coordinates[1];
       // Menggunakan format URL Google Maps yang benar
-      const url = `https://www.google.com/maps?q=${lat},${lng}`;
+      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
       window.open(url, '_blank', 'noopener,noreferrer');
     } else {
       alert('Koordinat lokasi untuk sekolah ini tidak tersedia.');

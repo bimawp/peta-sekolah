@@ -3,11 +3,12 @@
 import { supabase } from '../../utils/supabase.js';
 
 /**
- * FUNGSI UNTUK STATISTIK DASHBOARD (DIKEMBALIKAN)
- * Ini adalah fungsi yang hilang dan menyebabkan layar putih.
+ * FUNGSI UNTUK STATISTIK KARTU DASHBOARD (DIKEMBALIKAN)
+ * Ini adalah fungsi yang hilang dan menyebabkan error pada dashboardSlice.
  */
 export const getDashboardStats = async () => {
     try {
+      // Pastikan fungsi 'get_dashboard_stats' ada di database Supabase Anda
       const { data, error } = await supabase.rpc('get_dashboard_stats');
       if (error) throw new Error(`Database RPC error: ${error.message}`);
       return data[0];
@@ -18,8 +19,8 @@ export const getDashboardStats = async () => {
 };
 
 /**
- * FUNGSI UNTUK DASBOR UTAMA (PETA, CHART, TABEL)
- * Mengambil data sekolah beserta info kondisi kelas yang dibutuhkan.
+ * FUNGSI UTAMA UNTUK HALAMAN PETA/DASBOR (VERSI FINAL & STABIL)
+ * Mengambil data sekolah beserta info kondisi kelas yang dibutuhkan chart.
  */
 export const getSchoolsForDashboard = async () => {
   try {
@@ -33,7 +34,7 @@ export const getSchoolsForDashboard = async () => {
       .not('longitude', 'is', null);
       
     if (error) {
-        console.error("Supabase query error in getSchoolsForDashboard:", error);
+        console.error("Supabase query error:", error);
         throw new Error(`Database error: ${error.message}`);
     }
     return data || [];
@@ -51,7 +52,7 @@ export const getSchoolById = async (npsn) => {
     if (!npsn) throw new Error("NPSN dibutuhkan.");
     const { data, error } = await supabase
       .from('schools')
-      .select(`*, class_conditions(*)`)
+      .select(`*, class_conditions(*), rehab_activities(*), construction_activities(*)`)
       .eq('npsn', npsn)
       .single();
     if (error) throw new Error(error.message);
@@ -61,3 +62,9 @@ export const getSchoolById = async (npsn) => {
     throw error;
   }
 };
+
+/**
+ * FUNGSI INI DIKEMBALIKAN untuk kompatibilitas dengan schoolSlice.js
+ * Ini akan mencegah error 'getAllSchools is not exported' di masa depan.
+ */
+export const getAllSchools = getSchoolsForDashboard;
