@@ -6,8 +6,8 @@ import {
     PieChart, Pie, Cell, Legend, Tooltip
 } from 'recharts';
 
-import 'leaflet/dist/leaflet.css'; 
-import '../../services/utils/mapUtils.js'; 
+import 'leaflet/dist/leaflet.css';
+import '../../services/utils/mapUtils.js';
 
 import SimpleMap from '../../components/common/Map/SimpleMap';
 import styles from './SchoolDetailPage.module.css';
@@ -16,17 +16,20 @@ import SchoolDetailSd from '../../components/schools/SchoolDetail/Sd/SchoolDetai
 import SchoolDetailSmp from '../../components/schools/SchoolDetail/Smp/SchoolDetailSmp';
 import SchoolDetailPkbm from '../../components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm';
 
+// ⬇️ Tambahan: pakai hook untuk “hydrate” kondisi dari /data/*.json (tanpa ubah logika lain)
+import { useHydratedSchools } from '../../hooks/useHydratedSchools';
+
 // Error Boundary
 class ErrorBoundary extends React.Component {
-    constructor(props) { 
-        super(props); 
-        this.state = { hasError: false, error: null }; 
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
     }
-    static getDerivedStateFromError(error) { 
-        return { hasError: true, error }; 
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
     }
-    componentDidCatch(error, errorInfo) { 
-        console.error('SchoolDetailPage Error:', error, errorInfo); 
+    componentDidCatch(error, errorInfo) {
+        console.error('SchoolDetailPage Error:', error, errorInfo);
     }
     render() {
         if (this.state.hasError) {
@@ -36,8 +39,8 @@ class ErrorBoundary extends React.Component {
                         <div className={styles.errorIcon}>⚠️</div>
                         <h2>Terjadi Kesalahan</h2>
                         <p>Komponen tidak dapat dimuat.</p>
-                        <button 
-                            className={styles.retryButton} 
+                        <button
+                            className={styles.retryButton}
                             onClick={() => this.setState({ hasError: false, error: null })}
                         >
                             Coba Lagi
@@ -54,7 +57,7 @@ class ErrorBoundary extends React.Component {
 const PieChartComponent = React.memo(({ title, data }) => {
     const [hoveredIndex, setHoveredIndex] = useState(-1);
     const validData = data.filter(item => item && typeof item.value === 'number' && item.value > 0);
-    
+
     if (validData.length === 0) {
         return (
             <div className={styles.chartContainer}>
@@ -66,12 +69,12 @@ const PieChartComponent = React.memo(({ title, data }) => {
             </div>
         );
     }
-    
+
     const renderCustomLabel = (entry) => {
         const percent = ((entry.value / validData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1);
         return `${percent}%`;
     };
-    
+
     const CustomTooltip = ({ active, payload }) => {
         if (active && payload && payload.length) {
             const d = payload[0];
@@ -89,38 +92,38 @@ const PieChartComponent = React.memo(({ title, data }) => {
         }
         return null;
     };
-    
+
     return (
         <div className={`${styles.chartContainer} ${styles.fadeInUp}`}>
             <h3 className={styles.chartTitle}>{title}</h3>
             <div className={styles.chartWrapper}>
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                        <Pie 
-                            data={validData} 
-                            dataKey="value" 
-                            nameKey="name" 
-                            cx="50%" 
-                            cy="50%" 
-                            outerRadius={120} 
-                            fill="#8884d8" 
-                            label={renderCustomLabel} 
-                            labelLine={false} 
-                            animationBegin={0} 
-                            animationDuration={1200} 
-                            onMouseEnter={(_, index) => setHoveredIndex(index)} 
+                        <Pie
+                            data={validData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={120}
+                            fill="#8884d8"
+                            label={renderCustomLabel}
+                            labelLine={false}
+                            animationBegin={0}
+                            animationDuration={1200}
+                            onMouseEnter={(_, index) => setHoveredIndex(index)}
                             onMouseLeave={() => setHoveredIndex(-1)}
                         >
                             {validData.map((entry, index) => (
-                                <Cell 
-                                    key={`cell-${index}`} 
-                                    fill={entry.color} 
-                                    stroke={hoveredIndex === index ? '#ffffff' : 'none'} 
-                                    strokeWidth={hoveredIndex === index ? 3 : 0} 
-                                    style={{ 
-                                        filter: hoveredIndex === index ? 'brightness(1.1)' : 'brightness(1)', 
-                                        cursor: 'pointer' 
-                                    }} 
+                                <Cell
+                                    key={`cell-${index}`}
+                                    fill={entry.color}
+                                    stroke={hoveredIndex === index ? '#ffffff' : 'none'}
+                                    strokeWidth={hoveredIndex === index ? 3 : 0}
+                                    style={{
+                                        filter: hoveredIndex === index ? 'brightness(1.1)' : 'brightness(1)',
+                                        cursor: 'pointer'
+                                    }}
                                 />
                             ))}
                         </Pie>
@@ -136,7 +139,7 @@ const PieChartComponent = React.memo(({ title, data }) => {
 // BarChart Component
 const BarChartComponent = React.memo(({ title, data, colors }) => {
     const [hoveredIndex, setHoveredIndex] = useState(-1);
-    
+
     if (!data || data.length === 0) {
         return (
             <div className={styles.chartContainer}>
@@ -148,7 +151,7 @@ const BarChartComponent = React.memo(({ title, data, colors }) => {
             </div>
         );
     }
-    
+
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
             return (
@@ -162,53 +165,53 @@ const BarChartComponent = React.memo(({ title, data, colors }) => {
         }
         return null;
     };
-    
+
     return (
         <div className={`${styles.chartContainer} ${styles.fadeInUp}`}>
             <h3 className={styles.chartTitle}>{title}</h3>
             <div className={styles.chartWrapperTall}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <BarChart 
-                        data={data} 
-                        margin={{ top: 30, right: 30, left: 20, bottom: 80 }} 
+                    <BarChart
+                        data={data}
+                        margin={{ top: 30, right: 30, left: 20, bottom: 80 }}
                         onMouseMove={(state) => {
                             if (state && state.activeTooltipIndex !== undefined) {
                                 setHoveredIndex(state.activeTooltipIndex);
                             }
-                        }} 
+                        }}
                         onMouseLeave={() => setHoveredIndex(-1)}
                     >
                         <defs>
                             {colors.map((color, index) => (
                                 <linearGradient key={index} id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor={color} stopOpacity={0.9}/>
-                                    <stop offset="100%" stopColor={color} stopOpacity={0.6}/>
+                                    <stop offset="0%" stopColor={color} stopOpacity={0.9} />
+                                    <stop offset="100%" stopColor={color} stopOpacity={0.6} />
                                 </linearGradient>
                             ))}
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis 
-                            dataKey="name" 
-                            tick={{ fontSize: 12, fill: '#64748b' }} 
-                            interval={0} 
-                            angle={-25} 
-                            textAnchor="end" 
-                            height={100} 
+                        <XAxis
+                            dataKey="name"
+                            tick={{ fontSize: 12, fill: '#64748b' }}
+                            interval={0}
+                            angle={-25}
+                            textAnchor="end"
+                            height={100}
                         />
-                        <YAxis 
-                            tickFormatter={(value) => value.toLocaleString('id-ID')} 
-                            tick={{ fontSize: 12, fill: '#64748b' }} 
-                            axisLine={false} 
-                            tickLine={false} 
+                        <YAxis
+                            tickFormatter={(value) => value.toLocaleString('id-ID')}
+                            tick={{ fontSize: 12, fill: '#64748b' }}
+                            axisLine={false}
+                            tickLine={false}
                         />
                         <Tooltip content={<CustomTooltip />} />
                         <Bar dataKey="value" animationDuration={1500} animationBegin={300}>
                             {data.map((entry, index) => (
-                                <Cell 
-                                    key={`cell-bar-${index}`} 
-                                    fill={`url(#gradient-${index % colors.length})`} 
-                                    stroke={colors[index % colors.length]} 
-                                    strokeWidth={1} 
+                                <Cell
+                                    key={`cell-bar-${index}`}
+                                    fill={`url(#gradient-${index % colors.length})`}
+                                    stroke={colors[index % colors.length]}
+                                    strokeWidth={1}
                                 />
                             ))}
                         </Bar>
@@ -226,14 +229,14 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [sortField, setSortField] = useState('');
     const [sortDirection, setSortDirection] = useState('asc');
-    
+
     const filteredData = useMemo(() => {
         let f = data;
         if (searchTerm) {
-            f = data.filter(s => 
-                (s.namaSekolah||'').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                (s.npsn||'').toString().includes(searchTerm) || 
-                (s.kecamatan||'').toLowerCase().includes(searchTerm.toLowerCase())
+            f = data.filter(s =>
+                (s.namaSekolah || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (s.npsn || '').toString().includes(searchTerm) ||
+                (s.kecamatan || '').toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
         if (sortField) {
@@ -250,7 +253,7 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
         }
         return f;
     }, [data, searchTerm, sortField, sortDirection]);
-    
+
     const { data: paginatedData, totalPages, totalItems } = useMemo(() => {
         const t = Math.ceil(filteredData.length / itemsPerPage);
         const s = (currentPage - 1) * itemsPerPage;
@@ -260,7 +263,7 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
             totalItems: filteredData.length
         };
     }, [filteredData, currentPage, itemsPerPage]);
-    
+
     const handleSort = (field) => {
         if (sortField === field) setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         else {
@@ -268,7 +271,7 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
             setSortDirection('asc');
         }
     };
-    
+
     const handleReset = useCallback(() => {
         setSearchTerm('');
         setCurrentPage(1);
@@ -276,22 +279,22 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
         setSortField('');
         setSortDirection('asc');
     }, []);
-    
+
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, itemsPerPage]);
-    
+
     return (
         <div className={styles.tableContainer}>
             <div className={styles.tableControls}>
                 <div className={styles.searchContainer}>
                     <div className={styles.searchIcon}>🔍</div>
-                    <input 
-                        type="text" 
-                        placeholder="Cari nama sekolah, NPSN..." 
-                        value={searchTerm} 
-                        onChange={e => setSearchTerm(e.target.value)} 
-                        className={styles.searchInput} 
+                    <input
+                        type="text"
+                        placeholder="Cari nama sekolah, NPSN..."
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                        className={styles.searchInput}
                     />
                     {searchTerm && (
                         <button className={styles.clearSearch} onClick={() => setSearchTerm('')}>✕</button>
@@ -299,9 +302,9 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
                 </div>
                 <div className={styles.controlGroup}>
                     <label>Tampilkan:</label>
-                    <select 
-                        value={itemsPerPage} 
-                        onChange={e => setItemsPerPage(Number(e.target.value))} 
+                    <select
+                        value={itemsPerPage}
+                        onChange={e => setItemsPerPage(Number(e.target.value))}
                         className={styles.itemsPerPageSelect}
                     >
                         <option value={5}>5</option>
@@ -361,8 +364,8 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
                                 <td><span className={styles.numberBadge}>{school.rehabRuangKelas || 0}</span></td>
                                 <td><span className={styles.numberBadge}>{school.pembangunanRKB || 0}</span></td>
                                 <td>
-                                    <button 
-                                        className={styles.detailButton} 
+                                    <button
+                                        className={styles.detailButton}
                                         onClick={() => onDetailClick && onDetailClick(school)}
                                     >
                                         <span className={styles.detailIcon}>👁️</span> Detail
@@ -394,16 +397,16 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
                     </span>
                 </div>
                 <div className={styles.pageButtons}>
-                    <button 
-                        disabled={currentPage === 1} 
-                        onClick={() => setCurrentPage(1)} 
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(1)}
                         className={styles.pageButton}
                     >
                         ⏮️
                     </button>
-                    <button 
-                        disabled={currentPage === 1} 
-                        onClick={() => setCurrentPage(p => p - 1)} 
+                    <button
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => p - 1)}
                         className={styles.pageButton}
                     >
                         ⬅️
@@ -411,16 +414,16 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
                     <span className={styles.pageIndicator}>
                         <strong>{currentPage}</strong> / {totalPages}
                     </span>
-                    <button 
-                        disabled={currentPage === totalPages} 
-                        onClick={() => setCurrentPage(p => p + 1)} 
+                    <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => p + 1)}
                         className={styles.pageButton}
                     >
                         ➡️
                     </button>
-                    <button 
-                        disabled={currentPage === totalPages} 
-                        onClick={() => setCurrentPage(totalPages)} 
+                    <button
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(totalPages)}
                         className={styles.pageButton}
                     >
                         ⏭️
@@ -498,16 +501,16 @@ const SchoolDetailPage = () => {
                 ]);
 
                 const combinedSchoolData = [];
-                
+
                 const processSchoolData = (data, jenjang) => {
                     if (!data) return;
-                    
+
                     const processSingleSchool = (school, kecamatanName) => {
                         if (!school || typeof school !== 'object') return;
-                        
+
                         let student_count = 0;
                         let kondisiKelas = {};
-                        
+
                         if (jenjang === 'PAUD') {
                             student_count = (school.student_data?.male_students || 0) + (school.student_data?.female_students || 0);
                             kondisiKelas = {
@@ -523,17 +526,17 @@ const SchoolDetailPage = () => {
                                 rusakBerat: parseInt(school.class_condition?.classrooms_heavy_damage) || 0,
                             };
                         }
-                        
+
                         const rawCoords = school.coordinates;
                         if (!Array.isArray(rawCoords) || rawCoords.length !== 2) return;
-                        
+
                         const lat = parseFloat(rawCoords[0]);
                         const lng = parseFloat(rawCoords[1]);
-                        
+
                         if (!isValidCoordinate(lat, lng)) {
                             return;
                         }
-                        
+
                         combinedSchoolData.push({
                             jenjang: jenjang,
                             npsn: school.npsn || `${jenjang}-${Math.random()}`,
@@ -548,7 +551,7 @@ const SchoolDetailPage = () => {
                             originalData: school
                         });
                     };
-                    
+
                     if (Array.isArray(data)) {
                         data.forEach(school => processSingleSchool(school, school.kecamatan || '-'));
                     } else if (typeof data === 'object') {
@@ -609,15 +612,20 @@ const SchoolDetailPage = () => {
         loadAllData();
     }, [loadJSON, isValidCoordinate]);
 
+    // ⬇️ Tambahan: hydrate kondisi (computed_condition) tanpa mengubah struktur/perhitungan yang ada
+    const schoolsWithCondition = useHydratedSchools(schoolData);
+
     const filteredData = useMemo(() => {
-        let data = [...schoolData];
+        // memakai array yang sudah “hydrated” (hanya menambah field, tidak mengubah hitungan)
+        let data = [...schoolsWithCondition];
         if (filterJenjang !== 'Semua Jenjang') data = data.filter(d => d.jenjang === filterJenjang);
         if (filterKecamatan !== 'Semua Kecamatan') data = data.filter(d => d.kecamatan === filterKecamatan);
         if (filterDesa !== 'Semua Desa') data = data.filter(d => d.desa === filterDesa);
         return data;
-    }, [schoolData, filterJenjang, filterKecamatan, filterDesa]);
+    }, [schoolsWithCondition, filterJenjang, filterKecamatan, filterDesa]);
 
     const schoolsForMap = useMemo(() => {
+        // kirim computed_condition ke peta agar filter “Kondisi” berfungsi
         return filteredData.map(school => ({
             nama: school.namaSekolah,
             npsn: school.npsn,
@@ -627,13 +635,14 @@ const SchoolDetailPage = () => {
             coordinates: school.coordinates,
             jenjang: school.jenjang,
             fasilitas: school.kondisiKelas,
+            computed_condition: school.computed_condition, // ⬅️ tambahan untuk peta
         }));
     }, [filteredData]);
 
     const { chartData } = useMemo(() => {
         let unitBaik = 0, unitRusakSedang = 0, unitRusakBerat = 0;
         let rehabDilakukan = 0, pembangunanDilakukan = 0, totalKurangRKB = 0;
-        
+
         filteredData.forEach(school => {
             unitBaik += school.kondisiKelas.baik;
             unitRusakSedang += school.kondisiKelas.rusakSedang;
@@ -642,60 +651,60 @@ const SchoolDetailPage = () => {
             pembangunanDilakukan += school.pembangunanRKB;
             totalKurangRKB += school.kurangRKB;
         });
-        
+
         const totalUnitKelas = unitBaik + unitRusakSedang + unitRusakBerat;
         const belumDirehab = Math.max(0, unitRusakBerat - rehabDilakukan);
         const belumDibangun = Math.max(0, totalKurangRKB - pembangunanDilakukan);
         const totalIntervensi = pembangunanDilakukan + rehabDilakukan;
-        
+
         const charts = {
             pieDataList: [
-                { 
-                    title: "Kondisi Ruang Kelas", 
+                {
+                    title: "Kondisi Ruang Kelas",
                     data: [
-                        { name: "Baik", value: unitBaik, color: "#10b981" }, 
-                        { name: "Rusak Sedang", value: unitRusakSedang, color: "#f59e0b" }, 
+                        { name: "Baik", value: unitBaik, color: "#10b981" },
+                        { name: "Rusak Sedang", value: unitRusakSedang, color: "#f59e0b" },
                         { name: "Rusak Berat", value: unitRusakBerat, color: "#ef4444" },
                     ]
                 },
-                { 
-                    title: "Status Rehabilitasi", 
+                {
+                    title: "Status Rehabilitasi",
                     data: [
-                        { name: "Sudah Direhab", value: rehabDilakukan, color: "#06b6d4" }, 
+                        { name: "Sudah Direhab", value: rehabDilakukan, color: "#06b6d4" },
                         { name: "Belum Direhab", value: belumDirehab, color: "#f97316" },
                     ]
                 },
-                { 
-                    title: "Status Pembangunan", 
+                {
+                    title: "Status Pembangunan",
                     data: [
-                        { name: "Sudah Dibangun", value: pembangunanDilakukan, color: "#8b5cf6" }, 
+                        { name: "Sudah Dibangun", value: pembangunanDilakukan, color: "#8b5cf6" },
                         { name: "Belum Dibangun", value: belumDibangun, color: "#ec4899" },
                     ]
                 },
             ],
             barKondisiKelas: [
-                { name: "Total Kelas", value: totalUnitKelas }, 
-                { name: "Kondisi Baik", value: unitBaik }, 
-                { name: "Rusak Sedang", value: unitRusakSedang }, 
-                { name: "Rusak Berat", value: unitRusakBerat }, 
+                { name: "Total Kelas", value: totalUnitKelas },
+                { name: "Kondisi Baik", value: unitBaik },
+                { name: "Rusak Sedang", value: unitRusakSedang },
+                { name: "Rusak Berat", value: unitRusakBerat },
                 { name: "Kurang RKB", value: totalKurangRKB },
             ],
             barIntervensiKelas: [
-                { name: "Total Intervensi", value: totalIntervensi }, 
-                { name: "Pembangunan RKB", value: pembangunanDilakukan }, 
+                { name: "Total Intervensi", value: totalIntervensi },
+                { name: "Pembangunan RKB", value: pembangunanDilakukan },
                 { name: "Rehab Ruang Kelas", value: rehabDilakukan },
             ],
         };
         return { chartData: charts };
     }, [filteredData]);
 
-    const handleResetAllFilters = useCallback(() => { 
-        setFilterJenjang('Semua Jenjang'); 
-        setFilterKecamatan('Semua Kecamatan'); 
-        setFilterDesa('Semua Desa'); 
+    const handleResetAllFilters = useCallback(() => {
+        setFilterJenjang('Semua Jenjang');
+        setFilterKecamatan('Semua Kecamatan');
+        setFilterDesa('Semua Desa');
     }, []);
-    
-    if (loading) { 
+
+    if (loading) {
         return (
             <div className={styles.loadingContainer}>
                 <div className={styles.loadingContent}>
@@ -711,10 +720,10 @@ const SchoolDetailPage = () => {
                     </div>
                 </div>
             </div>
-        ); 
+        );
     }
-    
-    if (error) { 
+
+    if (error) {
         return (
             <div className={styles.errorContainer}>
                 <div className={styles.errorContent}>
@@ -726,20 +735,20 @@ const SchoolDetailPage = () => {
                     </button>
                 </div>
             </div>
-        ); 
+        );
     }
 
     const renderDetailView = () => {
         if (!selectedSchool) return null;
         let DetailComponent;
         switch (selectedSchool.jenjang) {
-            case 'PAUD': DetailComponent = SchoolDetailPaud; break; 
-            case 'SD': DetailComponent = SchoolDetailSd; break; 
-            case 'SMP': DetailComponent = SchoolDetailSmp; break; 
-            case 'PKBM': DetailComponent = SchoolDetailPkbm; break; 
+            case 'PAUD': DetailComponent = SchoolDetailPaud; break;
+            case 'SD': DetailComponent = SchoolDetailSd; break;
+            case 'SMP': DetailComponent = SchoolDetailSmp; break;
+            case 'PKBM': DetailComponent = SchoolDetailPkbm; break;
             default: return <div className={styles.noDetailAvailable}>Detail tidak tersedia.</div>;
         }
-        
+
         const detailData = { ...selectedSchool.originalData, kecamatan: selectedSchool.kecamatan };
         return <DetailComponent schoolData={detailData} onBack={handleBackToMain} />;
     };
@@ -766,15 +775,15 @@ const SchoolDetailPage = () => {
                         </div>
                         <div className={styles.mapLegend}>
                             <div className={styles.legendItem}>
-                                <span className={styles.legendDot} style={{backgroundColor: '#10b981'}}></span>
+                                <span className={styles.legendDot} style={{ backgroundColor: '#10b981' }}></span>
                                 <span>Baik</span>
                             </div>
                             <div className={styles.legendItem}>
-                                <span className={styles.legendDot} style={{backgroundColor: '#f59e0b'}}></span>
+                                <span className={styles.legendDot} style={{ backgroundColor: '#f59e0b' }}></span>
                                 <span>Perbaikan</span>
                             </div>
                             <div className={styles.legendItem}>
-                                <span className={styles.legendDot} style={{backgroundColor: '#ef4444'}}></span>
+                                <span className={styles.legendDot} style={{ backgroundColor: '#ef4444' }}></span>
                                 <span>Buruk</span>
                             </div>
                         </div>
@@ -782,11 +791,11 @@ const SchoolDetailPage = () => {
                     <div className={styles.mapContainer}>
                         <div className={styles.mapWrapper}>
                             <ErrorBoundary>
-                                <SimpleMap 
-                                    schools={schoolsForMap} 
-                                    geoData={geoData} 
-                                    initialCenter={mapView.center} 
-                                    initialZoom={mapView.zoom} 
+                                <SimpleMap
+                                    schools={schoolsForMap}
+                                    geoData={geoData}
+                                    initialCenter={mapView.center}
+                                    initialZoom={mapView.zoom}
                                 />
                             </ErrorBoundary>
                         </div>
@@ -813,10 +822,10 @@ const SchoolDetailPage = () => {
                                 <span className={styles.labelIcon}>🎓</span>
                                 Jenjang
                             </label>
-                            <select 
-                                id="filter-jenjang" 
-                                value={filterJenjang} 
-                                onChange={e => setFilterJenjang(e.target.value)} 
+                            <select
+                                id="filter-jenjang"
+                                value={filterJenjang}
+                                onChange={e => setFilterJenjang(e.target.value)}
                                 className={styles.filterSelect}
                             >
                                 <option>Semua Jenjang</option>
@@ -830,10 +839,10 @@ const SchoolDetailPage = () => {
                                 <span className={styles.labelIcon}>🏘️</span>
                                 Kecamatan
                             </label>
-                            <select 
-                                id="filter-kecamatan" 
-                                value={filterKecamatan} 
-                                onChange={e => setFilterKecamatan(e.target.value)} 
+                            <select
+                                id="filter-kecamatan"
+                                value={filterKecamatan}
+                                onChange={e => setFilterKecamatan(e.target.value)}
                                 className={styles.filterSelect}
                             >
                                 <option>Semua Kecamatan</option>
@@ -847,10 +856,10 @@ const SchoolDetailPage = () => {
                                 <span className={styles.labelIcon}>🏠</span>
                                 Desa/Kelurahan
                             </label>
-                            <select 
-                                id="filter-desa" 
-                                value={filterDesa} 
-                                onChange={e => setFilterDesa(e.target.value)} 
+                            <select
+                                id="filter-desa"
+                                value={filterDesa}
+                                onChange={e => setFilterDesa(e.target.value)}
                                 className={styles.filterSelect}
                             >
                                 <option>Semua Desa</option>
@@ -861,33 +870,33 @@ const SchoolDetailPage = () => {
                         </div>
                     </div>
                 </section>
-                
+
                 <section className={styles.chartsGrid}>
                     {chartData.pieDataList.map((pie, idx) => (
                         <ErrorBoundary key={idx}>
-                            <div className={`${styles.card} ${styles.fadeInUp}`} style={{animationDelay: `${idx * 0.1}s`}}>
+                            <div className={`${styles.card} ${styles.fadeInUp}`} style={{ animationDelay: `${idx * 0.1}s` }}>
                                 <PieChartComponent title={pie.title} data={pie.data} />
                             </div>
                         </ErrorBoundary>
                     ))}
                 </section>
-                
+
                 <section className={styles.chartsGrid}>
                     <ErrorBoundary>
                         <div className={`${styles.card} ${styles.fadeInUp}`}>
-                            <BarChartComponent 
-                                title="Statistik Kondisi Ruang Kelas" 
-                                data={chartData.barKondisiKelas} 
-                                colors={["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]} 
+                            <BarChartComponent
+                                title="Statistik Kondisi Ruang Kelas"
+                                data={chartData.barKondisiKelas}
+                                colors={["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]}
                             />
                         </div>
                     </ErrorBoundary>
                     <ErrorBoundary>
                         <div className={`${styles.card} ${styles.fadeInUp}`}>
-                            <BarChartComponent 
-                                title="Statistik Intervensi Ruang Kelas" 
-                                data={chartData.barIntervensiKelas} 
-                                colors={["#06b6d4", "#f97316", "#8b5cf6"]} 
+                            <BarChartComponent
+                                title="Statistik Intervensi Ruang Kelas"
+                                data={chartData.barIntervensiKelas}
+                                colors={["#06b6d4", "#f97316", "#8b5cf6"]}
                             />
                         </div>
                     </ErrorBoundary>

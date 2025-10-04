@@ -890,3 +890,11 @@
   font-weight: 700;
   color: #1e293b;
 }
+/* Pastikan area kartu peta tidak memotong dropdown filter */
+.mapCard { overflow: visible; }
+
+/* Wrapper peta jangan memotong overlay/dropdown */
+.mapWrapper { position: relative; overflow: visible; z-index: 1; }
+
+/* Header kartu cukup lebih rendah dari filter bar */
+.cardHeader { position: relative; z-index: 10; }

@@ -1,107 +1,228 @@
 // src/components/common/Map/SimpleMap.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import styles from "./SimpleMap.module.css";
+import {
+  applyFilters,
+  buildKecamatanSummaryFromSchools,
+  centroidOfPolygon,
+  summarizeCondition,
+  makeKecamatanNumberIcon,
+  shortLevel,
+  getLatLng,
+  kecKey,
+} from "./mapUtils.js";
 
-import React, { useMemo } from 'react';
-import { MapContainer, TileLayer, GeoJSON, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import styles from './SimpleMap.module.css';
+/** Fallback pusat Garut */
+const GARUT_CENTER = [-7.2278, 107.9087];
+const GARUT_ZOOM = 11;
 
-// Fungsi untuk membuat ikon angka (cluster kecamatan)
-const createKecamatanIcon = (total) => {
-    return L.divIcon({
-        html: `<div class="${styles.kecamatanMarker}">${total}</div>`,
-        className: '',
-        iconSize: [40, 40],
-        iconAnchor: [20, 20]
-    });
-};
+function InitialView({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom, { animate: false });
+    setTimeout(() => map.invalidateSize(), 0);
+  }, [center, zoom, map]);
+  return null;
+}
 
-const SimpleMap = ({ schools, geoData, initialCenter, initialZoom, isDesaFiltered }) => {
-    
-    // Logika untuk mengelompokkan sekolah per kecamatan
-    const schoolsByKecamatan = useMemo(() => {
-        if (isDesaFiltered || !schools) return [];
+const boundaryStyle = { color: "#ef4444", weight: 2, opacity: 0.9, fill: false };
 
-        const aggregation = schools.reduce((acc, school) => {
-            if (!school.kecamatan || !school.coordinates || !school.coordinates[0] || !school.coordinates[1]) return acc;
-            
-            if (!acc[school.kecamatan]) {
-                acc[school.kecamatan] = {
-                    nama: school.kecamatan,
-                    totalSekolah: 0,
-                    jenjang: { PAUD: 0, SD: 0, SMP: 0, PKBM: 0, LAINNYA: 0 },
-                    latitudes: [],
-                    longitudes: []
-                };
-            }
-            
-            acc[school.kecamatan].totalSekolah++;
-            const jenjang = school.jenjang?.toUpperCase() || 'LAINNYA';
-            if (acc[school.kecamatan].jenjang[jenjang] !== undefined) {
-                acc[school.kecamatan].jenjang[jenjang]++;
-            } else {
-                acc[school.kecamatan].jenjang['LAINNYA']++;
-            }
-            acc[school.kecamatan].latitudes.push(school.coordinates[0]);
-            acc[school.kecamatan].longitudes.push(school.coordinates[1]);
+export default function SimpleMap({
+  schools = [],
+  initialCenter = GARUT_CENTER,
+  initialZoom = GARUT_ZOOM,
+  filters = {},
+}) {
+  const mapRef = useRef(null);
 
-            return acc;
-        }, {});
+  /* ====== Ambil batas & kecamatan Garut (GeoJSON) ====== */
+  const [garutBoundary, setGarutBoundary] = useState(null);
+  const [kecDict, setKecDict] = useState({}); // { KEY: {display, center, bounds} }
+  useEffect(() => {
+    let alive = true;
+    fetch("/geo/garut-boundary.geojson").then(r => r.ok ? r.json() : null).then(j => alive && setGarutBoundary(j)).catch(()=>{});
+    fetch("/geo/garut-kecamatan.geojson").then(r => r.ok ? r.json() : null).then(j => {
+      if (!alive || !j?.features) return;
+      const dict = {};
+      for (const f of j.features) {
+        const rawName = f.properties?.namobj || f.properties?.NAMOBJ || f.properties?.name || f.properties?.WADKC || f.properties?.wadkc || "";
+        const key = kecKey(rawName);
+        const center = centroidOfPolygon(f);
+        const bounds = L.geoJSON(f).getBounds();
+        dict[key] = { display: rawName || key, center, bounds };
+      }
+      setKecDict(dict);
+    }).catch(()=>{});
+    return () => { alive = false; };
+  }, []);
 
-        return Object.values(aggregation).map(kec => {
-            const avgLat = kec.latitudes.reduce((a, b) => a + b, 0) / kec.latitudes.length;
-            const avgLng = kec.longitudes.reduce((a, b) => a + b, 0) / kec.longitudes.length;
-            return { ...kec, position: [avgLat, avgLng] };
-        });
+  /* ====== Filter Bar (dropdown tunggal + “(Semua …)”) ====== */
+  const [uiJenjang, setUiJenjang] = useState(filters?.jenjang || "(Semua Jenjang)");
+  const [uiKondisi, setUiKondisi] = useState(filters?.kondisi || "(Semua Kondisi)");
+  const [uiKecamatan, setUiKecamatan] = useState(filters?.kecamatan || "(Semua Kecamatan)");
+  const [uiDesa, setUiDesa] = useState(filters?.desa || "(Semua Desa)");
 
-    }, [schools, isDesaFiltered]);
+  const effectiveFilters = useMemo(() => ({
+    jenjang: uiJenjang,
+    kondisi: uiKondisi,
+    kecamatan: uiKecamatan.startsWith("(Semua") ? "" : uiKecamatan,
+    desa: uiDesa.startsWith("(Semua") ? "" : uiDesa,
+  }), [uiJenjang, uiKondisi, uiKecamatan, uiDesa]);
 
-    const renderMarkers = () => {
-        // PERMINTAAN #3: Jika filter desa aktif, tampilkan marker individual
-        if (isDesaFiltered) {
-            return schools.map(school => (
-                <Marker key={school.npsn} position={school.coordinates}>
-                    <Popup>
-                        <b>{school.namaSekolah}</b><br/>
-                        NPSN: {school.npsn}<br/>
-                        Kondisi Fasilitas:<br/>
-                        - Baik: {school.kondisiKelas?.baik || 0}<br/>
-                        - Rusak Sedang: {school.kondisiKelas?.rusakSedang || 0}<br/>
-                        - Rusak Berat: {school.kondisiKelas?.rusakBerat || 0}
-                    </Popup>
-                </Marker>
-            ));
+  const kecamatanOptions = useMemo(() => {
+    const list = Object.values(kecDict).map((o) => o.display);
+    return ["(Semua Kecamatan)", ...list.sort()];
+  }, [kecDict]);
+
+  const desaOptions = useMemo(() => {
+    if (uiKecamatan.startsWith("(Semua")) return ["(Semua Desa)"];
+    const kk = kecKey(uiKecamatan);
+    const set = new Set();
+    for (const s of schools) {
+      if (kk && kecKey(s?.kecamatan) !== kk) continue;
+      if (s?.desa) set.add(s.desa);
+    }
+    return ["(Semua Desa)", ...Array.from(set).sort()];
+  }, [schools, uiKecamatan]);
+
+  const resetFilters = () => {
+    setUiJenjang("(Semua Jenjang)");
+    setUiKondisi("(Semua Kondisi)");
+    setUiKecamatan("(Semua Kecamatan)");
+    setUiDesa("(Semua Desa)");
+  };
+
+  /* ====== Data terfilter ====== */
+  const filtered = useMemo(() => applyFilters(schools, effectiveFilters), [schools, effectiveFilters]);
+  const desaSelected = !uiDesa.startsWith("(Semua");
+
+  /* ====== Rekap per-kecamatan (centroid polygon; fallback mean titik sekolah) ====== */
+  const kecRekap = useMemo(() => {
+    const fromSchool = buildKecamatanSummaryFromSchools(filtered);
+    return fromSchool.map((k) => {
+      const ref = kecDict[k.kecKey];
+      if (!ref?.center) {
+        const pts = k.items.map((s) => getLatLng(s)).filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+        if (pts.length) {
+          const lat = pts.reduce((a, c) => a + c[0], 0) / pts.length;
+          const lng = pts.reduce((a, c) => a + c[1], 0) / pts.length;
+          return { ...k, center: [lat, lng], bounds: null };
         }
+        return { ...k, center: null, bounds: null };
+      }
+      return { ...k, center: ref.center, bounds: ref.bounds, displayName: ref.display || k.displayName };
+    }).filter((k) => Array.isArray(k.center));
+  }, [filtered, kecDict]);
 
-        // PERMINTAAN #2: Jika tidak, tampilkan cluster per kecamatan
-        return schoolsByKecamatan.map(kec => (
-            <Marker key={kec.nama} position={kec.position} icon={createKecamatanIcon(kec.totalSekolah)}>
-                <Popup>
-                    <b>Kecamatan {kec.nama}</b><br />
-                    Total Sekolah: {kec.totalSekolah}<br /><br />
-                    - PAUD: {kec.jenjang.PAUD} sekolah<br />
-                    - SD: {kec.jenjang.SD} sekolah<br />
-                    - SMP: {kec.jenjang.SMP} sekolah<br />
-                    - PKBM: {kec.jenjang.PKBM} sekolah
-                </Popup>
+  /* ====== Sekolah per desa (ikon individual hanya saat 1 desa dipilih) ====== */
+  const desaSchools = useMemo(() => {
+    if (!desaSelected) return [];
+    return filtered.map((s) => ({ s, ll: getLatLng(s) }))
+                   .filter(({ ll }) => Array.isArray(ll))
+                   .map(({ s, ll }) => ({ ...s, _ll: ll }));
+  }, [filtered, desaSelected]);
+
+  /* ====== View ====== */
+  const view = useMemo(() => {
+    if (desaSelected && desaSchools.length) {
+      const lat = desaSchools.reduce((a, it) => a + it._ll[0], 0) / desaSchools.length;
+      const lng = desaSchools.reduce((a, it) => a + it._ll[1], 0) / desaSchools.length;
+      return { center: [lat, lng], zoom: 13 };
+    }
+    return { center: initialCenter || GARUT_CENTER, zoom: initialZoom || GARUT_ZOOM };
+  }, [desaSelected, desaSchools, initialCenter, initialZoom]);
+
+  return (
+    <div className={styles.mapRoot}>
+      {/* Filter Bar */}
+      <div className={styles.filterBar}>
+        <div className={styles.control}>
+          <label className={styles.label}>Jenjang</label>
+          <select className={styles.select} value={uiJenjang} onChange={(e) => setUiJenjang(e.target.value)}>
+            <option>(Semua Jenjang)</option><option>PAUD</option><option>SD</option><option>SMP</option><option>PKBM</option>
+          </select>
+        </div>
+        <div className={styles.control}>
+          <label className={styles.label}>Kondisi</label>
+          <select className={styles.select} value={uiKondisi} onChange={(e) => setUiKondisi(e.target.value)}>
+            <option>(Semua Kondisi)</option><option>Baik</option><option>Rusak Sedang</option><option>Rusak Berat</option><option>Kurang RKB</option>
+          </select>
+        </div>
+        <div className={styles.control}>
+          <label className={styles.label}>Kecamatan</label>
+          <select className={styles.select} value={uiKecamatan} onChange={(e) => { setUiKecamatan(e.target.value); setUiDesa("(Semua Desa)"); }}>
+            {kecamatanOptions.map((name) => (<option key={name}>{name}</option>))}
+          </select>
+        </div>
+        <div className={styles.control}>
+          <label className={styles.label}>Desa</label>
+          <select className={styles.select} value={uiDesa} disabled={uiKecamatan.startsWith("(Semua")} onChange={(e) => setUiDesa(e.target.value)}>
+            {desaOptions.map((d) => (<option key={d}>{d}</option>))}
+          </select>
+        </div>
+        <div className={styles.actions}>
+          <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => {}}>Terapkan</button>
+          <button className={`${styles.btn} ${styles.btnGhost}`} onClick={resetFilters}>Reset</button>
+        </div>
+      </div>
+
+      {/* MAP */}
+      <MapContainer whenCreated={(m) => (mapRef.current = m)} className={styles.mapContainer} center={view.center} zoom={view.zoom} scrollWheelZoom>
+        <InitialView center={view.center} zoom={view.zoom} />
+        <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+
+        {/* Outline Kabupaten Garut */}
+        {garutBoundary && <GeoJSON data={garutBoundary} style={() => boundaryStyle} className={styles.garutBoundary}
+          eventHandlers={{ add: () => setTimeout(() => mapRef.current?.invalidateSize(), 0) }} />}
+
+        {/* Mode 1: Rekap kecamatan (angka) */}
+        {!desaSelected && kecRekap.map((kec) => {
+          const sizeClass = kec.total >= 120 ? "kecNumLarge" : kec.total >= 60 ? "kecNumMedium" : "kecNumSmall";
+          const icon = makeKecamatanNumberIcon(kec.total, sizeClass, styles);
+          const kondisiSum = summarizeCondition(kec.items);
+          return (
+            <Marker key={kec.kecKey} position={kec.center} icon={icon}>
+              <Popup>
+                <div style={{ minWidth: 260 }}>
+                  <div style={{ fontWeight: 900, fontSize: 14 }}>{kec.displayName}</div>
+                  <div className={styles.popupSectionTitle}>Ringkasan Jenjang</div>
+                  <table className={styles.popupTable}>
+                    <thead><tr><th>Jenjang</th><th>Jumlah</th></tr></thead>
+                    <tbody>
+                      {["PAUD","SD","SMP","PKBM"].map((lvl) => (<tr key={lvl}><td>{lvl}</td><td>{kec.counts?.[lvl] ?? 0}</td></tr>))}
+                      <tr><td><b>Total</b></td><td><b>{kec.total}</b></td></tr>
+                    </tbody>
+                  </table>
+                  <div className={styles.popupSectionTitle}>Kondisi Bangunan</div>
+                  <table className={styles.popupTable}>
+                    <tbody>
+                      {["Baik","Rusak Sedang","Rusak Berat","Kurang RKB"].map((k) => (<tr key={k}><td>{k}</td><td>{kondisiSum[k] ?? 0}</td></tr>))}
+                    </tbody>
+                  </table>
+                </div>
+              </Popup>
             </Marker>
-        ));
-    };
+          );
+        })}
 
-    return (
-        <MapContainer 
-            center={initialCenter} 
-            zoom={initialZoom} 
-            className={styles.mapContainer}
-            scrollWheelZoom={true}
-        >
-            <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
-            {geoData && geoData.kecamatan && <GeoJSON data={geoData.kecamatan} style={() => ({ color: '#3b82f6', weight: 2, opacity: 0.6 })} />}
-            {renderMarkers()}
-        </MapContainer>
-    );
-};
-
-export default SimpleMap;
+        {/* Mode 2: Detail sekolah (saat satu desa dipilih) */}
+        {desaSelected && desaSchools.map((s, idx) => (
+          <Marker key={`${s?.id || s?.npsn || idx}`} position={s._ll}>
+            <Popup>
+              <div style={{ minWidth: 220 }}>
+                <strong>{s?.nama || s?.name || "Sekolah"}</strong>
+                <div>Kecamatan: {s?.kecamatan || "-"}</div>
+                <div>Desa: {s?.desa || s?.village || "-"}</div>
+                <div>Jenjang: {shortLevel(s?.jenjang)}</div>
+                <div>Kondisi: {s?.computed_condition || s?.kondisi || "-"}</div>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
+  );
+}

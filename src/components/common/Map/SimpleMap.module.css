@@ -1,44 +1,112 @@
 /* src/components/common/Map/SimpleMap.module.css */
 
-.custom-cluster-icon {
-    background-color: #3b82f6; /* Warna default */
-    color: white;
-    border-radius: 50%;
-    text-align: center;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
-    transition: all 0.2s ease-in-out;
+/* Layout dasar */
+.mapRoot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;   /* supaya z-index jalan */
+  z-index: 1;
 }
 
-.custom-cluster-icon span {
-    font-size: 14px;
-    line-height: 1;
+/* ==== FILTER BAR ==== */
+.filterBar {
+  display: grid;
+  grid-template-columns: 1.1fr 1.1fr 1fr 1fr 140px;
+  gap: 10px;
+  align-items: end;
+
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.06);
+
+  position: relative;   /* penting: biar z-index ngefek */
+  z-index: 50;          /* > header/kartu, agar dropdown tidak ketutupan */
 }
 
-/* Ukuran cluster berdasarkan jumlah sekolah */
-.custom-cluster-small {
-    width: 30px;
-    height: 30px;
+.control { display: flex; flex-direction: column; gap: 6px; }
+.label   { font-size: 12px; font-weight: 700; color: #111827; }
+.select  {
+  width: 100%;
+  font-size: 13px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
 }
 
-.custom-cluster-medium {
-    width: 40px;
-    height: 40px;
-    background-color: #f59e0b; /* Orange untuk jumlah menengah */
+/* Tombol filter */
+.actions { display: flex; gap: 8px; }
+.btn {
+  appearance: none;
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform .06s ease, box-shadow .12s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btnPrimary { background: #2563eb; color: #fff; }
+.btnPrimary:hover { box-shadow: 0 6px 18px rgba(37,99,235,.25); }
+.btnGhost   { background: #eef2ff; color: #1e3a8a; }
+.btnGhost:hover { box-shadow: 0 6px 18px rgba(30,58,138,.12); }
+
+/* ==== MAP CONTAINER ==== */
+.mapContainer {
+  width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 460px;
+  position: relative;
+  z-index: 1;
 }
 
-.custom-cluster-large {
-    width: 50px;
-    height: 50px;
-    background-color: #ef4444; /* Merah untuk jumlah besar */
-    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.4);
+/* Outline batas kabupaten (garis merah tipis) */
+.garutBoundary {}
+
+/* ==== IKON ANGKA KECAMATAN (dibikin bulat) ==== */
+.kecNum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  /* bentuk & visual */
+  border-radius: 9999px;               /* bulat / pill */
+  background: rgba(255,255,255,.96);   /* putih sedikit transparan */
+  border: 2px solid #1e3a8a;           /* ring biru gelap */
+  box-shadow:
+    0 8px 20px rgba(2,6,23,.18),
+    0 0 0 4px rgba(30,64,175,.08);     /* glow biru lembut */
+
+  /* teks */
+  font-weight: 900;
+  color: #0f172a; /* slate-950 */
+  text-shadow:
+    0 0 2px #fff,
+    0 0 5px rgba(255, 255, 255, 0.9),
+    0 0 8px rgba(255, 255, 255, 0.8);
+  line-height: 1;
+  padding: 2px 8px; /* jaga angka 3–4 digit */
+  
+  /* Tambahkan baris ini untuk dukungan Safari */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-/* Mengatasi styling default MarkerClusterGroup */
-.marker-cluster {
-    background: none !important; 
-    /* Menggunakan !important jika diperlukan, tetapi sebaiknya periksa urutan import CSS */
-}
+/* ukuran responsif berdasar jumlah sekolah */
+.kecNumSmall  { min-width: 26px; height: 26px; font-size: 13px; }
+.kecNumMedium { min-width: 30px; height: 30px; font-size: 14px; }
+.kecNumLarge  { min-width: 34px; height: 34px; font-size: 15px; }
+
+/* ==== POPUP TABEL ==== */
+.popupSectionTitle{ font-weight:800; margin:6px 0 4px; font-size:13px; }
+.popupTable{ width:100%; border-collapse:collapse; font-size:12px; }
+.popupTable th,.popupTable td{ padding:4px 6px; border-bottom:1px solid #f3f4f6; }
+.popupTable th{ text-align:left; color:#374151; }
+.popupMeta{ font-size:11px; color:#6b7280; margin-top:6px; }
