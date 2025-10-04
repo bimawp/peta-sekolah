@@ -1,39 +1,18 @@
-/**
- * Mengambil dan memproses data wilayah (kecamatan dan desa) dari file GeoJSON
- * yang ada di folder /public/data. Ini untuk mengisi pilihan filter.
- */
-export const getRegionData = async () => {
-  try {
-    const kecamatanResponse = await fetch('/data/kecamatan.geojson');
-    const desaResponse = await fetch('/data/desa.geojson');
+// src/services/api/regionApi.js
 
-    if (!kecamatanResponse.ok || !desaResponse.ok) {
-      throw new Error('Gagal memuat file GeoJSON wilayah');
-    }
-
-    const kecamatanData = await kecamatanResponse.json();
-    const desaData = await desaResponse.json();
-
-    // Ubah data GeoJSON menjadi format yang bisa dipakai oleh react-select
-    const kecamatanOptions = kecamatanData.features.map(feature => ({
-      value: feature.properties.KECAMATAN,
-      label: feature.properties.KECAMATAN,
-    }));
-
-    const desaOptions = {};
-    desaData.features.forEach(feature => {
-      const kecamatan = feature.properties.KECAMATAN;
-      const desa = feature.properties.DESA;
-      if (!desaOptions[kecamatan]) {
-        desaOptions[kecamatan] = [];
+// NAMA FUNGSI DIUBAH AGAR SESUAI DENGAN YANG DIPANGGIL
+export const fetchGeoData = async () => {
+    try {
+      // Path ke file GeoJSON Anda
+      const response = await fetch('/data/kecamatan.geojson');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      desaOptions[kecamatan].push({ value: desa, label: desa });
-    });
-
-    return { kecamatanOptions, desaOptions };
-
-  } catch (error) {
-    console.error("Error fetching region data:", error);
-    return { kecamatanOptions: [], desaOptions: {} };
-  }
-};
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error("Error fetching kecamatan GeoJSON:", error);
+      // Mengembalikan objek GeoJSON kosong agar aplikasi tidak crash jika file tidak ada
+      return { type: "FeatureCollection", features: [] };
+    }
+  };

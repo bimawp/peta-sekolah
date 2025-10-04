@@ -1,22 +1,18 @@
-// src/store/store.js - PERBAIKAN KRITIS
+// src/store/store.js
 
 import { configureStore } from '@reduxjs/toolkit';
-import counterReducer from './slices/counterSlice';
-import filterReducer from './slices/filterSlice';
-import schoolReducer from './slices/schoolSlice'; // <-- BARIS INI DIPASTIKAN ADA & AKTIF
-import budgetReducer from './slices/budgetSlice';
-import facilityReducer from './slices/facilitySlice';
-import uiReducer from './slices/uiSlice';
+import schoolReducer from './slices/schoolSlice.js';
+import filterReducer from './slices/filterSlice.js';
+import uiReducer from './slices/uiSlice.js';
+import selectedSchoolReducer from './slices/selectedSchoolSlice.js'; // <- Pastikan ini diimpor
+import dashboardReducer from './slices/dashboardSlice.js';
 
 export const store = configureStore({
   reducer: {
-    counter: counterReducer,
+    schools: schoolReducer,
     filter: filterReducer,
-    // [PERBAIKAN]: Menambahkan kembali reducer 'schools' yang hilang.
-    // Ini memastikan state 'schools' ada di dalam Redux store.
-    schools: schoolReducer, 
-    budget: budgetReducer,
-    facility: facilityReducer,
     ui: uiReducer,
+    selectedSchool: selectedSchoolReducer, // <- Pastikan ini terdaftar
+    dashboard: dashboardReducer,
   },
 });

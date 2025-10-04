@@ -1,7 +1,8 @@
-// src/store/slices/schoolSlice.js - GANTI SELURUH ISI FILE DENGAN INI
+// src/store/slices/schoolSlice.js
 
 import { createSlice, createAsyncThunk, createSelector } from '@reduxjs/toolkit';
-import { getAllSchools } from '../../services/api/schoolApi.js'; // Path sudah benar
+// PERBAIKAN: Menggunakan fungsi yang benar untuk dasbor
+import { getSchoolsForDashboard } from '../../services/api/schoolApi.js'; 
 
 const initialState = {
   all: [],
@@ -9,16 +10,17 @@ const initialState = {
   error: null,
 };
 
+// fetchAllSchools sekarang menggunakan getSchoolsForDashboard
 export const fetchAllSchools = createAsyncThunk(
   'schools/fetchAllSchools',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await getAllSchools();
-      return response.map(school => {
-        const conditions = (Array.isArray(school.class_conditions) && school.class_conditions.length > 0)
-          ? school.class_conditions[0]
-          : {};
+      // PERBAIKAN: Memanggil fungsi yang benar
+      const response = await getSchoolsForDashboard(); 
 
+      // Proses mapping data seperti biasa
+      return response.map(school => {
+        const conditions = school.class_conditions?.[0] || {};
         return {
           id: school.id,
           npsn: school.npsn,
@@ -81,6 +83,46 @@ export const selectFilteredSchools = createSelector(
       return true;
     });
   }
+);
+
+export const selectSchoolsByKecamatan = createSelector(
+    [selectAllSchools],
+    (schools) => {
+        if (!Array.isArray(schools) || schools.length === 0) return [];
+        
+        const aggregation = schools.reduce((acc, school) => {
+            if (!school.kecamatan || !school.latitude || !school.longitude) return acc;
+
+            if (!acc[school.kecamatan]) {
+                acc[school.kecamatan] = {
+                    nama: school.kecamatan,
+                    totalSekolah: 0,
+                    jenjang: { PAUD: 0, SD: 0, SMP: 0, PKBM: 0 },
+                    latitudes: [],
+                    longitudes: [],
+                };
+            }
+            
+            acc[school.kecamatan].totalSekolah++;
+            const jenjang = school.jenjang?.toUpperCase() || 'LAINNYA';
+            if (acc[school.kecamatan].jenjang[jenjang] !== undefined) {
+                acc[school.kecamatan].jenjang[jenjang]++;
+            }
+            acc[school.kecamatan].latitudes.push(school.latitude);
+            acc[school.kecamatan].longitudes.push(school.longitude);
+            
+            return acc;
+        }, {});
+        
+        return Object.values(aggregation).map(kec => {
+            const avgLat = kec.latitudes.reduce((a, b) => a + b, 0) / kec.latitudes.length;
+            const avgLng = kec.longitudes.reduce((a, b) => a + b, 0) / kec.longitudes.length;
+            return {
+                ...kec,
+                position: [avgLat, avgLng],
+            };
+        });
+    }
 );
 
 export default schoolSlice.reducer;

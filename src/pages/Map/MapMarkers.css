@@ -37,3 +37,12 @@
     border: 0;
     border-top: 1px solid #eee;
 }
+.kecamatan-marker {
+    background-color: #3498db;
+    color: white;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 30px;
+    font-weight: bold;
+    border: 2px solid white;
+}
