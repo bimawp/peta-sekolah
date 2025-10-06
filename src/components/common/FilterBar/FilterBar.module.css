@@ -1,0 +1,33 @@
+/* src/components/common/FilterBar/FilterBar.module.css */
+.filterBar{
+  display:grid;
+  grid-template-columns:1.1fr 1.1fr 1fr 1fr 160px;
+  gap:10px;
+  align-items:end;
+  padding:10px 12px;
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  box-shadow:0 10px 24px rgba(0,0,0,.06);
+  position:relative;
+  z-index:50;  /* pastikan tidak ketutup header */
+}
+.control{display:flex;flex-direction:column;gap:6px;}
+.label{font-size:12px;font-weight:700;color:#111827;}
+.select{
+  width:100%;font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;
+}
+.actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;}
+.btn{appearance:none;border:0;border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px;cursor:pointer;transition:transform .06s ease, box-shadow .12s ease;}
+.btn:active{transform:translateY(1px);}
+.btnPrimary{background:#2563eb;color:#fff;}
+.btnPrimary:hover{box-shadow:0 6px 18px rgba(37,99,235,.25);}
+.btnGhost{background:#eef2ff;color:#1e3a8a;}
+.btnGhost:hover{box-shadow:0 6px 18px rgba(30,58,138,.12);}
+
+@media (max-width: 1024px){
+  .filterBar{ grid-template-columns:1fr 1fr; }
+}
+@media (max-width: 640px){
+  .filterBar{ grid-template-columns:1fr; position:sticky; top:0; }
+}

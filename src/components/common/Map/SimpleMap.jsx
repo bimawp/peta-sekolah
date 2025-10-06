@@ -29,6 +29,7 @@ function InitialView({ center, zoom }) {
 }
 
 const boundaryStyle = { color: "#ef4444", weight: 2, opacity: 0.9, fill: false };
+const kecLineStyle = { color: "#ef4444", weight: 1, opacity: 0.6, fill: false };
 
 export default function SimpleMap({
   schools = [],
@@ -38,28 +39,56 @@ export default function SimpleMap({
 }) {
   const mapRef = useRef(null);
 
-  /* ====== Ambil batas & kecamatan Garut (GeoJSON) ====== */
+  /* ====== Ambil batas & kecamatan (dengan fallback) ====== */
   const [garutBoundary, setGarutBoundary] = useState(null);
+  const [kecFeatures, setKecFeatures] = useState(null);
   const [kecDict, setKecDict] = useState({}); // { KEY: {display, center, bounds} }
+
   useEffect(() => {
     let alive = true;
-    fetch("/geo/garut-boundary.geojson").then(r => r.ok ? r.json() : null).then(j => alive && setGarutBoundary(j)).catch(()=>{});
-    fetch("/geo/garut-kecamatan.geojson").then(r => r.ok ? r.json() : null).then(j => {
-      if (!alive || !j?.features) return;
-      const dict = {};
-      for (const f of j.features) {
-        const rawName = f.properties?.namobj || f.properties?.NAMOBJ || f.properties?.name || f.properties?.WADKC || f.properties?.wadkc || "";
-        const key = kecKey(rawName);
-        const center = centroidOfPolygon(f);
-        const bounds = L.geoJSON(f).getBounds();
-        dict[key] = { display: rawName || key, center, bounds };
+
+    // Boundary (opsi /geo, fallback tidak fatal)
+    (async () => {
+      try {
+        const r = await fetch("/geo/garut-boundary.geojson");
+        if (r.ok) {
+          const j = await r.json();
+          if (alive) setGarutBoundary(j);
+        }
+      } catch {}
+    })();
+
+    // Kecamatan: coba /geo/garut-kecamatan.geojson, fallback /data/kecamatan.geojson
+    (async () => {
+      let j = null;
+      try {
+        const r1 = await fetch("/geo/garut-kecamatan.geojson");
+        if (r1.ok) j = await r1.json();
+      } catch {}
+      if (!j) {
+        try {
+          const r2 = await fetch("/data/kecamatan.geojson");
+          if (r2.ok) j = await r2.json();
+        } catch {}
       }
-      setKecDict(dict);
-    }).catch(()=>{});
+      if (alive && j?.features) {
+        setKecFeatures(j);
+        const dict = {};
+        for (const f of j.features) {
+          const rawName = f.properties?.namobj || f.properties?.NAMOBJ || f.properties?.name || f.properties?.WADKC || f.properties?.wadkc || "";
+          const key = kecKey(rawName);
+          const center = centroidOfPolygon(f);
+          const bounds = L.geoJSON(f).getBounds();
+          dict[key] = { display: rawName || key, center, bounds };
+        }
+        setKecDict(dict);
+      }
+    })();
+
     return () => { alive = false; };
   }, []);
 
-  /* ====== Filter Bar (dropdown tunggal + “(Semua …)”) ====== */
+  /* ====== Filter Bar (dropdown + “(Semua …)”) ====== */
   const [uiJenjang, setUiJenjang] = useState(filters?.jenjang || "(Semua Jenjang)");
   const [uiKondisi, setUiKondisi] = useState(filters?.kondisi || "(Semua Kondisi)");
   const [uiKecamatan, setUiKecamatan] = useState(filters?.kecamatan || "(Semua Kecamatan)");
@@ -97,9 +126,9 @@ export default function SimpleMap({
 
   /* ====== Data terfilter ====== */
   const filtered = useMemo(() => applyFilters(schools, effectiveFilters), [schools, effectiveFilters]);
-  const desaSelected = !uiDesa.startsWith("(Semua");
+  const desaSelected = useMemo(() => !uiDesa.startsWith("(Semua"), [uiDesa]);
 
-  /* ====== Rekap per-kecamatan (centroid polygon; fallback mean titik sekolah) ====== */
+  /* ====== Rekap per-kecamatan ====== */
   const kecRekap = useMemo(() => {
     const fromSchool = buildKecamatanSummaryFromSchools(filtered);
     return fromSchool.map((k) => {
@@ -174,9 +203,12 @@ export default function SimpleMap({
         <InitialView center={view.center} zoom={view.zoom} />
         <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
 
-        {/* Outline Kabupaten Garut */}
+        {/* Outline Kabupaten Garut jika ada */}
         {garutBoundary && <GeoJSON data={garutBoundary} style={() => boundaryStyle} className={styles.garutBoundary}
           eventHandlers={{ add: () => setTimeout(() => mapRef.current?.invalidateSize(), 0) }} />}
+
+        {/* Kalau boundary tidak ada, tampilkan garis kecamatan sebagai fallback */}
+        {!garutBoundary && kecFeatures && <GeoJSON data={kecFeatures} style={() => kecLineStyle} />}
 
         {/* Mode 1: Rekap kecamatan (angka) */}
         {!desaSelected && kecRekap.map((kec) => {

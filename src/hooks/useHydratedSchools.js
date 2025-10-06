@@ -5,13 +5,13 @@ import { useEffect, useMemo, useState } from "react";
 const up = (s) => (s ?? "").toString().toUpperCase();
 const norm = (s) => up(s).trim().replace(/\s+/g, " ");
 const normAgg = (s) => up(s).replace(/[^A-Z0-9]/g, "");
-const kecKey = (name) => up(name).replace(/\bKEC(?:AMATAN)?\.?\b/g, "").replace(/[^A-Z]/g, "");
+const kecKey = (name) => up(name || "").replace(/\bKEC(?:AMATAN)?\.?\b/g, "").replace(/[^A-Z]/g, "");
 
 // key unik sekolah untuk matching
 const schoolKey = (s) => {
   const npsn = (s?.npsn || s?.NPSN || s?.id_npsn || "").toString().trim();
   if (npsn) return `NPSN:${npsn}`;
-  const name = normAgg(s?.nama || s?.name || "");
+  const name = normAgg(s?.nama || s?.name || s?.namaSekolah || "");
   const desa = norm(s?.desa || s?.village || "");
   const kec  = kecKey(s?.kecamatan || "");
   return `NKD:${name}|${desa}|${kec}`;
@@ -34,9 +34,9 @@ function conditionFromClassCond(cc = {}) {
     const v = Number(String(x ?? 0).replace(",", "."));
     return Number.isFinite(v) ? v : 0;
   };
-  const good  = num(cc.classrooms_good);
-  const mod   = num(cc.classrooms_moderate_damage);
-  const heavy = num(cc.classrooms_heavy_damage);
+  const good  = num(cc.classrooms_good ?? cc.good);
+  const mod   = num(cc.classrooms_moderate_damage ?? cc.moderate_damage);
+  const heavy = num(cc.classrooms_heavy_damage ?? cc.heavy_damage);
   const rkb   = num(cc.lacking_rkb ?? cc.lacking_RKB);
   if (rkb > 0)   return "Kurang RKB";
   if (heavy > 0) return "Rusak Berat";
@@ -57,7 +57,7 @@ function buildIndexFromGroupedDataset(ds) {
       let key = "";
       if (npsn) key = `NPSN:${npsn}`;
       else {
-        const name = normAgg(row.nama || row.name || "");
+        const name = normAgg(row.nama || row.name || row.namaSekolah || "");
         const desa = norm(row.desa || row.village || "");
         const kec  = kecKey(kecamatanName || row.kecamatan || "");
         key = `NKD:${name}|${desa}|${kec}`;

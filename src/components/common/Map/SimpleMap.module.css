@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  position: relative;   /* supaya z-index jalan */
+  position: relative;
   z-index: 1;
 }
 
@@ -24,8 +24,8 @@
   border-radius: 12px;
   box-shadow: 0 10px 24px rgba(0,0,0,.06);
 
-  position: relative;   /* penting: biar z-index ngefek */
-  z-index: 50;          /* > header/kartu, agar dropdown tidak ketutupan */
+  position: relative;
+  z-index: 50; /* pastikan di atas header/section */
 }
 
 .control { display: flex; flex-direction: column; gap: 6px; }
@@ -70,21 +70,19 @@
 /* Outline batas kabupaten (garis merah tipis) */
 .garutBoundary {}
 
-/* ==== IKON ANGKA KECAMATAN (dibikin bulat) ==== */
+/* ==== IKON ANGKA KECAMATAN (bulat) ==== */
 .kecNum {
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  /* bentuk & visual */
-  border-radius: 9999px;               /* bulat / pill */
-  background: rgba(255,255,255,.96);   /* putih sedikit transparan */
+  border-radius: 9999px;               /* bulat */
+  background: rgba(255,255,255,.96);
   border: 2px solid #1e3a8a;           /* ring biru gelap */
   box-shadow:
     0 8px 20px rgba(2,6,23,.18),
     0 0 0 4px rgba(30,64,175,.08);     /* glow biru lembut */
 
-  /* teks */
   font-weight: 900;
   color: #0f172a; /* slate-950 */
   text-shadow:
@@ -98,15 +96,20 @@
   -webkit-user-select: none;
   user-select: none;
 }
-
-/* ukuran responsif berdasar jumlah sekolah */
 .kecNumSmall  { min-width: 26px; height: 26px; font-size: 13px; }
 .kecNumMedium { min-width: 30px; height: 30px; font-size: 14px; }
 .kecNumLarge  { min-width: 34px; height: 34px; font-size: 15px; }
 
-/* ==== POPUP TABEL ==== */
+/* ==== POPUP ==== */
 .popupSectionTitle{ font-weight:800; margin:6px 0 4px; font-size:13px; }
 .popupTable{ width:100%; border-collapse:collapse; font-size:12px; }
 .popupTable th,.popupTable td{ padding:4px 6px; border-bottom:1px solid #f3f4f6; }
 .popupTable th{ text-align:left; color:#374151; }
-.popupMeta{ font-size:11px; color:#6b7280; margin-top:6px; }
+
+/* Responsif */
+@media (max-width: 1024px){
+  .filterBar { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px){
+  .filterBar { grid-template-columns: 1fr; position: sticky; top: 0; }
+}
