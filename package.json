@@ -38,11 +38,13 @@
 "yup": "^1.7.0"
 },
 "scripts": {
+"start": "react-scripts start",
+"build": "react-scripts build",
+"test": "react-scripts test",
 "dev": "vite",
 "build": "vite build",
 "preview": "vite preview",
 "lint": "eslint .",
-"format": "prettier --write .",
 "sanitize:kegiatan": "node scripts/sanitize-kegiatan-csv.js",
 "import:kegiatan": "node scripts/import-kegiatan.js",
 "export:csv": "node scripts/export-supabase-csv.js"

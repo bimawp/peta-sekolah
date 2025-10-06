@@ -57,3 +57,8 @@
     min-height: calc(100vh - 70px);
   }
 }
+/* src/components/common/Layout/Layout.module.css */
+/* gunakan nama class yang sudah ada di filemu; kalau beda, sesuaikan */
+.layout { display: flex; min-height: 100dvh; }
+.mainContent { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.contentArea { flex: 1; overflow: auto; }
