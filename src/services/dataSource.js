@@ -1,31 +1,28 @@
 // src/services/dataSource.js
-// Tidak ada fallback JSON lokal agar state tidak saling menimpa.
-
 import {
   fetchAllSchools,
   fetchAllKegiatan,
-  fetchSchools,
+  fetchSchools,      // <- sekarang tersedia
   fetchSchoolsRPC,
 } from './api';
 
+// Dipakai beberapa halaman untuk dataset “full” dari view
 export async function loadSchoolDataset() {
-  // dataset full (merge view), dipakai kalau mau muat semua
-  return await fetchSchools();
+  return await fetchSchools(); // sudah ter-paginate & sudah digabung kegiatan
 }
 
+// Dipakai SchoolDetailPage.jsx (RPC + pagination >1000)
 export async function loadSchoolDatasetRPC(filters = {}) {
-  // dataset terfilter di sisi server (hemat payload)
   return await fetchSchoolsRPC(filters);
 }
 
-/** Kompat untuk HydratedDataProvider.jsx */
+// Kompat untuk HydratedDataProvider.jsx
 export async function fetchAllData() {
   const [schoolsRaw, kegiatanRaw] = await Promise.all([
     fetchAllSchools(),
     fetchAllKegiatan(),
   ]);
 
-  // merge sederhana biar yang butuh langsung siap pakai
   const rehabMap = new Map();
   const bangunMap = new Map();
   for (const r of kegiatanRaw) {
@@ -39,9 +36,9 @@ export async function fetchAllData() {
   const schools = (schoolsRaw || []).map(s => {
     const npsn = String(s.npsn || '').trim();
     const cc = s.class_condition || {};
-    const coords = Array.isArray(s.coordinates) ? s.coordinates.map(Number) : [0, 0];
+    const coords = Array.isArray(s.coordinates) ? s.coordinates.map(Number) : [Number(s.longitude)||0, Number(s.latitude)||0];
     const jenjangRaw = (s.jenjang || s.level || '').toString().toUpperCase();
-    const jenjang = ['PAUD','SD','SMP','PKBM'].includes(jenjangRaw) ? jenjangRaw : (s.jenjang || 'Lainnya');
+    const jenjang = ['PAUD', 'SD', 'SMP', 'PKBM'].includes(jenjangRaw) ? jenjangRaw : (s.jenjang || 'Lainnya');
 
     return {
       jenjang,

@@ -1,64 +1,107 @@
 // src/services/api/schoolApi.js
+import { supabase } from '../supabaseClient'; // path benar dari folder api/ naik 1
 
-import { supabase } from '../../utils/supabase.js';
+const PAGE_SIZE = 1000;
 
-// [PERBAIKAN 1]: Ekspor setiap fungsi secara individual (named export).
-export const getDashboardStats = async () => {
-    try {
-      const { data, error } = await supabase.rpc('get_dashboard_stats');
-      if (error) throw new Error(`Database RPC error: ${error.message}`);
-      return data[0];
-    } catch (error) {
-      console.error('Error dalam getDashboardStats:', error);
-      throw error;
-    }
-};
+/**
+ * Ambil SEMUA sekolah via pagination .range()
+ * —hindari limit default 1000 baris dari Supabase/PostgREST.
+ */
+export async function getAllSchools() {
+  let from = 0;
+  let all = [];
 
-export const getSchoolsForDashboard = async () => {
-  try {
+  for (;;) {
+    const to = from + PAGE_SIZE - 1;
+
     const { data, error } = await supabase
       .from('schools')
-      .select(`
-        name, npsn, level, type, village, kecamatan, student_count, latitude, longitude,
-        class_conditions ( classrooms_good, classrooms_moderate_damage, classrooms_heavy_damage, lacking_rkb )
-      `)
-      .not('latitude', 'is', null)
-      .not('longitude', 'is', null);
-      
-    if (error) {
-        console.error("Supabase query error:", error);
-        throw new Error(`Database error: ${error.message}`);
-    }
-    return data || [];
-  } catch (error) {
-    console.error('Error fetching dashboard schools:', error);
-    throw error;
-  }
-};
+      .select('id,name,address,latitude,longitude,type,level,kecamatan,student_count,st_male,st_female')
+      .order('id', { ascending: true })
+      .range(from, to);
 
-export const getSchoolById = async (npsn) => {
-  try {
-    if (!npsn) throw new Error("NPSN dibutuhkan.");
-    const { data, error } = await supabase
+    if (error) throw error;
+
+    const chunk = data || [];
+    all = all.concat(chunk);
+
+    if (chunk.length < PAGE_SIZE) break; // sudah habis
+    from += PAGE_SIZE;
+  }
+
+  return all;
+}
+
+/** Ambil 1 sekolah by id (untuk panel/tooltip/halaman detail) */
+export async function getSchoolById(id) {
+  const { data, error } = await supabase
+    .from('schools')
+    .select('id,name,address,latitude,longitude,type,level,kecamatan,student_count,st_male,st_female,updated_at')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Statistik untuk dashboard (total sekolah, total siswa, breakdown, dll)
+ * Menggunakan pagination juga + hitung 'exact' untuk totalSchools.
+ */
+export async function getDashboardStats() {
+  let from = 0;
+  let totalSchools = 0;
+  let levels = {};
+  let types = {};
+  let kecamatan = {};
+  let totalStudents = 0;
+  let male = 0;
+  let female = 0;
+
+  for (;;) {
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await supabase
       .from('schools')
-      .select(`*, class_conditions(*), rehab_activities(*), construction_activities(*)`)
-      .eq('npsn', npsn)
-      .single();
-    if (error) throw new Error(error.message);
-    return data;
-  } catch (error) {
-    console.error('Error dalam getSchoolById:', error.message);
-    throw error;
+      .select('id,level,type,kecamatan,student_count,st_male,st_female', { count: from === 0 ? 'exact' : null })
+      .order('id', { ascending: true })
+      .range(from, to);
+
+    if (error) throw error;
+    if (from === 0 && typeof count === 'number') totalSchools = count;
+
+    const chunk = data || [];
+    for (const row of chunk) {
+      const lv = row.level ?? 'Tidak Diketahui';
+      const tp = row.type ?? 'Tidak Diketahui';
+      const kc = row.kecamatan ?? 'Tidak Diketahui';
+      levels[lv] = (levels[lv] || 0) + 1;
+      types[tp] = (types[tp] || 0) + 1;
+      kecamatan[kc] = (kecamatan[kc] || 0) + 1;
+
+      const st = Number(row.student_count) || 0;
+      const m = Number(row.st_male) || 0;
+      const f = Number(row.st_female) || 0;
+      totalStudents += st;
+      male += m;
+      female += f;
+    }
+
+    if (chunk.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
   }
-};
 
-// [PERBAIKAN 2]: Tetap sediakan alias untuk kompatibilitas.
-export const getAllSchools = getSchoolsForDashboard;
+  const kecamatanTop = Object.entries(kecamatan)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name, value }));
 
-// [PERBAIKAN 3]: Ekspor juga objek 'schoolApi' untuk file yang membutuhkannya.
-export const schoolApi = {
-  getDashboardStats,
-  getSchoolsForDashboard,
-  getSchoolById,
-  getAllSchools
-};
+  return {
+    totalSchools,
+    totalStudents,
+    gender: { male, female },
+    levels,
+    types,
+    kecamatanTop
+  };
+}

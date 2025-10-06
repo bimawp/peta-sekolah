@@ -1,32 +1,29 @@
 // src/store/slices/selectedSchoolSlice.js
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import { getSchoolById } from '../../services/api/schoolApi';
 
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getSchoolById } from '../../services/api/schoolApi.js';
-
-const initialState = {
-  data: null,
-  status: 'idle',
-  error: null,
-};
-
-export const fetchSchoolByNpsn = createAsyncThunk(
-  'selectedSchool/fetchByNpsn',
-  async (npsn, { rejectWithValue }) => {
-    if (!npsn) return rejectWithValue('NPSN tidak valid.');
+export const fetchSelectedSchool = createAsyncThunk(
+  'selectedSchool/fetchOne',
+  async (id, { rejectWithValue }) => {
     try {
-      const schoolData = await getSchoolById(npsn);
-      return schoolData;
-    } catch (error) {
-      return rejectWithValue(error.message);
+      return await getSchoolById(id);
+    } catch (err) {
+      return rejectWithValue(err?.message || 'Gagal memuat detail sekolah');
     }
   }
 );
 
+const initialSelectedState = {
+  data: null,
+  status: 'idle',
+  error: null
+};
+
 const selectedSchoolSlice = createSlice({
   name: 'selectedSchool',
-  initialState,
+  initialState: initialSelectedState,
   reducers: {
-    clearSelectedSchool: (state) => {
+    clearSelected(state) {
       state.data = null;
       state.status = 'idle';
       state.error = null;
@@ -34,22 +31,17 @@ const selectedSchoolSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchSchoolByNpsn.pending, (state) => {
-        state.status = 'loading';
-        state.data = null;
-      })
-      .addCase(fetchSchoolByNpsn.fulfilled, (state, action) => {
+      .addCase(fetchSelectedSchool.pending, (state) => { state.status = 'loading'; })
+      .addCase(fetchSelectedSchool.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.data = action.payload;
       })
-      .addCase(fetchSchoolByNpsn.rejected, (state, action) => {
+      .addCase(fetchSelectedSchool.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.payload;
+        state.error = action.payload || action.error?.message;
       });
-  },
+  }
 });
 
-export const { clearSelectedSchool } = selectedSchoolSlice.actions;
-export const selectSelectedSchool = (state) => state.selectedSchool.data;
-export const selectSelectedSchoolStatus = (state) => state.selectedSchool.status;
+export const { clearSelected } = selectedSchoolSlice.actions;
 export default selectedSchoolSlice.reducer;
