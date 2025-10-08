@@ -1,0 +1,1102 @@
+[
+  {
+    "npsn": "69826911",
+    "name": "AL-ALIFA",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "KP. CI SIIH",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70047520",
+    "name": "KB AINUL MARDIYYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "Kp. Cidatar",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70001435",
+    "name": "KB AL FINNUR",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "KP. CILAME RT. 01 RW. 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70034739",
+    "name": "KB AL ITTIHADIYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "Kp. Negla RT 05 RW 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70009882",
+    "name": "KB Al-Barokah",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "Kp. Bungbulang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69890166",
+    "name": "KB AL-GHIFARI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Dangiang",
+    "address": "KP. DANGIANG RT. 01 RW. 01",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867314",
+    "name": "KB AL-HIDAYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "Kp. Pasuketan",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69988674",
+    "name": "KB AL-IHSAN",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "KP. CILINGGA RT. 03 RW. 03",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826933",
+    "name": "KB AL-IKHWAN",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "KP. CIBUNTU",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69988587",
+    "name": "KB AL-MUAWANAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "KP. CIGELEDUG RT. 02 RW. 03",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69982689",
+    "name": "KB AL-MUBAROKAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "KP. BABAKAN PASUKETAN RT. 04 RW. 04",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867307",
+    "name": "KB AR-RIDWAN",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Kp. Cigerek",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867308",
+    "name": "KB AS-SADIYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "Kp. Babakan Palah",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826953",
+    "name": "KB ASYIFA YUSUF",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Asyifa",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867310",
+    "name": "KB AT TARBIYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "Kp. Cidadawah",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826899",
+    "name": "KB BAKTI MANDIRI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Jayabakti",
+    "address": "CIPARI",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867305",
+    "name": "KB BUSTANUL WILDAN",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Kp. Padasuka",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69965899",
+    "name": "KB CAHAYA HATI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "Kp. Hegarmanah",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69827013",
+    "name": "KB DARUL ULUM",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Kp. Cisintok RT. 07 RW. 01",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69990225",
+    "name": "KB FADILATUL HUDA",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "KP. SINGKUR RT. 01 RW. 03",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69890174",
+    "name": "KB HARAPAN BUNDA",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "KP. CILENGKENG",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70045003",
+    "name": "KB Himkasa",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "Kp. Pawitra",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69969514",
+    "name": "KB KAROMATUL HUDA",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "KP. CIJOHO RT. 01 RW. 07",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867304",
+    "name": "KB MAWAR",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Dangiang",
+    "address": "Kp. Cikoleang RT. 01 RW. 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867312",
+    "name": "KB MIFTAHUL ANWAR",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "Kp. Padaawas",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70007789",
+    "name": "KB Miftahus Shuduur",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Kadu Lempeng",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826877",
+    "name": "KB MUTIARA HATI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "KP. TERUS GUNUNG",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70004662",
+    "name": "KB NURUL AMANAH BANJARWANGI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "KP. Cibitung RT 03 RW 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69912832",
+    "name": "KB NURUL HIDAYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Talagajaya",
+    "address": "Kp. Ciparay",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69962976",
+    "name": "KB NURUL HIKMAT",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "KP. CISADAP RT. 04 RW. 06",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69955030",
+    "name": "KB NURUL HUDA",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "Kp. Cigombong RT.002/RW.001",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69939795",
+    "name": "KB RAUDLATUL SIBYANIYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Kp. Negla RT 03 RW 06",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70053861",
+    "name": "KB RIJALUL GODDI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "Kp. Cipadung RT 01 RW 06",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826893",
+    "name": "KB SAWARGI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "KP. CIGUGUR RT. 01 RW. 04",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70004661",
+    "name": "KB SYAMROTUL FU ADAH BANJARWANGI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "Kp. Cimanggu RT 03 RW 07",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867311",
+    "name": "KB ULUL AZMI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "Kp. Kadongdong",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69971063",
+    "name": "KB YUSUF AMIN",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "KP. EMPANG RT. 03 RW. 03",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69980571",
+    "name": "KB ZAINURY",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "Kp. Sawah Pojok Rt. 03 Rw. 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69827041",
+    "name": "KB.AL-MUBAROK 2",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Talagajaya",
+    "address": "KUBANG",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826768",
+    "name": "NURUL HUDA",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "NAGRAK",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826794",
+    "name": "NURUL ITTIHAD",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "CIKONDANG",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867571",
+    "name": "PAUD ALFALAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "KP.HAMERANG",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69826980",
+    "name": "PAUD BANI HASAN",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "DARIAWAS RT 03/ RW 08",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867302",
+    "name": "PAUD CAHAYA",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Dangiang",
+    "address": "Kp. Sarongge RT. 03 RW. 03",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69867309",
+    "name": "PAUD NURUL HIDAYAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "Kp. PASIR ROMEH",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69827033",
+    "name": "PAUD USWATUN HASANAH",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "KP. BANTAR PEUNDEUY",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69912813",
+    "name": "TK AL HANIF",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Sukahejo RT 03/07",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "70004660",
+    "name": "TK AZQIARA IZZATUNNISA BANJARWANGI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Sangata RT 04 RW 01",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69969761",
+    "name": "TK INSAN KAMIL",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "KP. PASIR JEUNGJING",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20260133",
+    "name": "TK ISLAM SAWARGI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "KP.CIGUGUR",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20260184",
+    "name": "TK NURUL IMAN",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "KP. JAMBANSARI DS.PADAHURIP",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20260312",
+    "name": "TK TARBIYYATUL ATHFAL",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "Kp. Parungjawa",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69756583",
+    "name": "TKS MUTIARA HATI",
+    "jenjang": "PAUD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "KP. BATUGEDE",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69910410",
+    "name": "SD IT AL-MINHAJ BANJARWANGI",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "Kp. Cidatar RT 01/02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20225687",
+    "name": "SDN 1 Banjarwangi",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Jl. Raya Banjarwangi",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20253869",
+    "name": "SDN 1 Bojong",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "Kp. Tanjungsari",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20268933",
+    "name": "SDN 1 Dangiang",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Dangiang",
+    "address": "Kp. Dangiang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226100",
+    "name": "SDN 1 Jayabakti",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Jayabakti",
+    "address": "Kp. Cintabakti",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226106",
+    "name": "SDN 1 KADONGDONG",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "Kp. Parungjawa",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226432",
+    "name": "SDN 1 Mulyajaya",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "Kp. Pawitra",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226476",
+    "name": "SDN 1 Padahurip",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "Kp. Jamilega",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227067",
+    "name": "SDN 1 TALAGAJAYA",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Talagajaya",
+    "address": "Kp. Citalaga",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227069",
+    "name": "SDN 1 TALAGASARI",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "Kp. Mariuk",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227090",
+    "name": "SDN 1 TANJUNGJAYA",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "Kp. Cibitung",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227150",
+    "name": "SDN 1 WANGUNJAYA",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Wangun",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20225688",
+    "name": "SDN 2 Banjarwangi",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Kp. Salempet",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20225710",
+    "name": "SDN 2 BOJONG",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "Kp. Cimenyan",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20208862",
+    "name": "SDN 2 DANGIANG",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Dangiang",
+    "address": "Kp. CIKONENG",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20208879",
+    "name": "SDN 2 Jayabakti",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Jayabakti",
+    "address": "Kp. Cipari",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226107",
+    "name": "SDN 2 KADONGDONG",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "Kp. Najahan",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226433",
+    "name": "SDN 2 MULYAJAYA",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Mulyajaya",
+    "address": "Kp. Pawitra",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226477",
+    "name": "SDN 2 PADAHURIP",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "Kp. Padahurip",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227068",
+    "name": "SDN 2 Talagajaya",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Talagajaya",
+    "address": "Kp. Kubang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227070",
+    "name": "SDN 2 TALAGASARI",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "Kp. Pasirhaur",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227092",
+    "name": "SDN 2 Tanjungjaya",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "Kp. Cilangari",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227154",
+    "name": "SDN 2 WANGUNJAYA",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Wangun",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20225689",
+    "name": "SDN 3 Banjarwangi",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Jl. Raya Banjarwangi No. 80",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20225713",
+    "name": "SDN 3 BOJONG",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Bojong",
+    "address": "Kp. Bantarpeundeuy",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20208861",
+    "name": "SDN 3 DANGIANG",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Dangiang",
+    "address": "Kp. Babakan Salam",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226478",
+    "name": "SDN 3 Padahurip",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "Kp. Bungbulang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227071",
+    "name": "SDN 3 Talagasari",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "Kp. Pasirhamerang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227095",
+    "name": "SDN 3 Tanjungjaya",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "Kp. Cicarenang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227156",
+    "name": "SDN 3 WANGUNJAYA",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Cilengkeng",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20225690",
+    "name": "SDN 4 Banjarwangi",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Kp. Pasirpogor",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20226479",
+    "name": "SDN 4 Padahurip",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "Kp. Padahurip",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227072",
+    "name": "SDN 4 TALAGASARI",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "Kp. Cibitung",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20227160",
+    "name": "SDN 4 Wangunjaya",
+    "jenjang": "SD",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Sukadana",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20209285",
+    "name": "SMPN 1 Banjarwangi",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Banjarwangi",
+    "address": "Jalan Raya Banjarwangi",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20262010",
+    "name": "SMPN 2 Banjarwangi",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Jl. Cikondang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "20262015",
+    "name": "SMPN 3 Banjarwangi",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Padahurip",
+    "address": "Padahurip",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69831617",
+    "name": "SMPN 4 Banjarwangi",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Dangiang",
+    "address": "Jalan Dangiang Desa Dangiang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69969736",
+    "name": "SMPN 5 Banjarwangi",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Talagasari",
+    "address": "Kp. Cibengang RT.04 RW.01",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69762796",
+    "name": "SMP ISLAM TERPADU AL-MINHAJ BANJARWANGI",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "Kp Cidatar Rt01 Rw 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69992892",
+    "name": "SMP IT AL IKHLAS BANJARWANGI",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Kadongdong",
+    "address": "Kp. Padaawas",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69864632",
+    "name": "SMP IT IKHWAN BAKTI MANDIRI",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Tanjungjaya",
+    "address": "KP. CIGUGUR RT 01 RW 04",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69896048",
+    "name": "SMP IT TALAGAJAYA BANJARWANGI",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Talagajaya",
+    "address": "Kp. Kubang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "69965231",
+    "name": "SMP WANGUNJAYA SATU",
+    "jenjang": "SMP",
+    "kecamatan": null,
+    "desa": "Wangunjaya",
+    "address": "Kp. Empang",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9999383",
+    "name": "PKBM  Lingga Bina Sejahtera",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Linggamanik",
+    "address": "Kp. Linggamanik Rt. 04 Rw. 08",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9999419",
+    "name": "PKBM Barokah",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Karangsari",
+    "address": "Kp. Palatar Rt 01 Rw 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9999226",
+    "name": "PKBM Cilauteureun",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Pamalayan",
+    "address": "Kp. Rancabungur",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9998641",
+    "name": "PKBM CIPTA KREATIF LINTAS TALENTA",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Cijambe",
+    "address": "Jl. Lintas selatan rancabuaya Kp. Ciseundeuhan Rt 04 Rw 03",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9997017",
+    "name": "PKBM HAYATI",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Karangsari",
+    "address": "Kp. Cigadog RT.03 RW.05",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9996581",
+    "name": "PKBM INSAN MADANI",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Kertamukti",
+    "address": "Kp. Cisubang RT 04 RW 11",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9999351",
+    "name": "PKBM KP Pancasila",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Cigadog",
+    "address": "Kp. Sirna Mekar",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9998813",
+    "name": "PKBM LAME LUHUR",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Kertamukti",
+    "address": "Kp. Sawah Peuteuy",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9998529",
+    "name": "PKBM MENTARI",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "AWASSAGARA",
+    "address": "Kp. Cihonje RT 03 RW 02",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9954179",
+    "name": "PKBM NURUL HUDA",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Cigadog",
+    "address": "JL. LINTAS SELATAN RT. 02/10",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9948378",
+    "name": "PKBM NURUL IKHSAN",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Ciroyom",
+    "address": "KP. RANCAPUTAT RT. 02/04",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9996408",
+    "name": "PKBM TUNAS BANGSA",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Girimukti",
+    "address": "KP. GIRIMUKTI RT. 02 RW. 01",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "npsn": "P9998038",
+    "name": "PKBM WIRA BAKTI NUSANTARA",
+    "jenjang": "PKBM",
+    "kecamatan": null,
+    "desa": "Pamalayan",
+    "address": "Kp. Citeureup RT 02 RW 09",
+    "lat": null,
+    "lng": null
+  }
+]

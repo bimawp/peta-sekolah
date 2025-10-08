@@ -1,7 +1,7 @@
 // src/contexts/AuthContext.jsx
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '../utils/supabase';
+import supabase from '@/services/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
 // [PERBAIKAN]: Tambahkan 'export' di sini agar bisa diimpor di file lain.

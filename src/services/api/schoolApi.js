@@ -1,107 +1,198 @@
 // src/services/api/schoolApi.js
-import { supabase } from '../supabaseClient'; // path benar dari folder api/ naik 1
+import { supabase } from '@/services/supabaseClient';
 
-const PAGE_SIZE = 1000;
+/** =========================
+ *  Utils
+ *  ========================= */
+const CHUNK_SIZE = 20; // kecil supaya URL PostgREST aman
 
-/**
- * Ambil SEMUA sekolah via pagination .range()
- * —hindari limit default 1000 baris dari Supabase/PostgREST.
- */
-export async function getAllSchools() {
-  let from = 0;
-  let all = [];
-
-  for (;;) {
-    const to = from + PAGE_SIZE - 1;
-
-    const { data, error } = await supabase
-      .from('schools')
-      .select('id,name,address,latitude,longitude,type,level,kecamatan,student_count,st_male,st_female')
-      .order('id', { ascending: true })
-      .range(from, to);
-
-    if (error) throw error;
-
-    const chunk = data || [];
-    all = all.concat(chunk);
-
-    if (chunk.length < PAGE_SIZE) break; // sudah habis
-    from += PAGE_SIZE;
-  }
-
-  return all;
+function chunkArray(arr, size = CHUNK_SIZE) {
+  if (!Array.isArray(arr) || arr.length === 0) return [];
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
 }
 
-/** Ambil 1 sekolah by id (untuk panel/tooltip/halaman detail) */
-export async function getSchoolById(id) {
+const ensureArray = (x) => (Array.isArray(x) ? x : (x ? [x] : []));
+
+async function selectAll(table, columns = '*') {
+  const { data, error } = await supabase.from(table).select(columns);
+  if (error) throw error;
+  return data || [];
+}
+
+/** =========================
+ *  Schools
+ *  ========================= */
+export async function fetchAllSchools(columns = '*') {
+  return selectAll('schools', columns);
+}
+
+export async function getSchoolById(id, columns = '*') {
   const { data, error } = await supabase
     .from('schools')
-    .select('id,name,address,latitude,longitude,type,level,kecamatan,student_count,st_male,st_female,updated_at')
+    .select(columns)
     .eq('id', id)
     .single();
-
   if (error) throw error;
   return data;
 }
 
-/**
- * Statistik untuk dashboard (total sekolah, total siswa, breakdown, dll)
- * Menggunakan pagination juga + hitung 'exact' untuk totalSchools.
+/** =========================
+ *  Helper: Schools by Filters
+ *  ========================= */
+async function fetchSchoolsByFilters(filters = {}) {
+  const { level, kecamatan, village } = filters || {};
+  let q = supabase.from('schools').select(`
+    id,
+    name,
+    jenjang,
+    kecamatan,
+    village,
+    lat,
+    lng,
+    updated_at
+  `);
+
+  if (level) q = q.eq('jenjang', level);
+  if (kecamatan) q = q.eq('kecamatan', kecamatan);
+  if (village) q = q.eq('village', village);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+
+/** =========================
+ *  Kegiatan
+ *  ========================= */
+export async function fetchAllKegiatanBySchoolIds(ids = [], columns = '*') {
+  const list = Array.isArray(ids) ? ids : [];
+  if (list.length === 0) return [];
+
+  const chunks = chunkArray(list);
+  const results = await Promise.all(
+    chunks.map(async (c) => {
+      const { data, error } = await supabase
+        .from('kegiatan')
+        .select(columns)
+        .in('school_id', c);
+      if (error) throw error;
+      return data || [];
+    })
+  );
+  return results.flat();
+}
+
+/** =========================
+ *  Class Conditions
+ *  =========================
+ *  (sesuai skema kamu: classrooms_good, classrooms_moderate_damage, ...)
  */
-export async function getDashboardStats() {
-  let from = 0;
-  let totalSchools = 0;
-  let levels = {};
-  let types = {};
-  let kecamatan = {};
-  let totalStudents = 0;
-  let male = 0;
-  let female = 0;
+export async function fetchClassConditionsBySchoolIds(ids = []) {
+  const list = Array.isArray(ids) ? ids : [];
+  if (list.length === 0) return [];
 
-  for (;;) {
-    const to = from + PAGE_SIZE - 1;
+  const chunks = chunkArray(list);
+  const results = await Promise.all(
+    chunks.map(async (c) => {
+      const { data, error } = await supabase
+        .from('class_conditions')
+        .select(`
+          id,
+          school_id,
+          classrooms_good,
+          classrooms_moderate_damage,
+          classrooms_heavy_damage,
+          total_room,
+          lacking_rkb,
+          total_mh,
+          updated_at
+        `)
+        .in('school_id', c);
+      if (error) throw error;
+      return data || [];
+    })
+  );
+  return results.flat();
+}
 
-    const { data, error, count } = await supabase
-      .from('schools')
-      .select('id,level,type,kecamatan,student_count,st_male,st_female', { count: from === 0 ? 'exact' : null })
-      .order('id', { ascending: true })
-      .range(from, to);
+/** =========================
+ *  RPC helpers
+ *  ========================= */
+async function tryRpc(rpcName, payload) {
+  const { data, error } = await supabase.rpc(rpcName, payload);
+  if (error) return { ok: false, data: [], error };
+  return { ok: true, data: data || [] };
+}
 
-    if (error) throw error;
-    if (from === 0 && typeof count === 'number') totalSchools = count;
+/** =========================
+ *  Load dataset (untuk SchoolDetailPage)
+ *  =========================
+ *  Input: filters { level, kecamatan, village }
+ *  Output: array sekolah "merged" + relasi & coordinates
+ */
+export async function loadSchoolDatasetRPC(filters = {}) {
+  // 1) Ambil sekolah sesuai filter
+  const schools = await fetchSchoolsByFilters(filters);
+  if (!schools.length) return [];
 
-    const chunk = data || [];
-    for (const row of chunk) {
-      const lv = row.level ?? 'Tidak Diketahui';
-      const tp = row.type ?? 'Tidak Diketahui';
-      const kc = row.kecamatan ?? 'Tidak Diketahui';
-      levels[lv] = (levels[lv] || 0) + 1;
-      types[tp] = (types[tp] || 0) + 1;
-      kecamatan[kc] = (kecamatan[kc] || 0) + 1;
+  const sids = schools.map((s) => s.id);
 
-      const st = Number(row.student_count) || 0;
-      const m = Number(row.st_male) || 0;
-      const f = Number(row.st_female) || 0;
-      totalStudents += st;
-      male += m;
-      female += f;
-    }
+  // 2) Coba RPC, fallback ke SELECT biasa
+  const [kegRpc, ccRpc] = await Promise.all([
+    tryRpc('kegiatan_by_school_ids', { sids }),
+    tryRpc('class_conditions_by_school_ids', { sids }),
+  ]);
 
-    if (chunk.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
+  const kegiatan = kegRpc.ok
+    ? ensureArray(kegRpc.data)
+    : await fetchAllKegiatanBySchoolIds(
+        sids,
+        'id,school_id,kegiatan,lokal,created_at,updated_at'
+      );
+
+  const classConditions = ccRpc.ok
+    ? ensureArray(ccRpc.data)
+    : await fetchClassConditionsBySchoolIds(sids);
+
+  // 3) Index relasi per school_id
+  const kegBySchool = new Map();
+  for (const k of kegiatan) {
+    if (!kegBySchool.has(k.school_id)) kegBySchool.set(k.school_id, []);
+    kegBySchool.get(k.school_id).push(k);
   }
 
-  const kecamatanTop = Object.entries(kecamatan)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-    .map(([name, value]) => ({ name, value }));
+  // diasumsikan 1 row class_conditions per sekolah
+  const ccBySchool = new Map();
+  for (const c of classConditions) {
+    ccBySchool.set(c.school_id, c);
+  }
 
-  return {
-    totalSchools,
-    totalStudents,
-    gender: { male, female },
-    levels,
-    types,
-    kecamatanTop
-  };
+  // 4) Merge: bentuk array sesuai ekspektasi SchoolDetailPage
+  const merged = schools.map((s) => {
+    const hasNumber = (v) => typeof v === 'number' && !Number.isNaN(v);
+    const coords =
+      hasNumber(s.lng) && hasNumber(s.lat) ? [s.lng, s.lat] : null;
+
+    return {
+      ...s,
+      // normalisasi nama field yang dipakai UI
+      desa: s.village,
+      coordinates: coords,
+      kegiatan: kegBySchool.get(s.id) || [],
+      class_conditions: ccBySchool.get(s.id) || null,
+    };
+  });
+
+  return merged;
+}
+
+/** =========================
+ *  Dashboard (opsional)
+ *  ========================= */
+export async function getDashboardStats() {
+  const { data, error } = await supabase.rpc('get_dashboard_stats');
+  if (error) throw error;
+  return data;
 }

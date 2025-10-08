@@ -1,6 +1,10 @@
-// final_check.js - VERSI BARU SESUAI STRUKTUR JSON
+import { supabase } from '../services/supabaseClient';
+// atau (kalau ada import lama)
+import supabase from '@/services/supabaseClient'; // pakai alias @ dari vite.config
+// atau relatif kalau belum pakai alias
+// import supabase from '../services/supabaseClient';
 
-import { createClient } from '@supabase/supabase-js';
+
 import fs from 'fs';
 import path from 'path';
 

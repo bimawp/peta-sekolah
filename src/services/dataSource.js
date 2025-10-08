@@ -1,71 +1,75 @@
 // src/services/dataSource.js
 import {
   fetchAllSchools,
-  fetchAllKegiatan,
-  fetchSchools,      // <- sekarang tersedia
-  fetchSchoolsRPC,
-} from './api';
+  fetchAllKegiatanBySchoolIds,
+  fetchClassConditionsBySchoolIds,
+  loadSchoolDatasetRPC as _loadSchoolDatasetRPC,
+} from '@/services/api/schoolApi';
 
-// Dipakai beberapa halaman untuk dataset “full” dari view
-export async function loadSchoolDataset() {
-  return await fetchSchools(); // sudah ter-paginate & sudah digabung kegiatan
+const ensureArray = (x) => (Array.isArray(x) ? x : (x ? [x] : []));
+
+export function indexBy(arr, key) {
+  const a = ensureArray(arr);
+  return a.reduce((acc, item) => {
+    const k = typeof key === 'function' ? key(item) : item?.[key];
+    if (k !== undefined && k !== null) acc[k] = item;
+    return acc;
+  }, {});
 }
 
-// Dipakai SchoolDetailPage.jsx (RPC + pagination >1000)
-export async function loadSchoolDatasetRPC(filters = {}) {
-  return await fetchSchoolsRPC(filters);
+export function groupBy(arr, key) {
+  const a = ensureArray(arr);
+  return a.reduce((acc, item) => {
+    const k = typeof key === 'function' ? key(item) : item?.[key];
+    if (k === undefined || k === null) return acc;
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(item);
+    return acc;
+  }, {});
 }
 
-// Kompat untuk HydratedDataProvider.jsx
-export async function fetchAllData() {
-  const [schoolsRaw, kegiatanRaw] = await Promise.all([
-    fetchAllSchools(),
-    fetchAllKegiatan(),
+/**
+ * Ambil semua data untuk HydratedDataProvider
+ */
+export async function fetchAllData({ schoolIds = null } = {}) {
+  const allSchools = await fetchAllSchools();
+  const schools = schoolIds?.length
+    ? allSchools.filter((s) => schoolIds.includes(s.id))
+    : allSchools;
+
+  const ids = schools.map((s) => s.id);
+
+  const [kegiatan, classConditions] = await Promise.all([
+    fetchAllKegiatanBySchoolIds(
+      ids,
+      'id,school_id,kegiatan,lokal,created_at,updated_at'
+    ),
+    fetchClassConditionsBySchoolIds(
+      ids,
+      'id,school_id,kelas,kondisi,jumlah,created_at,updated_at'
+    ),
   ]);
 
-  const rehabMap = new Map();
-  const bangunMap = new Map();
-  for (const r of kegiatanRaw) {
-    const n = String(r.npsn || '').trim();
-    const v = Number(r.lokal || 0);
-    const k = String(r.kegiatan || '').toLowerCase();
-    if (k.startsWith('rehab')) rehabMap.set(n, (rehabMap.get(n) || 0) + v);
-    else if (k.startsWith('pembangun')) bangunMap.set(n, (bangunMap.get(n) || 0) + v);
-  }
+  const kegiatanArr = ensureArray(kegiatan);
+  const ccArr = ensureArray(classConditions);
 
-  const schools = (schoolsRaw || []).map(s => {
-    const npsn = String(s.npsn || '').trim();
-    const cc = s.class_condition || {};
-    const coords = Array.isArray(s.coordinates) ? s.coordinates.map(Number) : [Number(s.longitude)||0, Number(s.latitude)||0];
-    const jenjangRaw = (s.jenjang || s.level || '').toString().toUpperCase();
-    const jenjang = ['PAUD', 'SD', 'SMP', 'PKBM'].includes(jenjangRaw) ? jenjangRaw : (s.jenjang || 'Lainnya');
-
-    return {
-      jenjang,
-      npsn,
-      namaSekolah: s.name,
-      tipeSekolah: s.type || s.status || '-',
-      desa: s.village || '-',
-      kecamatan: s.kecamatan || '-',
-      student_count: Number(s.student_count || 0),
-      coordinates: coords,
-      kondisiKelas: {
-        baik: Number(cc.classrooms_good || 0),
-        rusakSedang: Number(cc.classrooms_moderate_damage || 0),
-        rusakBerat: Number(cc.classrooms_heavy_damage || 0),
-      },
-      kurangRKB: Number(cc.lacking_rkb || 0),
-      rehabRuangKelas: Number(rehabMap.get(npsn) || 0),
-      pembangunanRKB: Number(bangunMap.get(npsn) || 0),
-      originalData: {
-        name: s.name,
-        kecamatan: s.kecamatan,
-        village: s.village,
-        level: jenjang,
-        class_condition: cc,
-      }
-    };
-  });
-
-  return { schools, schoolsRaw, kegiatanRaw };
+  return {
+    schools,
+    schoolsById: indexBy(schools, 'id'),
+    kegiatan: kegiatanArr,
+    kegiatanBySchoolId: groupBy(kegiatanArr, 'school_id'),
+    classConditions: ccArr,
+    classConditionsBySchoolId: groupBy(ccArr, 'school_id'),
+    meta: {
+      totalSchools: schools.length,
+      totalKegiatan: kegiatanArr.length,
+      totalClassConditions: ccArr.length,
+      fetchedAt: new Date().toISOString(),
+    },
+  };
 }
+
+/** Re-export supaya bisa:
+ *   import { loadSchoolDatasetRPC } from '@/services/dataSource'
+ */
+export const loadSchoolDatasetRPC = _loadSchoolDatasetRPC;

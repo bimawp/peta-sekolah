@@ -1,4 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from '../services/supabaseClient';
+// atau (kalau ada import lama)
+import supabase from '@/services/supabaseClient'; // pakai alias @ dari vite.config
+// atau relatif kalau belum pakai alias
+// import supabase from '../services/supabaseClient';
+
 import fs from "fs";
 import path from "path";
 import 'dotenv/config'; 

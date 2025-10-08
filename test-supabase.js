@@ -1,4 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../services/supabaseClient';
+// atau (kalau ada import lama)
+import supabase from '@/services/supabaseClient'; // pakai alias @ dari vite.config
+// atau relatif kalau belum pakai alias
+// import supabase from '../services/supabaseClient';
+
 import 'dotenv/config'; // Menggunakan dotenv untuk membaca file .env
 
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;

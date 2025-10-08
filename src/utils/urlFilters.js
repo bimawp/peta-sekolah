@@ -7,43 +7,58 @@ const D = {
 };
 export const DEFAULT_PAGE_FILTERS = { ...D };
 
-// Ambil dari ?j=SD&k=KADUNGORA&d=CIMAREME (kunci pendek agar rapi)
-export function getPageFiltersFromURL(locationSearch = window.location.search) {
-  const q = new URLSearchParams(locationSearch);
-  const j = q.get("j") || "";
-  const k = q.get("k") || "";
-  const d = q.get("d") || "";
-  // (opsional) kondisi halaman ini belum punya UI, tapi kita dukung kalau nanti ditambah
-  const kon = q.get("kon") || "";
-
-  return {
-    jenjang: j || D.jenjang,
-    kecamatan: k || D.kecamatan,
-    desa: d || D.desa,
-    kondisi: kon || D.kondisi,
-  };
+export function normalizeAnyAllLabel(v = "", kind = "jenjang") {
+  const raw = (v ?? "").toString().trim();
+  if (!raw) return D[kind] || raw;
+  const up = raw.toUpperCase();
+  if (up.startsWith("(SEMUA")) return D[kind] || raw.replace(/^\(|\)$/g, "");
+  if (up.startsWith("SEMUA")) return D[kind];
+  return raw;
 }
 
-// Tulis balik ke URL tanpa reload
-export function setPageFiltersToURL(filters = {}, mode = "replace") {
-  const { jenjang, kecamatan, desa, kondisi } = { ...DEFAULT_PAGE_FILTERS, ...filters };
+export function getPageFiltersFromURL(locationSearch = typeof window !== "undefined" ? window.location.search : "") {
+  try {
+    const q = new URLSearchParams(locationSearch || "");
+    const j = q.get("j") || "";
+    const k = q.get("k") || "";
+    const d = q.get("d") || "";
+    const c = q.get("kon") || "";
+    return {
+      jenjang: normalizeAnyAllLabel(j || D.jenjang, "jenjang"),
+      kecamatan: normalizeAnyAllLabel(k || D.kecamatan, "kecamatan"),
+      desa: normalizeAnyAllLabel(d || D.desa, "desa"),
+      kondisi: normalizeAnyAllLabel(c || D.kondisi, "kondisi"),
+    };
+  } catch {
+    return { ...D };
+  }
+}
 
+export function setPageFiltersToURL({ jenjang, kecamatan, desa, kondisi }, mode = "replace") {
+  if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
-  const q = url.searchParams;
+  const q = new URLSearchParams(url.search);
 
-  // set kalau bukan default, hapus kalau default
   const setOrDel = (key, val, def) => {
-    if (val && val !== def) q.set(key, val);
+    const v = (val ?? "").toString().trim();
+    if (v && v !== def) q.set(key, v);
     else q.delete(key);
   };
 
   setOrDel("j", jenjang, D.jenjang);
   setOrDel("k", kecamatan, D.kecamatan);
   setOrDel("d", desa, D.desa);
-  // kondisi belum dipakai di halaman ini, tetap kita tulis kalau ada:
-  if (kondisi && kondisi !== D.kondisi) q.set("kon", kondisi); else q.delete("kon");
+  setOrDel("kon", kondisi, D.kondisi);
 
   const next = `${url.pathname}${q.toString() ? `?${q}` : ""}${url.hash || ""}`;
   if (mode === "push") window.history.pushState({}, "", next);
   else window.history.replaceState({}, "", next);
 }
+
+const urlFilters = {
+  DEFAULT_PAGE_FILTERS,
+  normalizeAnyAllLabel,
+  getPageFiltersFromURL,
+  setPageFiltersToURL,
+};
+export default urlFilters;

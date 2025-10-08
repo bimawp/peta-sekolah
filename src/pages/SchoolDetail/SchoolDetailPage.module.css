@@ -898,3 +898,14 @@
 
 /* Header kartu cukup lebih rendah dari filter bar */
 .cardHeader { position: relative; z-index: 10; }
+
+.page { display: flex; flex-direction: column; gap: 16px; }
+.card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; }
+.cardHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.cardTitle { margin: 0; }
+.cardSubtitle { margin: 4px 0 0 0; color: #6b7280; }
+.filtersRow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.select, .input { padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 10px; }
+.btn { padding: 8px 12px; background: #0ea5e9; color: #fff; border: 0; border-radius: 10px; }
+.btnSecondary { padding: 8px 12px; background: #e5e7eb; color: #111827; border: 0; border-radius: 10px; }
+.loading { padding: 24px; }

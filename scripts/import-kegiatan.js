@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../services/supabaseClient'; // ✅
+;
 
 dotenv.config({ path: '.env.server' });
 
