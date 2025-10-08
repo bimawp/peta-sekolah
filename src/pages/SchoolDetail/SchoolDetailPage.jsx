@@ -1,6 +1,6 @@
 // src/pages/SchoolDetail/SchoolDetailPage.jsx
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, Tooltip
@@ -326,7 +326,12 @@ const SchoolDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentView, setCurrentView] = useState('main');
+
   const [selectedSchool, setSelectedSchool] = useState(null);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+  const detailCache = useRef(new Map()); // cache by school_id
 
   const [filterJenjang, setFilterJenjang] = useState(DEFAULT_PAGE_FILTERS.jenjang);
   const [filterKecamatan, setFilterKecamatan] = useState(DEFAULT_PAGE_FILTERS.kecamatan);
@@ -336,6 +341,9 @@ const SchoolDetailPage = () => {
   const [kecamatanList, setKecamatanList] = useState([]);
   const [desaList, setDesaList] = useState([]);
   const [mapView] = useState({ center: [-7.21, 107.91], zoom: 11 });
+
+  // angka rollup intervensi global
+  const [intervensiSum, setIntervensiSum] = useState({ rehab_unit: 0, pembangunan_unit: 0 });
 
   // INIT Filters from URL
   useEffect(() => {
@@ -350,16 +358,25 @@ const SchoolDetailPage = () => {
     setPageFiltersToURL({ jenjang: filterJenjang, kecamatan: filterKecamatan, desa: filterDesa });
   }, [filterJenjang, filterKecamatan, filterDesa]);
 
-  const handleDetailClick = useCallback((school) => { setSelectedSchool(school); setCurrentView('detail'); }, []);
-  const handleBackToMain = useCallback(() => { setCurrentView('main'); setSelectedSchool(null); }, []);
+  const handleDetailClick = useCallback((school) => {
+    setSelectedSchool(school);
+    setCurrentView('detail');
+  }, []);
+
+  const handleBackToMain = useCallback(() => {
+    setCurrentView('main');
+    setSelectedSchool(null);
+    setSelectedDetail(null);
+    setDetailError(null);
+    setDetailLoading(false);
+  }, []);
 
   // ---------- FETCH: schools (with pagination > 1000) ----------
   const fetchSchoolsByFilters = useCallback(async ({ levelValue, kecamatanValue, villageValue }) => {
     const base = () => {
       let q = supabase
         .from('schools')
-        .select('id,name,jenjang,level,kecamatan,village,lat,lng,updated_at', { count: 'exact' })
-        // ORDER penting untuk pagination deterministik!
+        .select('id,npsn,name,jenjang,level,kecamatan,village,lat,lng,updated_at', { count: 'exact' })
         .order('id', { ascending: true });
       if (levelValue) q = q.or(`jenjang.eq.${levelValue},level.eq.${levelValue}`);
       if (kecamatanValue) q = q.eq('kecamatan', kecamatanValue);
@@ -393,7 +410,7 @@ const SchoolDetailPage = () => {
     return mapped;
   }, []);
 
-  // ---------- FETCH: kegiatan ----------
+  // ---------- FETCH: kegiatan (list) ----------
   const fetchKegiatan = useCallback(async (ids) => {
     if (!ids?.length) return [];
     const res = await Promise.all(
@@ -409,7 +426,7 @@ const SchoolDetailPage = () => {
     return res.flat();
   }, []);
 
-  // ---------- FETCH: class_conditions ----------
+  // ---------- FETCH: class_conditions (list) ----------
   const fetchClassConditions = useCallback(async (ids) => {
     if (!ids?.length) return [];
     const res = await Promise.all(
@@ -435,9 +452,18 @@ const SchoolDetailPage = () => {
     return res.flat();
   }, []);
 
-  // ---------- MERGE ----------
+  // ---------- FETCH: intervensi rollup (global) ----------
+  const fetchIntervensiRollup = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('v_intervensi_rollup')
+      .select('rehab_unit,pembangunan_unit')
+      .single();
+    if (error) throw error;
+    return data || { rehab_unit: 0, pembangunan_unit: 0 };
+  }, []);
+
+  // ---------- MERGE LIST ----------
   const mergeDataset = useCallback((schools, kegiatan, classConds) => {
-    // Map kegiatan per sekolah + flag intervensi (0/1 per sekolah, bukan jumlah lokal)
     const kegBySid = new Map();
     const intervensiFlag = new Map(); // {rehab:0/1, pembangunan:0/1}
     for (const k of (kegiatan || [])) {
@@ -446,16 +472,14 @@ const SchoolDetailPage = () => {
 
       const prev = intervensiFlag.get(k.school_id) || { rehab: 0, pembangunan: 0 };
       const jenis = String(k.kegiatan || '').toLowerCase();
-      if (jenis === 'rehab') prev.rehab = 1;          // tandai ada rehab
-      if (jenis === 'pembangunan') prev.pembangunan = 1; // tandai ada pembangunan
+      if (jenis === 'rehab') prev.rehab = 1;
+      if (jenis === 'pembangunan') prev.pembangunan = 1;
       intervensiFlag.set(k.school_id, prev);
     }
 
-    // Map class_conditions per sekolah
     const ccBySid = new Map();
     for (const c of (classConds || [])) ccBySid.set(c.school_id, c);
 
-    // Gabungkan semuanya ke bentuk yang dipakai UI
     return (schools || []).map((s) => {
       const cc = ccBySid.get(s.id) || null;
       const inter = intervensiFlag.get(s.id) || { rehab: 0, pembangunan: 0 };
@@ -463,25 +487,86 @@ const SchoolDetailPage = () => {
       return {
         ...s,
         namaSekolah: s.name,
-        npsn: s.id,
-        tipeSekolah: '-',
-        student_count: 0, // tidak ada di select sekarang
+        npsn: s.npsn || null,
+        tipeSekolah: s.type || '-',
+        student_count: Number(s.student_count || 0),
         kondisiKelas: {
           baik: Number(cc?.classrooms_good || 0),
           rusakSedang: Number(cc?.classrooms_moderate_damage || 0),
           rusakBerat: Number(cc?.classrooms_heavy_damage || 0),
         },
         kurangRKB: Number(cc?.lacking_rkb || 0),
-
-        // tampilkan 0/1 di tabel (ada intervensi atau tidak)
-        rehabRuangKelas: Number(inter.rehab || 0),
-        pembangunanRKB: Number(inter.pembangunan || 0),
-
+        rehabRuangKelas: Number(inter.rehab || 0),          // flag per sekolah untuk tabel
+        pembangunanRKB: Number(inter.pembangunan || 0),     // flag per sekolah untuk tabel
         kegiatan: kegBySid.get(s.id) || [],
         class_conditions: cc,
         originalData: s,
       };
     });
+  }, []);
+
+  // ---------- DETAIL FETCH (ON-DEMAND) ----------
+  const fetchSchoolDetail = useCallback(async (schoolId) => {
+    // Ambil 1 sekolah + semua relasi anak (FK ke schools.id)
+    const { data, error } = await supabase
+      .from('schools')
+      .select(`
+        id, npsn, name, address, village, kecamatan, type, level,
+        st_male, st_female, student_count,
+        lat, lng, updated_at, created_at, jenjang, jenjang2,
+        class_conditions (*),
+        kegiatan (*),
+        rombel (*),
+        toilets (*),
+        furniture (*),
+        furniture_computer (*),
+        teacher_room (*),
+        laboratory (*),
+        library (*),
+        official_residences (*),
+        ape (*),
+        uks (*),
+        playground_area (*),
+        building_status (*)
+      `)
+      .eq('id', schoolId)
+      .single();
+
+    if (error) throw error;
+
+    // Bentuk data yang lebih “ramah” ke komponen detail:
+    const cc = (data?.class_conditions?.[0]) || data?.class_conditions || null; // supabase bisa return array atau object; amanin aja
+    const mergedDetail = {
+      ...data,
+      namaSekolah: data?.name,
+      desa: data?.village,
+      koordinat: (isValidCoordinate(Number(data?.lng), Number(data?.lat)) ? [Number(data.lng), Number(data.lat)] : null),
+
+      kondisiKelas: {
+        baik: Number(cc?.classrooms_good || 0),
+        rusakSedang: Number(cc?.classrooms_moderate_damage || 0),
+        rusakBerat: Number(cc?.classrooms_heavy_damage || 0),
+        total: Number(cc?.total_room || 0),
+        kurangRKB: Number(cc?.lacking_rkb || 0),
+      },
+
+      // langsung serahkan relasi mentah; komponen detail biasanya membaca field-field ini:
+      rombel: data?.rombel,
+      toilets: data?.toilets,
+      furniture: data?.furniture,
+      furniture_computer: data?.furniture_computer,
+      teacher_room: data?.teacher_room,
+      laboratory: data?.laboratory,
+      library: data?.library,
+      official_residences: data?.official_residences,
+      ape: data?.ape,
+      uks: data?.uks,
+      playground_area: data?.playground_area,
+      building_status: data?.building_status,
+      kegiatan: data?.kegiatan,
+    };
+
+    return mergedDetail;
   }, []);
 
   // ---------- GEOJSON ----------
@@ -500,7 +585,7 @@ const SchoolDetailPage = () => {
     return () => { alive = false; };
   }, []);
 
-  // ---------- LOAD DATA ----------
+  // ---------- LOAD LIST DATA ----------
   useEffect(() => {
     let alive = true;
     setLoading(true); setError(null);
@@ -515,20 +600,19 @@ const SchoolDetailPage = () => {
         if (!alive) return;
 
         if (!schools.length) {
-          setSchoolData([]); setJenjangList([]); setKecamatanList([]); setDesaList([]); setLoading(false);
+          setSchoolData([]); setJenjangList([]); setKecamatanList([]); setDesaList([]); setIntervensiSum({ rehab_unit: 0, pembangunan_unit: 0 }); setLoading(false);
           return;
         }
 
         const ids = schools.map(s => s.id);
-        const [keg, cc] = await Promise.all([ fetchKegiatan(ids), fetchClassConditions(ids) ]);
+        const [keg, cc, roll] = await Promise.all([ fetchKegiatan(ids), fetchClassConditions(ids), fetchIntervensiRollup() ]);
         if (!alive) return;
 
         const merged = mergeDataset(schools, keg, cc);
 
-        // simpan semua data (tidak disaring koordinat)
         setSchoolData(merged);
+        setIntervensiSum(roll);
 
-        // isi dropdown dari seluruh dataset
         const jList = [...new Set(merged.map(s => s.jenjang).filter(Boolean))].sort();
         const kList = [...new Set(merged.map(s => s.kecamatan).filter(Boolean))].sort();
         const dList = [...new Set(merged.map(s => s.desa).filter(Boolean))].sort();
@@ -543,7 +627,7 @@ const SchoolDetailPage = () => {
     })();
 
     return () => { alive = false; };
-  }, [filterJenjang, filterKecamatan, filterDesa, fetchSchoolsByFilters, fetchKegiatan, fetchClassConditions, mergeDataset]);
+  }, [filterJenjang, filterKecamatan, filterDesa, fetchSchoolsByFilters, fetchKegiatan, fetchClassConditions, fetchIntervensiRollup, mergeDataset]);
 
   // ---------- Hydration Map ----------
   const hydratedSchools = useHydratedSchools(schoolData);
@@ -574,32 +658,21 @@ const SchoolDetailPage = () => {
     let unitBaik = 0, unitRusakSedang = 0, unitRusakBerat = 0;
     let totalKurangRKB = 0;
 
-    // count sekolah yg punya intervensi (distinct by sekolah)
-    let rehabSekolahCount = 0;
-    let pembangunanSekolahCount = 0;
-
     filteredData.forEach(school => {
       unitBaik          += Number(school?.kondisiKelas?.baik || 0);
       unitRusakSedang   += Number(school?.kondisiKelas?.rusakSedang || 0);
       unitRusakBerat    += Number(school?.kondisiKelas?.rusakBerat || 0);
       totalKurangRKB    += Number(school?.kurangRKB || 0);
-
-      // intervensi: hitung per sekolah (bukan sum lokal)
-      const hasRehab = (school?.kegiatan || []).some(k => String(k.kegiatan).toLowerCase() === 'rehab');
-      const hasPembangunan = (school?.kegiatan || []).some(k => String(k.kegiatan).toLowerCase() === 'pembangunan');
-      if (hasRehab) rehabSekolahCount += 1;
-      if (hasPembangunan) pembangunanSekolahCount += 1;
     });
+
+    const rehabSekolahCount       = Number(intervensiSum?.rehab_unit || 0);
+    const pembangunanSekolahCount = Number(intervensiSum?.pembangunan_unit || 0);
 
     const totalUnitKelas = unitBaik + unitRusakSedang + unitRusakBerat;
 
-    // definisi sesuai target contohmu:
-    // Belum Rehab = Rusak Berat - jumlah sekolah yang direhab
     const belumDirehab   = Math.max(0, unitRusakBerat - rehabSekolahCount);
-    // Kebutuhan RKB = Kurang RKB - jumlah sekolah yang dibangun
     const belumDibangun  = Math.max(0, totalKurangRKB - pembangunanSekolahCount);
-
-    const totalIntervensi = pembangunanSekolahCount + rehabSekolahCount;
+    const totalIntervensi = rehabSekolahCount + pembangunanSekolahCount;
 
     return {
       chartData: {
@@ -641,13 +714,52 @@ const SchoolDetailPage = () => {
         ],
       }
     };
-  }, [filteredData]);
+  }, [filteredData, intervensiSum]);
 
   const handleResetAllFilters = useCallback(() => {
     setFilterJenjang('Semua Jenjang');
     setFilterKecamatan('Semua Kecamatan');
     setFilterDesa('Semua Desa');
   }, []);
+
+  // ---------- LOAD DETAIL SAAT MASUK HALAMAN DETAIL ----------
+  useEffect(() => {
+    const run = async () => {
+      if (currentView !== 'detail' || !selectedSchool) return;
+      setDetailError(null);
+
+      // cek cache dulu
+      if (detailCache.current.has(selectedSchool.id)) {
+        setSelectedDetail(detailCache.current.get(selectedSchool.id));
+        return;
+      }
+
+      setDetailLoading(true);
+      try {
+        const detail = await fetchSchoolDetail(selectedSchool.id);
+        // fallback beberapa field yang dipakai tabel / komponen lain
+        const hydratedBasic = hydratedSchools.find(h => h.id === selectedSchool.id) || selectedSchool;
+
+        const mergedForDetail = {
+          ...hydratedBasic,         // basic merged (kondisiKelas, kurangRKB, flags)
+          ...detail,                // relasi lengkap
+          kecamatan: detail?.kecamatan || hydratedBasic?.kecamatan,
+          desa: detail?.village || hydratedBasic?.desa,
+          namaSekolah: detail?.name || hydratedBasic?.namaSekolah,
+          npsn: detail?.npsn || hydratedBasic?.npsn,
+        };
+
+        detailCache.current.set(selectedSchool.id, mergedForDetail);
+        setSelectedDetail(mergedForDetail);
+      } catch (e) {
+        console.error('[SchoolDetailPage] fetch detail error:', e);
+        setDetailError(e?.message || String(e));
+      } finally {
+        setDetailLoading(false);
+      }
+    };
+    run();
+  }, [currentView, selectedSchool, hydratedSchools, fetchSchoolDetail]);
 
   // ---------- RENDER ----------
   if (loading) {
@@ -677,9 +789,40 @@ const SchoolDetailPage = () => {
   }
 
   const renderDetailView = () => {
-    if (!selectedSchool) return null;
+    // Skeleton & error untuk detail
+    if (detailLoading) {
+      return (
+        <div className={styles.loadingContainer}>
+          <div className={styles.loadingContent}>
+            <div className={styles.modernSpinner}><div className={styles.spinnerRing}></div><div className={styles.spinnerRing}></div><div className={styles.spinnerRing}></div></div>
+            <h2 className={styles.loadingTitle}>Memuat Detail Sekolah</h2>
+            <p className={styles.loadingSubtitle}>Mengambil data lengkap…</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (detailError) {
+      return (
+        <div className={styles.errorContainer}>
+          <div className={styles.errorContent}>
+            <div className={styles.errorIcon}>⚠️</div>
+            <h2 className={styles.errorTitle}>Gagal Memuat Detail</h2>
+            <p className={styles.errorMessage}>{detailError}</p>
+            <button className={styles.retryButton} onClick={() => detailCache.current.delete(selectedSchool?.id) || setSelectedDetail(null)}>
+              🔁 Coba Lagi
+            </button>
+            <button className={styles.retryButton} onClick={handleBackToMain}>⬅️ Kembali</button>
+          </div>
+        </div>
+      );
+    }
+
+    const detailObj = selectedDetail;
+    if (!detailObj) return null;
+
     let DetailComponent;
-    switch (selectedSchool.jenjang) {
+    switch (detailObj.jenjang) {
       case 'PAUD': DetailComponent = SchoolDetailPaud; break;
       case 'SD':   DetailComponent = SchoolDetailSd;   break;
       case 'SMP':  DetailComponent = SchoolDetailSmp;  break;
@@ -687,8 +830,8 @@ const SchoolDetailPage = () => {
       default:
         return (<div className={styles.noDetailAvailable}>Detail tidak tersedia untuk jenjang ini.</div>);
     }
-    const detailData = { ...selectedSchool.originalData, kecamatan: selectedSchool.kecamatan };
-    return <DetailComponent schoolData={detailData} onBack={handleBackToMain} />;
+
+    return <DetailComponent schoolData={detailObj} onBack={handleBackToMain} />;
   };
 
   const renderMainView = () => (
