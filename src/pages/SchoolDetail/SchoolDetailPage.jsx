@@ -20,6 +20,9 @@ import { useHydratedSchools } from '../../hooks/useHydratedSchools';
 import { getPageFiltersFromURL, setPageFiltersToURL, DEFAULT_PAGE_FILTERS } from '../../utils/urlFilters';
 import supabase from '@/services/supabaseClient';
 
+// ⬇️ ADD: API detail untuk SD (SMP biarkan seperti sebelumnya)
+import { getSdDetailByNpsn } from '../../services/api/detailApi';
+
 // ============ UTIL ============
 const isValidCoordinate = (lng, lat) =>
   Number.isFinite(lng) &&
@@ -35,6 +38,14 @@ const chunk = (arr, n = CHUNK_SIZE) => {
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
   return out;
 };
+
+// helper: ambil query param
+function qp(name) {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const v = params.get(name);
+  return v && String(v).trim() !== '' ? v : null;
+}
 
 // ============ ERROR BOUNDARY ============
 class ErrorBoundary extends React.Component {
@@ -293,7 +304,10 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
                 <td><span className={styles.numberBadge}>{Number(school.rehabRuangKelas || 0)}</span></td>
                 <td><span className={styles.numberBadge}>{Number(school.pembangunanRKB || 0)}</span></td>
                 <td>
-                  <button className={styles.detailButton} onClick={() => onDetailClick && onDetailClick(school)}>
+                  <button
+                    className={styles.detailButton}
+                    onClick={() => onDetailClick && onDetailClick(school)}
+                  >
                     <span className={styles.detailIcon}>👁️</span> Detail
                   </button>
                 </td>
@@ -331,7 +345,7 @@ const SchoolDetailPage = () => {
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
-  const detailCache = useRef(new Map()); // cache by school_id
+  const detailCache = useRef(new Map()); // cache by key
 
   const [filterJenjang, setFilterJenjang] = useState(DEFAULT_PAGE_FILTERS.jenjang);
   const [filterKecamatan, setFilterKecamatan] = useState(DEFAULT_PAGE_FILTERS.kecamatan);
@@ -358,10 +372,36 @@ const SchoolDetailPage = () => {
     setPageFiltersToURL({ jenjang: filterJenjang, kecamatan: filterKecamatan, desa: filterDesa });
   }, [filterJenjang, filterKecamatan, filterDesa]);
 
+  // ---------- PERUBAHAN SESUAI PERMINTAAN: handleDetailClick untuk 4 jenjang ----------
   const handleDetailClick = useCallback((school) => {
-    setSelectedSchool(school);
-    setCurrentView('detail');
+    const npsn = school?.npsn;
+    const jenjang = String(school?.jenjang || school?.level || '').toUpperCase();
+
+    if (!npsn) {
+      alert('NPSN sekolah tidak ditemukan.');
+      return;
+    }
+
+    if (jenjang === 'PAUD') {
+      window.location.assign(`/paud/school_detail?npsn=${encodeURIComponent(npsn)}`);
+      return;
+    }
+    if (jenjang === 'SD') {
+      window.location.assign(`/sd/school_detail?npsn=${encodeURIComponent(npsn)}`);
+      return;
+    }
+    if (jenjang === 'SMP') {
+      window.location.assign(`/smp/school_detail?npsn=${encodeURIComponent(npsn)}`);
+      return;
+    }
+    if (jenjang === 'PKBM') {
+      window.location.assign(`/pkbm/school_detail?npsn=${encodeURIComponent(npsn)}`);
+      return;
+    }
+
+    window.location.assign(`/detail-sekolah?jenjang=${encodeURIComponent(jenjang)}&npsn=${encodeURIComponent(npsn)}`);
   }, []);
+  // ------------------------------------------------------------------------------------
 
   const handleBackToMain = useCallback(() => {
     setCurrentView('main');
@@ -376,7 +416,7 @@ const SchoolDetailPage = () => {
     const base = () => {
       let q = supabase
         .from('schools')
-        .select('id,npsn,name,jenjang,level,kecamatan,village,lat,lng,updated_at', { count: 'exact' })
+        .select('id,npsn,name,jenjang,level,kecamatan,village,lat,lng,updated_at,student_count,type', { count: 'exact' })
         .order('id', { ascending: true });
       if (levelValue) q = q.or(`jenjang.eq.${levelValue},level.eq.${levelValue}`);
       if (kecamatanValue) q = q.eq('kecamatan', kecamatanValue);
@@ -403,6 +443,8 @@ const SchoolDetailPage = () => {
         ...s,
         jenjang: s?.jenjang ?? s?.level ?? null,
         desa: s?.village ?? null,
+        tipeSekolah: s?.type || '-',
+        student_count: Number(s?.student_count || 0),
         coordinates: (isValidCoordinate(lng, lat) ? [lng, lat] : null),
       };
     });
@@ -465,7 +507,7 @@ const SchoolDetailPage = () => {
   // ---------- MERGE LIST ----------
   const mergeDataset = useCallback((schools, kegiatan, classConds) => {
     const kegBySid = new Map();
-    const intervensiFlag = new Map(); // {rehab:0/1, pembangunan:0/1}
+    const intervensiFlag = new Map();
     for (const k of (kegiatan || [])) {
       if (!kegBySid.has(k.school_id)) kegBySid.set(k.school_id, []);
       kegBySid.get(k.school_id).push(k);
@@ -488,16 +530,14 @@ const SchoolDetailPage = () => {
         ...s,
         namaSekolah: s.name,
         npsn: s.npsn || null,
-        tipeSekolah: s.type || '-',
-        student_count: Number(s.student_count || 0),
         kondisiKelas: {
           baik: Number(cc?.classrooms_good || 0),
           rusakSedang: Number(cc?.classrooms_moderate_damage || 0),
           rusakBerat: Number(cc?.classrooms_heavy_damage || 0),
         },
         kurangRKB: Number(cc?.lacking_rkb || 0),
-        rehabRuangKelas: Number(inter.rehab || 0),          // flag per sekolah untuk tabel
-        pembangunanRKB: Number(inter.pembangunan || 0),     // flag per sekolah untuk tabel
+        rehabRuangKelas: Number(inter.rehab || 0),
+        pembangunanRKB: Number(inter.pembangunan || 0),
         kegiatan: kegBySid.get(s.id) || [],
         class_conditions: cc,
         originalData: s,
@@ -505,9 +545,8 @@ const SchoolDetailPage = () => {
     });
   }, []);
 
-  // ---------- DETAIL FETCH (ON-DEMAND) ----------
+  // ---------- DETAIL FETCH GENERIC (untuk PAUD/PKBM tetap bisa pakai ini) ----------
   const fetchSchoolDetail = useCallback(async (schoolId) => {
-    // Ambil 1 sekolah + semua relasi anak (FK ke schools.id)
     const { data, error } = await supabase
       .from('schools')
       .select(`
@@ -534,8 +573,7 @@ const SchoolDetailPage = () => {
 
     if (error) throw error;
 
-    // Bentuk data yang lebih “ramah” ke komponen detail:
-    const cc = (data?.class_conditions?.[0]) || data?.class_conditions || null; // supabase bisa return array atau object; amanin aja
+    const cc = (data?.class_conditions?.[0]) || data?.class_conditions || null;
     const mergedDetail = {
       ...data,
       namaSekolah: data?.name,
@@ -550,7 +588,6 @@ const SchoolDetailPage = () => {
         kurangRKB: Number(cc?.lacking_rkb || 0),
       },
 
-      // langsung serahkan relasi mentah; komponen detail biasanya membaca field-field ini:
       rombel: data?.rombel,
       toilets: data?.toilets,
       furniture: data?.furniture,
@@ -626,7 +663,7 @@ const SchoolDetailPage = () => {
       }
     })();
 
-    return () => { alive = false; };
+  return () => { alive = false; };
   }, [filterJenjang, filterKecamatan, filterDesa, fetchSchoolsByFilters, fetchKegiatan, fetchClassConditions, fetchIntervensiRollup, mergeDataset]);
 
   // ---------- Hydration Map ----------
@@ -728,28 +765,41 @@ const SchoolDetailPage = () => {
       if (currentView !== 'detail' || !selectedSchool) return;
       setDetailError(null);
 
-      // cek cache dulu
-      if (detailCache.current.has(selectedSchool.id)) {
-        setSelectedDetail(detailCache.current.get(selectedSchool.id));
+      // Cache key: bedakan SD/SMP supaya aman
+      const jenjang = String(selectedSchool?.jenjang || selectedSchool?.level || '').toUpperCase();
+      const cacheKey = `${jenjang}:${selectedSchool?.npsn || selectedSchool?.id}`;
+      if (detailCache.current.has(cacheKey)) {
+        setSelectedDetail(detailCache.current.get(cacheKey));
         return;
       }
 
       setDetailLoading(true);
       try {
-        const detail = await fetchSchoolDetail(selectedSchool.id);
-        // fallback beberapa field yang dipakai tabel / komponen lain
+        let detail;
+
+        if (jenjang === 'SD') {
+          // ⬇️ DETAIL SD via supabase-only (struktur sama seperti SMP)
+          detail = await getSdDetailByNpsn(selectedSchool.npsn);
+        } else {
+          // Jenjang lain tetap pakai generic (atau mekanisme kamu sebelumnya)
+          detail = await fetchSchoolDetail(selectedSchool.id);
+        }
+
+        if (!detail) throw new Error('Detail sekolah tidak ditemukan.');
+
         const hydratedBasic = hydratedSchools.find(h => h.id === selectedSchool.id) || selectedSchool;
 
         const mergedForDetail = {
-          ...hydratedBasic,         // basic merged (kondisiKelas, kurangRKB, flags)
-          ...detail,                // relasi lengkap
+          ...hydratedBasic,
+          ...detail,
           kecamatan: detail?.kecamatan || hydratedBasic?.kecamatan,
-          desa: detail?.village || hydratedBasic?.desa,
+          desa: detail?.village || detail?.desa || hydratedBasic?.desa,
+          name: detail?.name || hydratedBasic?.name,
           namaSekolah: detail?.name || hydratedBasic?.namaSekolah,
           npsn: detail?.npsn || hydratedBasic?.npsn,
         };
 
-        detailCache.current.set(selectedSchool.id, mergedForDetail);
+        detailCache.current.set(cacheKey, mergedForDetail);
         setSelectedDetail(mergedForDetail);
       } catch (e) {
         console.error('[SchoolDetailPage] fetch detail error:', e);
@@ -760,6 +810,24 @@ const SchoolDetailPage = () => {
     };
     run();
   }, [currentView, selectedSchool, hydratedSchools, fetchSchoolDetail]);
+
+  // ---------- AUTO-OPEN dari URL (?jenjang=&npsn=) ----------
+  useEffect(() => {
+    const qJenjang = qp('jenjang');
+    if (qJenjang && qJenjang !== filterJenjang) {
+      setFilterJenjang(qJenjang);
+    }
+  }, [filterJenjang]);
+
+  useEffect(() => {
+    const qNpsn = qp('npsn');
+    if (!qNpsn || !schoolData.length) return;
+    const target = schoolData.find(s => String(s.npsn) === String(qNpsn));
+    if (target) {
+      setSelectedSchool(target);
+      setCurrentView('detail');
+    }
+  }, [schoolData]);
 
   // ---------- RENDER ----------
   if (loading) {
@@ -789,7 +857,6 @@ const SchoolDetailPage = () => {
   }
 
   const renderDetailView = () => {
-    // Skeleton & error untuk detail
     if (detailLoading) {
       return (
         <div className={styles.loadingContainer}>

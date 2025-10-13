@@ -1,4 +1,5 @@
 // src/components/common/Map/SimpleMap.jsx
+import React from "react"; // <--- TAMBAHKAN BARIS INI
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
