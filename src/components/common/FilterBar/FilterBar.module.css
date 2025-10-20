@@ -1,33 +1,111 @@
-/* src/components/common/FilterBar/FilterBar.module.css */
+/* Tema hijau–kuning Garut; fokus pada tampilan & responsif */
+:root{
+  --primary-100:#E8F4EE;
+  --primary-500:#1E7F4F;
+  --primary-600:#176241;
+  --primary-700:#145C3C;
+  --accent-500:#F2B705;
+
+  --text-900:#0F172A;
+  --text-700:#334155;
+  --muted-500:#64748B;
+
+  --surface:#FFFFFF;
+  --surface-weak:#F8FAFC;
+  --border:#E2E8F0;
+
+  --shadow-soft: 0 10px 24px rgba(0,0,0,.06);
+
+  /* tinggi header global; fallback 72px jika belum di-define */
+  --header-h: 72px;
+}
+
+/* wrapper sticky tepat di bawah header (anti nabrak) */
+.wrap{
+  position: sticky;
+  top: var(--header-h);
+  z-index: 900;            /* di bawah header (header 1000) */
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* batas lebar dan padding horizontal nyaman */
+.inner{
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 8px 16px 10px;
+}
+
+/* panel filter */
 .filterBar{
   display:grid;
   grid-template-columns:1.1fr 1.1fr 1fr 1fr 160px;
   gap:10px;
   align-items:end;
+
   padding:10px 12px;
-  background:#fff;
-  border:1px solid #e5e7eb;
+  background: var(--surface);
+  border:1px solid var(--border);
   border-radius:12px;
-  box-shadow:0 10px 24px rgba(0,0,0,.06);
+  box-shadow: var(--shadow-soft);
   position:relative;
-  z-index:50;  /* pastikan tidak ketutup header */
 }
-.control{display:flex;flex-direction:column;gap:6px;}
-.label{font-size:12px;font-weight:700;color:#111827;}
+
+/* kontrol */
+.control{ display:flex; flex-direction:column; gap:6px; min-width: 200px; }
+.label{
+  font-size:12px; font-weight:700; color: var(--text-900);
+}
 .select{
-  width:100%;font-size:13px;padding:9px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#fff;
+  width:100%;
+  font-size:13px; padding:10px 12px;
+  border-radius:10px; border:1px solid var(--border);
+  background: #fff; color: var(--text-900);
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
-.actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;}
-.btn{appearance:none;border:0;border-radius:10px;padding:9px 12px;font-weight:800;font-size:13px;cursor:pointer;transition:transform .06s ease, box-shadow .12s ease;}
-.btn:active{transform:translateY(1px);}
-.btnPrimary{background:#2563eb;color:#fff;}
-.btnPrimary:hover{box-shadow:0 6px 18px rgba(37,99,235,.25);}
-.btnGhost{background:#eef2ff;color:#1e3a8a;}
-.btnGhost:hover{box-shadow:0 6px 18px rgba(30,58,138,.12);}
+.select:focus{
+  outline: 2px solid #56B789; outline-offset: 2px;
+}
+.select:disabled{
+  background: #F5F7F9; color:#9AA6B2; cursor:not-allowed;
+}
+
+/* area aksi (slot) */
+.actions{
+  display:flex; gap:8px; align-items:center; justify-content:flex-end;
+  min-width: 160px;
+}
+
+/* tombol gaya tema (jika extraActions pakai .btn*) */
+.btn{ appearance:none; border:0; border-radius:10px; padding:10px 12px;
+  font-weight:700; font-size:13px; cursor:pointer;
+  transition: transform .06s ease, box-shadow .12s ease, background-color .12s ease;
+}
+.btn:active{ transform: translateY(1px); }
+.btnPrimary{ background: var(--primary-600); color:#fff; }
+.btnPrimary:hover{ box-shadow:0 6px 18px rgba(20,92,60,.28); background: var(--primary-700); }
+.btnGhost{ background: var(--primary-100); color: var(--primary-700); }
+.btnGhost:hover{ box-shadow:0 6px 18px rgba(20,92,60,.12); }
+
+/* ===== Responsif ===== */
+@media (max-width: 1280px){
+  .inner{ padding: 8px 14px 10px; }
+}
 
 @media (max-width: 1024px){
-  .filterBar{ grid-template-columns:1fr 1fr; }
+  .filterBar{ grid-template-columns: 1fr 1fr; }
+  .control{ min-width: 0; }
 }
+
+@media (max-width: 768px){
+  /* grid satu kolom; tetap enak discroll layar kecil */
+  .filterBar{ grid-template-columns: 1fr; }
+}
+
 @media (max-width: 640px){
-  .filterBar{ grid-template-columns:1fr; position:sticky; top:0; }
+  .inner{ padding: 6px 12px 8px; }
+  /* izinkan geser horizontal jika konten melebar */
+  .filterBar{ overflow-x: auto; scrollbar-width: none; }
+  .filterBar::-webkit-scrollbar{ display:none; }
 }

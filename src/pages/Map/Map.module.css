@@ -1,4 +1,15 @@
 /* src/pages/Map/Map.module.css - PERBAIKAN CSS LENGKAP */
+.mapCounter{
+  position:absolute;
+  bottom:12px;
+  left:12px;
+  z-index:900;
+  background:rgba(255,255,255,.95);
+  border-radius:8px;
+  padding:6px 10px;
+  font-size:12px;
+  border:1px solid #e5e7eb;
+}
 
 .mapPage { 
   display: flex; 

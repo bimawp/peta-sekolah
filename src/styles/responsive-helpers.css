@@ -1,0 +1,80 @@
+:root{
+  --header-h: 64px;        /* sesuaikan dgn tinggi header kamu */
+  --container-max: 1200px; /* lebar maksimum konten */
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-6: 24px;
+}
+
+/* Container umum */
+.u-container{
+  width:100%;
+  margin:0 auto;
+  padding-inline:16px;
+  max-width:var(--container-max);
+}
+
+/* Grid responsif sederhana */
+.u-grid{ display:grid; gap:var(--gap-4); }
+@media (min-width: 1024px){
+  .u-grid-7-5{ grid-template-columns: 7fr 5fr; }
+}
+
+/* Utility spacing & display */
+.u-gap-2{ gap:var(--gap-2); }
+.u-gap-3{ gap:var(--gap-3); }
+.u-gap-4{ gap:var(--gap-4); }
+.u-gap-6{ gap:var(--gap-6); }
+
+.u-flex{ display:flex; }
+.u-items-center{ align-items:center; }
+.u-justify-between{ justify-content:space-between; }
+.u-wrap{ flex-wrap: wrap; }
+.u-truncate{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Sembunyikan di layar kecil (untuk kolom tabel kurang penting) */
+.u-hide-sm{ display:none; }
+@media (min-width:768px){ .u-hide-sm{ display:table-cell; } }
+
+/* Sticky header & filter */
+.u-header-sticky {
+  /* Dukungan untuk sticky di Safari */
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(255, 255, 255, .9);
+  
+  /* Dukungan untuk backdrop-filter di Safari */
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.u-sticky-under-header {
+  /* Dukungan untuk sticky di Safari */
+  position: -webkit-sticky;
+  position: sticky;
+  top: var(--header-h);
+  z-index: 30;
+  background: #fff;
+}
+
+/* Tabel */
+.u-table{ width:100%; border-collapse:separate; border-spacing:0; }
+.u-thead-sticky{ position:sticky; top:0; background:#fff; z-index:5; }
+.u-row-divide tr+tr{ border-top:1px solid #E5E7EB; }
+
+/* Map container responsif */
+.u-map-box{
+  position:relative; z-index:10;
+  border-radius:16px; overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,.06);
+  height:52vh;
+}
+@media (min-width:768px){ .u-map-box{ height:64vh; } }
+@media (min-width:1024px){ .u-map-box{ height:70vh; } }
+
+/* Scroll X halus untuk chip filter */
+.u-scroll-x{ overflow-x:auto; scrollbar-width:none; }
+.u-scroll-x::-webkit-scrollbar{ display:none; }

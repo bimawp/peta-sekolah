@@ -1,4 +1,28 @@
-/* src/components/common/Header/Header.module.css - VERSI FINAL DENGAN LOGO DISDIK */
+/* src/components/common/Header/Header.module.css - TEMA DINAS PENDIDIKAN GARUT (Hijau–Kuning) */
+/* Hanya tampilan & responsif — tidak menyentuh logic JS */
+
+:root{
+  /* Palet tema */
+  --primary-100:#E8F4EE;
+  --primary-500:#1E7F4F;
+  --primary-600:#176241;
+  --primary-700:#145C3C;
+  --accent-500:#F2B705;
+  --accent-600:#C79404;
+
+  --text-900:#0F172A;
+  --text-700:#334155;
+  --muted-500:#64748B;
+
+  --surface:#FFFFFF;
+  --surface-weak:#F8FAFC;
+  --border:#E2E8F0;
+
+  --shadow-soft: 0 4px 20px rgba(0,0,0,.06);
+  --shadow-header: 0 2px 10px rgba(0,0,0,.06);
+
+  --header-h: 80px; /* turun jadi 70/64 di breakpoint */
+}
 
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-10px); }
@@ -6,27 +30,26 @@
 }
 
 @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 15px rgba(102, 126, 234, 0.4); }
-  50% { box-shadow: 0 0 25px rgba(102, 126, 234, 0.6); }
+  0%, 100% { box-shadow: 0 0 15px rgba(30, 127, 79, 0.28); }
+  50% { box-shadow: 0 0 25px rgba(30, 127, 79, 0.40); }
 }
 
+/* ===== Header Wrapper (fixed, sticky look) ===== */
 .header {
-  height: 80px;
+  height: var(--header-h);
   width: 100%;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-bottom: 1px solid #e2e8f0;
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-weak) 100%);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 32px;
+  padding: 0 24px;
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   z-index: 1000;
-  flex-shrink: 0;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-header);
+  animation: fadeInDown .22s ease;
 }
 
 .container {
@@ -45,55 +68,49 @@
   padding: 0;
 }
 
-/* === LOGO SECTION STYLING === */
+/* ===== Logo & Brand ===== */
 .logoSection {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
 }
 
 .logoIcon {
   width: 56px;
   height: 56px;
-  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary-500) 0%, #56B789 100%);
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(30, 64, 175, 0.3);
+  box-shadow: 0 6px 18px rgba(30, 127, 79, 0.25);
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: transform 0.25s ease;
   flex-shrink: 0;
 }
 
 .logoIcon::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
   transition: left 0.5s ease;
 }
 
 .logoIcon:hover {
-  transform: scale(1.05);
-  animation: pulseGlow 1.5s infinite;
+  transform: translateY(-1px);
+  animation: pulseGlow 1.6s infinite;
 }
 
-.logoIcon:hover::before {
-  left: 100%;
-}
+.logoIcon:hover::before { left: 100%; }
 
 .logoImage {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   object-fit: contain;
   filter: brightness(0) invert(1);
-  z-index: 2;
-  position: relative;
+  z-index: 2; position: relative;
 }
 
 .logoText {
@@ -105,10 +122,10 @@
 .mainTitle {
   font-size: 20px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-900);
   margin: 0;
   line-height: 1.2;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+  background: linear-gradient(135deg, var(--text-900) 0%, #475569 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -117,35 +134,35 @@
 .subtitle {
   font-size: 13px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--muted-500);
   margin: 0;
   line-height: 1.2;
 }
 
-/* === USER SECTION STYLING === */
+/* ===== User Section ===== */
 .right {
   display: flex;
   align-items: center;
 }
 
-.userMenu {
-  position: relative;
-}
+.userMenu { position: relative; }
 
 .userButton {
   display: flex;
   align-items: center;
   gap:12px;
   background-color: transparent;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 8px;
+  padding: 8px 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color .2s ease, transform .2s ease, border-color .2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 
 .userButton:hover {
-  background-color: rgba(102, 126, 234, 0.05);
+  background-color: rgba(30, 127, 79, 0.06);
+  border-color: #dfe7e3;
   transform: translateY(-1px);
 }
 
@@ -159,250 +176,155 @@
 .userName {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-900);
   line-height: 1.2;
 }
 
 .userRole {
   font-size: 12px;
-  color: #667eea;
+  color: var(--primary-600);
   line-height: 1.2;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .userAvatar {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   overflow: hidden;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: linear-gradient(135deg, var(--primary-600) 0%, #56B789 100%);
+  display: flex; align-items: center; justify-content: center;
   color: white;
-  font-weight: 600;
-  border: 2px solid white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  font-weight: 700;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(30,127,79,0.24);
   flex-shrink: 0;
-  transition: all 0.3s ease;
+  transition: transform .25s ease, box-shadow .25s ease;
 }
 
 .userAvatar:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(30,127,79,0.36);
 }
 
-.avatarImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+.avatarImage { width: 100%; height: 100%; object-fit: cover; }
+.avatarInitials { font-size: 14px; }
 
-.avatarInitials {
-  font-size: 14px;
-}
-
+/* ===== Dropdown ===== */
 .dropdown {
   position: absolute;
   top: calc(100% + 12px);
   right: 0;
   width: 260px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 
-    0 20px 25px -5px rgba(0, 0, 0, 0.1),
-    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-weak) 100%);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.08), 0 10px 10px -5px rgba(0,0,0,0.04);
   z-index: 101;
   padding: 12px;
-  animation: fadeInDown 0.2s ease-out;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  animation: fadeInDown 0.18s ease-out;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .dropdownHeader {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  display: flex; align-items: center; gap: 12px;
   padding: 12px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  background: linear-gradient(135deg, rgba(30,127,79,0.06) 0%, rgba(86,183,137,0.06) 100%);
   border-radius: 12px;
   margin-bottom: 12px;
 }
 
 .dropdownAvatar {
-  width: 44px;
-  height: 44px;
+  width: 44px; height: 44px;
   border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
+  overflow: hidden; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary-600) 0%, #56B789 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 700;
 }
 
-.dropdownInitials { 
-  font-size: 16px; 
-}
+.dropdownInitials { font-size: 16px; }
+.dropdownUserInfo { overflow: hidden; }
 
-.dropdownUserInfo { 
-  overflow: hidden; 
-}
-
-.dropdownUserName { 
-  font-weight: 600; 
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis;
-  color: #1e293b;
+.dropdownUserName {
+  font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text-900);
   font-size: 14px;
-  display: block;
-  margin-bottom: 2px;
+  display: block; margin-bottom: 2px;
 }
 
-.dropdownUserEmail { 
-  font-size: 12px; 
-  color: #64748b; 
-  white-space: nowrap; 
-  overflow: hidden; 
-  text-overflow: ellipsis; 
+.dropdownUserEmail {
+  font-size: 12px; color: var(--muted-500);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .dropdownDivider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
   margin: 12px 0;
 }
 
 .dropdownItem, .logoutButton {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px;
-  background: transparent;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-  color: #374151;
-  text-align: left;
-  font-family: inherit;
-  font-weight: 500;
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 12px;
+  background: transparent; border: none;
+  border-radius: 10px; cursor: pointer;
+  transition: background-color .18s ease, transform .18s ease;
+  font-size: 14px; color: #374151; text-align: left;
+  font-family: inherit; font-weight: 500;
 }
 
 .dropdownItem:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(30,127,79,0.10) 0%, rgba(86,183,137,0.10) 100%);
   transform: translateX(4px);
 }
 
-.logoutButton {
-  color: #dc2626;
-}
-
+.logoutButton { color: #b91c1c; }
 .logoutButton:hover {
-  background: linear-gradient(135deg, rgba(220, 38, 38, 0.1) 0%, rgba(239, 68, 68, 0.1) 100%);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.10) 0%, rgba(239, 68, 68, 0.10) 100%);
   transform: translateX(4px);
 }
 
+/* Overlay */
 .overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 100;
-  background: rgba(0, 0, 0, 0.05);
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15,23,42,0.06);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
 
-/* === GLOBAL LAYOUT FIX === */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ===== Global layout fix (hanya style, tak sentuh JS) ===== */
+* { box-sizing: border-box; }
+
+body { margin: 0; padding: 0; }
+
+/* Spacer opsional kalau layout utama belum mengompensasi header fixed */
+.headerSpacer { height: var(--header-h); width: 100%; flex-shrink: 0; }
+.mainLayout { padding-top: var(--header-h); }
+
+/* ===== Responsif ===== */
+@media (max-width: 1024px){
+  :root { --header-h: 72px; }
+  .header { padding: 0 20px; }
+  .logoIcon { width: 52px; height: 52px; }
 }
 
-body {
-  margin: 0;
-  padding: 0;
+@media (max-width: 768px){
+  :root { --header-h: 68px; }
+  .logoSection { gap: 10px; }
+  .logoIcon { width: 46px; height: 46px; border-radius: 12px; }
+  .logoImage { width: 30px; height: 30px; }
+  .mainTitle { font-size: 18px; }
+  .subtitle { font-size: 12px; }
+  .userInfo { display: none; }
+  .dropdown { width: 240px; }
 }
 
-/* Layout adjustment untuk fixed header */
-.headerSpacer {
-  height: 80px;
-  width: 100%;
-  flex-shrink: 0;
-}
-
-/* Pastikan container induk tidak ada padding yang mengganggu */
-.mainLayout {
-  padding-top: 80px;
-}
-
-/* === RESPONSIVE DESIGN === */
-@media (max-width: 768px) {
-  .header {
-    padding: 0 20px;
-    height: 70px;
-  }
-  
-  .headerSpacer {
-    height: 70px;
-  }
-  
-  .logoSection {
-    gap: 10px;
-  }
-  
-  .logoIcon {
-    width: 44px;
-    height: 44px;
-  }
-  
-  .logoImage {
-    width: 32px;
-    height: 32px;
-  }
-  
-  .mainTitle {
-    font-size: 18px;
-  }
-  
-  .subtitle {
-    font-size: 12px;
-  }
-  
-  .userInfo {
-    display: none;
-  }
-  
-  .dropdown {
-    width: 240px;
-  }
-}
-
-@media (max-width: 480px) {
-  .logoText {
-    display: none;
-  }
-  
-  .logoIcon {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .logoImage {
-    width: 28px;
-    height: 28px;
-  }
-  
-  .header {
-    padding: 0 16px;
-  }
+@media (max-width: 480px){
+  :root { --header-h: 64px; }
+  .header { padding: 0 16px; }
+  .logoText { display: none; }
+  .logoIcon { width: 40px; height: 40px; border-radius: 11px; }
+  .logoImage { width: 26px; height: 26px; }
 }

@@ -1,6 +1,6 @@
 // src/components/common/Map/SimpleMap.jsx
-import React from "react"; // <--- TAMBAHKAN BARIS INI
-import { useEffect, useMemo, useRef, useState } from "react";
+import React from "react"; // <--- WAJIB ADA
+import { useEffect, useMemo, useRef } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -8,13 +8,14 @@ import styles from "./SimpleMap.module.css";
 import {
   applyFilters,
   makeKecamatanNumberIcon,
-  getLatLng,
+  getLatLngSafe,
   shortLevel,
   kecKey,
   uniqueBy,
+  GARUT_BOUNDS
 } from "./mapUtils";
 
-const GARUT_CENTER = [-7.214, 107.903];
+const GARUT_CENTER = [-7.214, 107.903]; // [lat, lng]
 const GARUT_ZOOM = 10;
 
 export default function SimpleMap({
@@ -25,42 +26,88 @@ export default function SimpleMap({
   statsOverride,          // { kecamatanCount, sekolahCount } utk header
 }) {
   const mapRef = useRef(null);
+  const fitTimer = useRef(null);
 
-  // de-dupe extra guard (by NPSN → fallback)
-  const schoolsUnique = useMemo(() => uniqueBy(schools, (s) => {
-    const npsn = (s?.npsn || s?.NPSN || "").toString().trim();
-    if (npsn) return `NPSN:${npsn}`;
-    const name = (s?.namaSekolah || s?.name || "").toString().trim().toUpperCase();
-    const desa = (s?.desa || s?.village || "").toString().trim().toUpperCase();
-    const kec  = kecKey(s?.kecamatan || "");
-    return `${name}::${desa}::${kec}`;
-  }), [schools]);
+  // de-dupe extra guard (by NPSN → fallback) — handle null/undefined lebih ketat
+  const schoolsUnique = useMemo(() =>
+    uniqueBy(schools, (s) => {
+      if (!s) return null;
+      const npsn = (s?.npsn || s?.NPSN || "").toString().trim();
+      if (npsn && npsn !== "undefined" && npsn !== "null") return `NPSN:${npsn}`;
+      const name = (s?.namaSekolah || s?.name || "").toString().trim().toUpperCase();
+      const desa = (s?.desa || s?.village || "").toString().trim().toUpperCase();
+      const kec  = kecKey(s?.kecamatan || "");
+      return `${name}::${desa}::${kec}`;
+    }), [schools]
+  );
 
-  const filtered = useMemo(() => applyFilters(schoolsUnique, filters), [schoolsUnique, filters]);
+  // terapkan filter (sekaligus menolak koordinat di luar Garut)
+  const filtered = useMemo(() => {
+    const result = applyFilters(schoolsUnique, filters);
+    console.log(`[SimpleMap] schoolsUnique: ${schoolsUnique.length}, filtered: ${result.length}, difference: ${schoolsUnique.length - result.length}`);
+    return result;
+  }, [schoolsUnique, filters]);
 
-  // rekap sederhana per kecamatan (buat titik angka)
+  // rekap sederhana per kecamatan (buat titik angka) — pakai koordinat AMAN
   const kecRekap = useMemo(() => {
     const group = new Map();
     for (const s of filtered) {
       const kk = kecKey(s?.kecamatan);
-      if (!group.has(kk)) group.set(kk, { k: kk, total: 0, any: null });
+      if (!group.has(kk)) group.set(kk, { k: kk, total: 0, any: null, coords: [] });
       const g = group.get(kk);
       g.total += 1;
       g.any = g.any || s;
+
+      const ll = getLatLngSafe(s);
+      if (ll) g.coords.push(ll); // [lat,lng] valid dalam Garut
     }
+
     return Array.from(group.values()).map((g) => {
-      const ll = getLatLng(g.any);
+      // pusat = centroid rata-rata koordinat valid; kalau tak ada, fallback center Garut
+      let center = GARUT_CENTER;
+      if (g.coords.length) {
+        const [sumLat, sumLng] = g.coords.reduce(
+          (acc, cur) => [acc[0] + cur[0], acc[1] + cur[1]],
+          [0, 0]
+        );
+        center = [sumLat / g.coords.length, sumLng / g.coords.length];
+      }
       return {
         kecKey: g.k,
         total: g.total,
-        center: ll || GARUT_CENTER,
+        center,
         displayName: g.any?.kecamatan || g.k,
       };
     });
   }, [filtered]);
 
   const badgeKecamatan = statsOverride?.kecamatanCount ?? kecRekap.length;
-  const badgeSekolah = statsOverride?.sekolahCount ?? filtered.length;
+  const badgeSekolah   = statsOverride?.sekolahCount   ?? filtered.length;
+
+  // auto-fit (debounced) pakai titik rekap yang valid
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const doFit = () => {
+      const pts = kecRekap.map(k => k.center).filter(Boolean);
+
+      if (!pts.length) {
+        map.setView(L.latLng(GARUT_CENTER[0], GARUT_CENTER[1]), initialZoom, { animate: true });
+        return;
+      }
+      if (pts.length === 1) {
+        map.setView(L.latLng(pts[0][0], pts[0][1]), Math.max(initialZoom, 12), { animate: true });
+        return;
+      }
+      const bounds = L.latLngBounds(pts.map(p => L.latLng(p[0], p[1])));
+      map.fitBounds(bounds.pad(0.15), { animate: true });
+    };
+
+    clearTimeout(fitTimer.current);
+    fitTimer.current = setTimeout(doFit, 180); // debounce 180ms
+    return () => clearTimeout(fitTimer.current);
+  }, [kecRekap, initialZoom]);
 
   return (
     <div className={styles.mapRoot}>
@@ -71,10 +118,22 @@ export default function SimpleMap({
         </div>
       </div>
 
-      <MapContainer ref={mapRef} center={initialCenter} zoom={initialZoom} className={styles.map}>
+      <MapContainer
+        ref={mapRef}
+        center={GARUT_CENTER}
+        zoom={initialZoom}
+        className={styles.map}
+        whenCreated={(m) => (mapRef.current = m)}
+        // Flag performa aman (tanpa ubah UX)
+        preferCanvas
+        updateWhenZooming={false}
+        updateWhenIdle
+        keepBuffer={2}
+      >
         <TileLayer
           attribution='&copy; OpenStreetMap'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          detectRetina
         />
 
         {/* Titik agregat per kecamatan (angka bulat) */}
@@ -92,9 +151,11 @@ export default function SimpleMap({
           );
         })}
 
-        {/* (opsional) titik sekolah individual — aktifkan jika perlu
+        {/* (opsional) titik sekolah individual — aktifkan jika diperlukan */}
+        {/*
         {filtered.map((s, i) => {
-          const ll = getLatLng(s); if (!ll) return null;
+          const ll = getLatLngSafe(s);
+          if (!ll) return null;
           return (
             <Marker key={s.id || s.npsn || i} position={ll}>
               <Popup>

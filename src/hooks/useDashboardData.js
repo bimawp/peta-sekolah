@@ -34,7 +34,16 @@ const useDashboardData = () => {
         }
 
         const jsonData = await Promise.all(responses.map((res) => res.json()));
-
+console.log('test : ', {
+          paud: jsonData[0],
+          sd: jsonData[1],
+          smp: jsonData[2],
+          pkbm: jsonData[3],
+          kegiatanPaud: jsonData[4],
+          kegiatanSd: jsonData[5],
+          kegiatanSmp: jsonData[6],
+          kegiatanPkbm: jsonData[7],
+        })
         setData({
           paud: jsonData[0],
           sd: jsonData[1],

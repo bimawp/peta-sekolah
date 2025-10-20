@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
     PieChart, Pie, Cell, Tooltip, Legend, LabelList
@@ -10,6 +10,133 @@ import SchoolDetailSd from '../../components/schools/SchoolDetail/Sd/SchoolDetai
 import SchoolDetailSmp from '../../components/schools/SchoolDetail/Smp/SchoolDetailSmp';
 import SchoolDetailPkbm from '../../components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm';
 
+///////////////////////////////////////////////////////////////
+// === DataTable (disalin dari SchoolDetailPage.jsx, tanpa ubahan)
+///////////////////////////////////////////////////////////////
+const DataTable = React.memo(({ data, onDetailClick }) => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortField, setSortField] = useState('');
+  const [sortDirection, setSortDirection] = useState('asc');
+
+  // Log data yang diterima
+  useEffect(() => {
+    console.log('[DataTable] Received data:', data?.length, 'schools');
+  }, [data]);
+
+  const filteredData = useMemo(() => {
+    let f = data || [];
+    if (searchTerm) {
+      f = f.filter(s =>
+        (s.namaSekolah || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.npsn || '').toString().includes(searchTerm) ||
+        (s.kecamatan || '').toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    if (sortField) {
+      f = [...f].sort((a, b) => {
+        let aVal = a[sortField]; let bVal = b[sortField];
+        if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); }
+        return sortDirection === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+      });
+    }
+    return f;
+  }, [data, searchTerm, sortField, sortDirection]);
+
+  const { data: paginatedData, totalPages, totalItems } = useMemo(() => {
+    const t = Math.ceil(filteredData.length / itemsPerPage);
+    const s = (currentPage - 1) * itemsPerPage;
+    return { data: filteredData.slice(s, s + itemsPerPage), totalPages: t > 0 ? t : 1, totalItems: filteredData.length };
+  }, [filteredData, currentPage, itemsPerPage]);
+
+  const handleSort = (field) => {
+    if (sortField === field) setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    else { setSortField(field); setSortDirection('asc'); }
+  };
+
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, itemsPerPage]);
+
+  return (
+    <div className={styles.tableContainer}>
+      <div className={styles.tableControls}>
+        <div className={styles.searchContainer}>
+          <div className={styles.searchIcon}>🔍</div>
+          <input type="text" placeholder="Cari nama sekolah, NPSN..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className={styles.searchInput} />
+          {searchTerm && (<button className={styles.clearSearch} onClick={() => setSearchTerm('')}>✕</button>)}
+        </div>
+        <div className={styles.controlGroup}>
+          <label>Tampilkan:</label>
+          <select value={itemsPerPage} onChange={e => setItemsPerPage(Number(e.target.value))} className={styles.itemsPerPageSelect}>
+            <option value={5}>5</option><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option>
+          </select>
+          <button onClick={() => { setSearchTerm(''); setCurrentPage(1); setItemsPerPage(10); setSortField(''); setSortDirection('asc'); }} className={styles.resetTableButton}>
+            Reset
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.tableScrollContainer}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>NO</th>
+              <th className={styles.sortableHeader} onClick={() => handleSort('npsn')}>NPSN {sortField === 'npsn' && (sortDirection === 'asc' ? '↑' : '↓')}</th>
+              <th className={styles.sortableHeader} onClick={() => handleSort('namaSekolah')}>NAMA SEKOLAH {sortField === 'namaSekolah' && (sortDirection === 'asc' ? '↑' : '↓')}</th>
+              <th className={styles.sortableHeader} onClick={() => handleSort('jenjang')}>JENJANG {sortField === 'jenjang' && (sortDirection === 'asc' ? '↑' : '↓')}</th>
+              <th>TIPE</th><th>DESA</th><th>KECAMATAN</th>
+              <th>SISWA</th><th>KLS BAIK</th><th>R. SEDANG</th><th>R. BERAT</th>
+              <th>KURANG RKB</th><th>REHAB</th><th>PEMBANGUNAN</th><th>DETAIL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedData.length > 0 ? paginatedData.map((school, index) => (
+              <tr key={`${school.npsn || index}-${index}`} className={styles.tableRow}>
+                <td>{((currentPage - 1) * itemsPerPage) + index + 1}</td>
+                <td><span className={styles.npsnBadge}>{school.npsn || '-'}</span></td>
+                <td className={styles.schoolNameCell}>{school.namaSekolah || '-'}</td>
+                <td><span className={`${styles.jenjangBadge} ${styles[school.jenjang?.toLowerCase?.() || '']}`}>{school.jenjang || '-'}</span></td>
+                <td>{school.tipeSekolah || '-'}</td>
+                <td>{school.desa || '-'}</td>
+                <td>{school.kecamatan || '-'}</td>
+                <td><span className={styles.numberBadge}>{Number(school.student_count || 0)}</span></td>
+                <td><span className={styles.conditionGood}>{Number(school.kondisiKelas?.baik || 0)}</span></td>
+                <td><span className={styles.conditionModerate}>{Number(school.kondisiKelas?.rusakSedang || 0)}</span></td>
+                <td><span className={styles.conditionBad}>{Number(school.kondisiKelas?.rusakBerat || 0)}</span></td>
+                <td><span className={styles.numberBadge}>{Number(school.kurangRKB || 0)}</span></td>
+                <td><span className={styles.numberBadge}>{Number(school.rehabRuangKelas || 0)}</span></td>
+                <td><span className={styles.numberBadge}>{Number(school.pembangunanRKB || 0)}</span></td>
+                <td>
+                  <button
+                    className={styles.detailButton}
+                    onClick={() => onDetailClick && onDetailClick(school)}
+                  >
+                    <span className={styles.detailIcon}>👁️</span> Detail
+                  </button>
+                </td>
+              </tr>
+            )) : (
+              <tr><td colSpan="15" className={styles.noDataCell}><div className={styles.chartEmpty}><img className={styles.chartEmptyIcon} alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ccircle cx='24' cy='24' r='20' fill='%23E2E8F0'/%3E%3C/svg%3E" />Tidak ada data</div></td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className={styles.pagination}>
+        <div className={styles.paginationInfo}><span className={styles.pageInfo}>Menampilkan <strong>{paginatedData.length}</strong> dari <strong>{totalItems}</strong> data</span></div>
+        <div className={styles.pageButtons}>
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className={styles.pageButton}>⏮️</button>
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className={styles.pageButton}>⬅️</button>
+          <span className={styles.pageIndicator}><strong>{currentPage}</strong> / {totalPages}</span>
+          <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className={styles.pageButton}>➡️</button>
+          <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} className={styles.pageButton}>⏭️</button>
+        </div>
+      </div>
+    </div>
+  );
+});
+///////////////////////////////////////////////////////////////
+
 const FacilitiesPage = () => {
     const [currentView, setCurrentView] = useState('main');
     const [selectedSchool, setSelectedSchool] = useState(null);
@@ -17,13 +144,11 @@ const FacilitiesPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     
-    // Enhanced states for improved functionality
+    // Enhanced states (tetap ada agar bagian lain tidak berubah)
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    
-    // Enhanced search states
-    const [searchType, setSearchType] = useState('semua'); // 'semua', 'npsn', 'nama', 'jenjang'
+    const [searchType, setSearchType] = useState('semua');
     const [advancedSearch, setAdvancedSearch] = useState(false);
     const [searchFilters, setSearchFilters] = useState({
         npsn: '',
@@ -88,9 +213,7 @@ const FacilitiesPage = () => {
     // Enhanced search function
     const performSearch = (data) => {
         if (!advancedSearch) {
-            // Simple search
             if (!searchQuery.trim()) return data;
-            
             const query = searchQuery.toLowerCase().trim();
             return data.filter(school => {
                 if (searchType === 'semua') {
@@ -109,7 +232,6 @@ const FacilitiesPage = () => {
                 return false;
             });
         } else {
-            // Advanced search
             return data.filter(school => {
                 const matchNpsn = !searchFilters.npsn.trim() || 
                     school.npsn?.toLowerCase().includes(searchFilters.npsn.toLowerCase().trim());
@@ -120,127 +242,6 @@ const FacilitiesPage = () => {
                 
                 return matchNpsn && matchNama && matchJenjang;
             });
-        }
-    };
-
-    // Enhanced sorting function
-    const handleSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-        setCurrentPage(1);
-    };
-
-    // Sorted and paginated data
-    const sortedAndPaginatedData = useMemo(() => {
-        let sortableData = [...filteredSchoolData];
-        if (sortConfig.key) {
-            sortableData.sort((a, b) => {
-                if (a[sortConfig.key] < b[sortConfig.key]) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (a[sortConfig.key] > b[sortConfig.key]) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-        
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        return sortableData.slice(startIndex, endIndex);
-    }, [filteredSchoolData, sortConfig, currentPage, itemsPerPage]);
-
-    // Pagination calculations
-    const totalPages = Math.ceil(filteredSchoolData.length / itemsPerPage);
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, filteredSchoolData.length);
-
-    // Clear search function
-    const clearSearch = () => {
-        setSearchQuery('');
-        setSearchFilters({ npsn: '', nama: '', jenjang: '' });
-        setCurrentPage(1);
-    };
-
-    // Toggle advanced search
-    const toggleAdvancedSearch = () => {
-        setAdvancedSearch(!advancedSearch);
-        setSearchQuery('');
-        setSearchFilters({ npsn: '', nama: '', jenjang: '' });
-        setCurrentPage(1);
-    };
-
-    // Pagination handlers
-    const goToPage = (page) => {
-        setCurrentPage(Math.max(1, Math.min(page, totalPages)));
-    };
-
-    // Generate chart data function
-    const generateChartData = (data, allSchoolData, allKegiatanData) => {
-        const pembangunanDilakukan = allKegiatanData.filter(k => k.Kegiatan === 'Pembangunan Toilet').length;
-        const rehabDilakukan = allKegiatanData.filter(k => k.Kegiatan === 'Rehab Toilet' || k.Kegiatan === 'Rehab Ruang Toilet').length;
-
-        const sekolahTanpaToilet = allSchoolData.filter(s => s.totalToilet === 0).length;
-        const kebutuhanRehabilitasi = allSchoolData.filter(s => s.toiletRusakBerat > 0).length;
-        
-        const rekap = {
-            sekolah_tanpa_toilet: sekolahTanpaToilet,
-            pembangunan_dilakukan: pembangunanDilakukan,
-            kebutuhan_rehabilitasi: kebutuhanRehabilitasi,
-            rehab_dilakukan: rehabDilakukan,
-            intervensi_pembangunan: pembangunanDilakukan,
-            intervensi_rehab: rehabDilakukan,
-        };
-        
-        const kebutuhan_belum_dibangun = rekap.sekolah_tanpa_toilet - rekap.pembangunan_dilakukan;
-
-        const pieDataMapper = (d) => ({...d, actualCount: d.value});
-
-        const totalPembangunan = rekap.sekolah_tanpa_toilet;
-        setPembangunanPieData([
-            { name: 'Kebutuhan Toilet (Belum dibangun)', value: kebutuhan_belum_dibangun, percent: (kebutuhan_belum_dibangun/totalPembangunan)*100, color: '#FF6B6B' },
-            { name: 'Pembangunan dilakukan', value: rekap.pembangunan_dilakukan, percent: (rekap.pembangunan_dilakukan/totalPembangunan)*100, color: '#4ECDC4' }
-        ].map(pieDataMapper));
-
-        const totalRehabilitasi = rekap.kebutuhan_rehabilitasi + rekap.rehab_dilakukan;
-        setRehabilitasiPieData([
-            { name: 'Rusak Berat (Belum Direhab)', value: rekap.kebutuhan_rehabilitasi, percent: (rekap.kebutuhan_rehabilitasi/totalRehabilitasi)*100, color: '#FF6B6B' },
-            { name: 'Rehab Dilakukan', value: rekap.rehab_dilakukan, percent: (rekap.rehab_dilakukan/totalRehabilitasi)*100, color: '#4ECDC4' }
-        ].filter(d => d.value > 0).map(pieDataMapper));
-
-        setIntervensiToiletData([
-            { name: 'Total Intervensi', value: rekap.intervensi_pembangunan + rekap.intervensi_rehab, color: '#667eea' },
-            { name: 'Pembangunan Toilet', value: rekap.intervensi_pembangunan, color: '#4ECDC4' },
-            { name: 'Rehab Toilet', value: rekap.intervensi_rehab, color: '#FFD93D' }
-        ]);
-
-        let totalToiletBaik = 0, totalToiletRusakSedang = 0, totalToiletRusakBerat = 0;
-        data.forEach(school => {
-            totalToiletBaik += school.toiletBaik;
-            totalToiletRusakSedang += school.toiletRusakSedang;
-            totalToiletRusakBerat += school.toiletRusakBerat;
-        });
-        const totalToiletCount = totalToiletBaik + totalToiletRusakSedang + totalToiletRusakBerat;
-
-        setKondisiToiletData([
-            { name: "Total Unit", value: totalToiletCount, color: "#667eea" },
-            { name: "Unit Baik", value: totalToiletBaik, color: "#4ECDC4" },
-            { name: "Unit Rusak Sedang", value: totalToiletRusakSedang, color: "#FFD93D" },
-            { name: "Unit Rusak Berat", value: totalToiletRusakBerat, color: "#FF6B6B" },
-            { name: "Sekolah Tanpa Toilet", value: data.filter(s => s.totalToilet === 0).length, color: "#ff8787" },
-        ]);
-
-        if (totalToiletCount > 0) {
-            setKondisiPieData([
-                { name: 'Baik', value: totalToiletBaik, percent: (totalToiletBaik/totalToiletCount)*100, color: '#4ECDC4' },
-                { name: 'Rusak Sedang', value: totalToiletRusakSedang, percent: (totalToiletRusakSedang/totalToiletCount)*100, color: '#FFD93D' },
-                { name: 'Rusak Berat', value: totalToiletRusakBerat, percent: (totalToiletRusakBerat/totalToiletCount)*100, color: '#FF6B6B' }
-            ].map(pieDataMapper));
-        } else {
-            setKondisiPieData([{ name: 'Tidak Ada Data', value: 1, actualCount: 0, percent: 100, color: '#95A5A6' }]);
         }
     };
 
@@ -372,190 +373,118 @@ const FacilitiesPage = () => {
         return null;
     };
 
-    // Badge component for jenjang
-    const JenjangBadge = ({ jenjang }) => (
-        <span className={`${styles.badge} ${styles[`badge${jenjang}`]}`}>
-            {jenjang}
-        </span>
-    );
+    // Generate chart data function
+    const generateChartData = (data, allSchoolData, allKegiatanData) => {
+        const pembangunanDilakukan = allKegiatanData.filter(k => k.Kegiatan === 'Pembangunan Toilet').length;
+        const rehabDilakukan = allKegiatanData.filter(k => k.Kegiatan === 'Rehab Toilet' || k.Kegiatan === 'Rehab Ruang Toilet').length;
 
-    // Sort icon component
-    const SortIcon = ({ column }) => {
-        if (sortConfig.key !== column) {
-            return <span className={styles.sortIcon}>↕️</span>;
+        const sekolahTanpaToilet = allSchoolData.filter(s => s.totalToilet === 0).length;
+        const kebutuhanRehabilitasi = allSchoolData.filter(s => s.toiletRusakBerat > 0).length;
+        
+        const rekap = {
+            sekolah_tanpa_toilet: sekolahTanpaToilet,
+            pembangunan_dilakukan: pembangunanDilakukan,
+            kebutuhan_rehabilitasi: kebutuhanRehabilitasi,
+            rehab_dilakukan: rehabDilakukan,
+            intervensi_pembangunan: pembangunanDilakukan,
+            intervensi_rehab: rehabDilakukan,
+        };
+        
+        const kebutuhan_belum_dibangun = rekap.sekolah_tanpa_toilet - rekap.pembangunan_dilakukan;
+
+        const pieDataMapper = (d) => ({...d, actualCount: d.value});
+
+        const totalPembangunan = rekap.sekolah_tanpa_toilet;
+        setPembangunanPieData([
+            { name: 'Kebutuhan Toilet (Belum dibangun)', value: kebutuhan_belum_dibangun, percent: (kebutuhan_belum_dibangun/totalPembangunan)*100, color: '#FF6B6B' },
+            { name: 'Pembangunan dilakukan', value: rekap.pembangunan_dilakukan, percent: (rekap.pembangunan_dilakukan/totalPembangunan)*100, color: '#4ECDC4' }
+        ].map(pieDataMapper));
+
+        const totalRehabilitasi = rekap.kebutuhan_rehabilitasi + rekap.rehab_dilakukan;
+        setRehabilitasiPieData([
+            { name: 'Rusak Berat (Belum Direhab)', value: rekap.kebutuhan_rehabilitasi, percent: (rekap.kebutuhan_rehabilitasi/totalRehabilitasi)*100, color: '#FF6B6B' },
+            { name: 'Rehab Dilakukan', value: rekap.rehab_dilakukan, percent: (rekap.rehab_dilakukan/totalRehabilitasi)*100, color: '#4ECDC4' }
+        ].filter(d => d.value > 0).map(pieDataMapper));
+
+        setIntervensiToiletData([
+            { name: 'Total Intervensi', value: rekap.intervensi_pembangunan + rekap.intervensi_rehab, color: '#667eea' },
+            { name: 'Pembangunan Toilet', value: rekap.intervensi_pembangunan, color: '#4ECDC4' },
+            { name: 'Rehab Toilet', value: rekap.intervensi_rehab, color: '#FFD93D' }
+        ]);
+
+        let totalToiletBaik = 0, totalToiletRusakSedang = 0, totalToiletRusakBerat = 0;
+        data.forEach(school => {
+            totalToiletBaik += school.toiletBaik;
+            totalToiletRusakSedang += school.toiletRusakSedang;
+            totalToiletRusakBerat += school.toiletRusakBerat;
+        });
+        const totalToiletCount = totalToiletBaik + totalToiletRusakSedang + totalToiletRusakBerat;
+
+        setKondisiToiletData([
+            { name: "Total Unit", value: totalToiletCount, color: "#667eea" },
+            { name: "Unit Baik", value: totalToiletBaik, color: "#4ECDC4" },
+            { name: "Unit Rusak Sedang", value: totalToiletRusakSedang, color: "#FFD93D" },
+            { name: "Unit Rusak Berat", value: totalToiletRusakBerat, color: "#FF6B6B" },
+            { name: "Sekolah Tanpa Toilet", value: data.filter(s => s.totalToilet === 0).length, color: "#ff8787" },
+        ]);
+
+        if (totalToiletCount > 0) {
+            setKondisiPieData([
+                { name: 'Baik', value: totalToiletBaik, percent: (totalToiletBaik/totalToiletCount)*100, color: '#4ECDC4' },
+                { name: 'Rusak Sedang', value: totalToiletRusakSedang, percent: (totalToiletRusakSedang/totalToiletCount)*100, color: '#FFD93D' },
+                { name: 'Rusak Berat', value: totalToiletRusakBerat, percent: (totalToiletRusakBerat/totalToiletCount)*100, color: '#FF6B6B' }
+            ].map(pieDataMapper));
+        } else {
+            setKondisiPieData([{ name: 'Tidak Ada Data', value: 1, actualCount: 0, percent: 100, color: '#95A5A6' }]);
         }
-        return (
-            <span className={styles.sortIcon}>
-                {sortConfig.direction === 'asc' ? '↑' : '↓'}
-            </span>
-        );
     };
 
-    // Loading component
-    const LoadingSpinner = () => (
-        <div className={styles.loadingContainer}>
-            <div className={styles.loadingSpinner}></div>
-            <p className={styles.loadingText}>Memuat data sekolah...</p>
-        </div>
-    );
+    // === mapping data -> bentuk yang dipakai DataTable asli ===
+    const mappedTableData = useMemo(() => {
+      return (filteredSchoolData || []).map(s => ({
+        npsn: s.npsn,
+        namaSekolah: s.nama,
+        jenjang: s.jenjang,
+        tipeSekolah: s.tipe,
+        desa: s.desa,
+        kecamatan: s.kecamatan,
+        student_count: 0, // tidak tersedia di dataset toilet
+        kondisiKelas: {
+          baik: Number(s.toiletBaik || 0),
+          rusakSedang: Number(s.toiletRusakSedang || 0),
+          rusakBerat: Number(s.toiletRusakBerat || 0),
+        },
+        kurangRKB: 0,
+        rehabRuangKelas: 0,
+        pembangunanRKB: 0,
+      }));
+    }, [filteredSchoolData]);
 
-    // Error component
-    const ErrorMessage = ({ message }) => (
-        <div className={styles.errorContainer}>
-            <div className={styles.errorIcon}>⚠️</div>
-            <h3>Terjadi Kesalahan</h3>
-            <p className={styles.errorMessage}>{message}</p>
-            <button 
-                className={styles.retryButton}
-                onClick={() => window.location.reload()}
-            >
-                Muat Ulang Halaman
-            </button>
-        </div>
-    );
+    // === onDetailClick: NAVIGASI seperti SchoolDetailPage.jsx (per NPSN + jenjang) ===
+    const handleDetailClickNavigate = useCallback((row) => {
+      const npsn = row?.npsn;
+      const jenjang = String(row?.jenjang || '').toUpperCase();
+      if (!npsn) { alert('NPSN sekolah tidak ditemukan.'); return; }
 
-    // Summary statistics component
-    const SummaryStats = () => {
-        const totalSekolah = filteredSchoolData.length;
-        const totalToilet = filteredSchoolData.reduce((sum, s) => sum + s.totalToilet, 0);
-        const sekolahTanpaToilet = filteredSchoolData.filter(s => s.totalToilet === 0).length;
-        const toiletRusakBerat = filteredSchoolData.reduce((sum, s) => sum + s.toiletRusakBerat, 0);
+      if (jenjang === 'PAUD') { window.location.assign(`/paud/school_detail?npsn=${encodeURIComponent(npsn)}`); return; }
+      if (jenjang === 'SD')   { window.location.assign(`/sd/school_detail?npsn=${encodeURIComponent(npsn)}`);   return; }
+      if (jenjang === 'SMP')  { window.location.assign(`/smp/school_detail?npsn=${encodeURIComponent(npsn)}`);  return; }
+      if (jenjang === 'PKBM') { window.location.assign(`/pkbm/school_detail?npsn=${encodeURIComponent(npsn)}`); return; }
 
-        return (
-            <section className={`${styles.card} ${styles.summaryCard}`}>
-                <header className={styles.cardHeader}>
-                    <h2>Ringkasan Data</h2>
-                </header>
-                <div className={styles.statsGrid}>
-                    <div className={styles.statItem}>
-                        <div className={styles.statValue}>{totalSekolah}</div>
-                        <div className={styles.statLabel}>Total Sekolah</div>
-                    </div>
-                    <div className={styles.statItem}>
-                        <div className={styles.statValue}>{totalToilet}</div>
-                        <div className={styles.statLabel}>Total Unit Toilet</div>
-                    </div>
-                    <div className={styles.statItem}>
-                        <div className={styles.statValue}>{sekolahTanpaToilet}</div>
-                        <div className={styles.statLabel}>Sekolah Tanpa Toilet</div>
-                    </div>
-                    <div className={styles.statItem}>
-                        <div className={styles.statValue}>{toiletRusakBerat}</div>
-                        <div className={styles.statLabel}>Unit Rusak Berat</div>
-                    </div>
-                </div>
-            </section>
-        );
-    };
+      // fallback generic (jika ada rute lain)
+      window.location.assign(`/detail-sekolah?jenjang=${encodeURIComponent(jenjang)}&npsn=${encodeURIComponent(npsn)}`);
+    }, []);
 
-    // Enhanced search component
-    const SearchComponent = () => (
-        <div className={styles.searchSection}>
-            <div className={styles.searchHeader}>
-                <label className={styles.filterLabel}>Pencarian Data Sekolah</label>
-                <button
-                    className={styles.toggleSearchButton}
-                    onClick={toggleAdvancedSearch}
-                >
-                    {advancedSearch ? 'Pencarian Sederhana' : 'Pencarian Lanjutan'}
-                </button>
-            </div>
-            
-            {!advancedSearch ? (
-                // Simple search
-                <div className={styles.simpleSearch}>
-                    <div className={styles.searchTypeSelector}>
-                        <label>Cari berdasarkan:</label>
-                        <select 
-                            value={searchType} 
-                            onChange={(e) => setSearchType(e.target.value)}
-                            className={styles.searchTypeSelect}
-                        >
-                            <option value="semua">Semua Field</option>
-                            <option value="npsn">NPSN</option>
-                            <option value="nama">Nama Sekolah</option>
-                            <option value="jenjang">Jenjang</option>
-                        </select>
-                    </div>
-                    <div className={styles.searchInputWrapper}>
-                        <input
-                            type="text"
-                            className={styles.searchInput}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={
-                                searchType === 'semua' ? 'Cari NPSN, nama sekolah, atau jenjang...' :
-                                searchType === 'npsn' ? 'Cari berdasarkan NPSN...' :
-                                searchType === 'nama' ? 'Cari berdasarkan nama sekolah...' :
-                                'Cari berdasarkan jenjang (PAUD, SD, SMP, PKBM)...'
-                            }
-                        />
-                        {searchQuery && (
-                            <button
-                                className={styles.clearSearchButton}
-                                onClick={clearSearch}
-                                title="Hapus pencarian"
-                            >
-                                ✕
-                            </button>
-                        )}
-                    </div>
-                </div>
-            ) : (
-                // Advanced search
-                <div className={styles.advancedSearch}>
-                    <div className={styles.advancedSearchGrid}>
-                        <div className={styles.advancedSearchField}>
-                            <label>NPSN</label>
-                            <input
-                                type="text"
-                                value={searchFilters.npsn}
-                                onChange={(e) => setSearchFilters(prev => ({ ...prev, npsn: e.target.value }))}
-                                placeholder="Cari berdasarkan NPSN..."
-                                className={styles.advancedSearchInput}
-                            />
-                        </div>
-                        <div className={styles.advancedSearchField}>
-                            <label>Nama Sekolah</label>
-                            <input
-                                type="text"
-                                value={searchFilters.nama}
-                                onChange={(e) => setSearchFilters(prev => ({ ...prev, nama: e.target.value }))}
-                                placeholder="Cari berdasarkan nama sekolah..."
-                                className={styles.advancedSearchInput}
-                            />
-                        </div>
-                        <div className={styles.advancedSearchField}>
-                            <label>Jenjang</label>
-                            <input
-                                type="text"
-                                value={searchFilters.jenjang}
-                                onChange={(e) => setSearchFilters(prev => ({ ...prev, jenjang: e.target.value }))}
-                                placeholder="PAUD, SD, SMP, PKBM..."
-                                className={styles.advancedSearchInput}
-                            />
-                        </div>
-                    </div>
-                    <div className={styles.advancedSearchActions}>
-                        <button
-                            className={styles.clearSearchButton}
-                            onClick={clearSearch}
-                        >
-                            Hapus Semua Pencarian
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-
-    // Main dashboard view
+    // Main dashboard view (tak diubah, selain bagian tabel menggunakan DataTable + handler baru)
     const renderMainView = () => {
         if (loading) {
             return (
                 <div className={styles.container}>
                     <div className={styles.card}>
-                        <LoadingSpinner />
+                        <div className={styles.loadingContainer}>
+                            <div className={styles.loadingSpinner}></div>
+                            <p className={styles.loadingText}>Memuat data sekolah...</p>
+                        </div>
                     </div>
                 </div>
             );
@@ -565,7 +494,17 @@ const FacilitiesPage = () => {
             return (
                 <div className={styles.container}>
                     <div className={styles.card}>
-                        <ErrorMessage message={error} />
+                        <div className={styles.errorContainer}>
+                            <div className={styles.errorIcon}>⚠️</div>
+                            <h3>Terjadi Kesalahan</h3>
+                            <p className={styles.errorMessage}>{error}</p>
+                            <button 
+                                className={styles.retryButton}
+                                onClick={() => window.location.reload()}
+                            >
+                                Muat Ulang Halaman
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
@@ -586,7 +525,29 @@ const FacilitiesPage = () => {
                 </header>
 
                 {/* Summary Statistics */}
-                <SummaryStats />
+                <section className={`${styles.card} ${styles.summaryCard}`}>
+                    <header className={styles.cardHeader}>
+                        <h2>Ringkasan Data</h2>
+                    </header>
+                    <div className={styles.statsGrid}>
+                        <div className={styles.statItem}>
+                            <div className={styles.statValue}>{filteredSchoolData.length}</div>
+                            <div className={styles.statLabel}>Total Sekolah</div>
+                        </div>
+                        <div className={styles.statItem}>
+                            <div className={styles.statValue}>{filteredSchoolData.reduce((sum, s) => sum + s.totalToilet, 0)}</div>
+                            <div className={styles.statLabel}>Total Unit Toilet</div>
+                        </div>
+                        <div className={styles.statItem}>
+                            <div className={styles.statValue}>{filteredSchoolData.filter(s => s.totalToilet === 0).length}</div>
+                            <div className={styles.statLabel}>Sekolah Tanpa Toilet</div>
+                        </div>
+                        <div className={styles.statItem}>
+                            <div className={styles.statValue}>{filteredSchoolData.reduce((sum, s) => sum + s.toiletRusakBerat, 0)}</div>
+                            <div className={styles.statLabel}>Unit Rusak Berat</div>
+                        </div>
+                    </div>
+                </section>
 
                 {/* Basic Filters Section - Only for Charts */}
                 <section className={`${styles.card} ${styles.filtersCard}`}>
@@ -810,380 +771,20 @@ const FacilitiesPage = () => {
                     </div>
                 </section>
 
-                {/* Data Table Section with Search */}
+                {/* Data Table Section — pakai DataTable dari SchoolDetailPage.jsx */}
                 <section className={`${styles.card} ${styles.tableCard}`}>
                     <header className={styles.cardHeader}>
                         <div className={styles.tableHeaderContent}>
                             <h2>Data Sekolah</h2>
-                            <div className={styles.tableControls}>
-                                <div className={styles.itemsPerPageSelector}>
-                                    <label>Tampilkan:</label>
-                                    <select 
-                                        value={itemsPerPage} 
-                                        onChange={(e) => {
-                                            setItemsPerPage(Number(e.target.value));
-                                            setCurrentPage(1);
-                                        }}
-                                        className={styles.pageSelect}
-                                    >
-                                        <option value={10}>10</option>
-                                        <option value={25}>25</option>
-                                        <option value={50}>50</option>
-                                        <option value={100}>100</option>
-                                    </select>
-                                    <span>per halaman</span>
-                                </div>
-                            </div>
                         </div>
                     </header>
 
-                    {/* Filter & Search Section for Table */}
-                    <div className={styles.tableFilterSection}>
-                        <div className={styles.tableFilterHeader}>
-                            <h3>Filter & Pencarian Data Tabel</h3>
-                            <button
-                                className={styles.toggleSearchButton}
-                                onClick={toggleAdvancedSearch}
-                            >
-                                {advancedSearch ? 'Pencarian Sederhana' : 'Pencarian Lanjutan'}
-                            </button>
-                        </div>
-
-                        {/* Enhanced Search Component for Table */}
-                        <div className={styles.tableSearchSection}>
-                            {!advancedSearch ? (
-                                // Simple search
-                                <div className={styles.simpleTableSearch}>
-                                    <div className={styles.searchTypeSelector}>
-                                        <label>Cari berdasarkan:</label>
-                                        <select 
-                                            value={searchType} 
-                                            onChange={(e) => setSearchType(e.target.value)}
-                                            className={styles.searchTypeSelect}
-                                        >
-                                            <option value="semua">Semua Field</option>
-                                            <option value="npsn">NPSN</option>
-                                            <option value="nama">Nama Sekolah</option>
-                                            <option value="jenjang">Jenjang</option>
-                                        </select>
-                                    </div>
-                                    <div className={styles.searchInputWrapper}>
-                                        <input
-                                            type="text"
-                                            className={styles.searchInput}
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            placeholder={
-                                                searchType === 'semua' ? 'Cari NPSN, nama sekolah, atau jenjang...' :
-                                                searchType === 'npsn' ? 'Cari berdasarkan NPSN...' :
-                                                searchType === 'nama' ? 'Cari berdasarkan nama sekolah...' :
-                                                'Cari berdasarkan jenjang (PAUD, SD, SMP, PKBM)...'
-                                            }
-                                        />
-                                        {searchQuery && (
-                                            <button
-                                                className={styles.clearSearchButton}
-                                                onClick={clearSearch}
-                                                title="Hapus pencarian"
-                                            >
-                                                ✕
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : (
-                                // Advanced search
-                                <div className={styles.advancedTableSearch}>
-                                    <div className={styles.advancedSearchGrid}>
-                                        <div className={styles.advancedSearchField}>
-                                            <label>NPSN</label>
-                                            <input
-                                                type="text"
-                                                value={searchFilters.npsn}
-                                                onChange={(e) => setSearchFilters(prev => ({ ...prev, npsn: e.target.value }))}
-                                                placeholder="Cari berdasarkan NPSN..."
-                                                className={styles.advancedSearchInput}
-                                            />
-                                        </div>
-                                        <div className={styles.advancedSearchField}>
-                                            <label>Nama Sekolah</label>
-                                            <input
-                                                type="text"
-                                                value={searchFilters.nama}
-                                                onChange={(e) => setSearchFilters(prev => ({ ...prev, nama: e.target.value }))}
-                                                placeholder="Cari berdasarkan nama sekolah..."
-                                                className={styles.advancedSearchInput}
-                                            />
-                                        </div>
-                                        <div className={styles.advancedSearchField}>
-                                            <label>Jenjang</label>
-                                            <input
-                                                type="text"
-                                                value={searchFilters.jenjang}
-                                                onChange={(e) => setSearchFilters(prev => ({ ...prev, jenjang: e.target.value }))}
-                                                placeholder="PAUD, SD, SMP, PKBM..."
-                                                className={styles.advancedSearchInput}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Additional Table Filters */}
-                            <div className={styles.tableAdditionalFilters}>
-                                <div className={styles.additionalFilterRow}>
-                                    <div className={styles.filterGroup}>
-                                        <label className={styles.filterLabel}>Filter Jenjang</label>
-                                        <select 
-                                            className={styles.filterSelect}
-                                            value={selectedJenjang} 
-                                            onChange={(e) => setSelectedJenjang(e.target.value)}
-                                        >
-                                            <option value="Semua Jenjang">Semua Jenjang</option>
-                                            <option value="PAUD">PAUD</option>
-                                            <option value="SD">SD</option>
-                                            <option value="SMP">SMP</option>
-                                            <option value="PKBM">PKBM</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div className={styles.filterGroup}>
-                                        <label className={styles.filterLabel}>Filter Kecamatan</label>
-                                        <select 
-                                            className={styles.filterSelect}
-                                            value={selectedKecamatan} 
-                                            onChange={(e) => setSelectedKecamatan(e.target.value)}
-                                        >
-                                            <option value="Semua Kecamatan">Semua Kecamatan</option>
-                                            {kecamatanOptions.map(k => (
-                                                <option key={k} value={k}>{k}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    
-                                    <div className={styles.filterGroup}>
-                                        <label className={styles.filterLabel}>Filter Desa</label>
-                                        <select 
-                                            className={styles.filterSelect}
-                                            value={selectedDesa} 
-                                            onChange={(e) => setSelectedDesa(e.target.value)}
-                                        >
-                                            <option value="Semua Desa">Semua Desa</option>
-                                            {desaOptions.map(d => (
-                                                <option key={d} value={d}>{d}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className={styles.tableFilterActions}>
-                                    <button
-                                        className={styles.clearSearchButton}
-                                        onClick={clearSearch}
-                                    >
-                                        Hapus Pencarian
-                                    </button>
-                                    <button
-                                        className={styles.resetFiltersButton}
-                                        onClick={resetAllFilters}
-                                    >
-                                        Reset Semua Filter
-                                    </button>
-                                    <div className={styles.tableSearchResultsInfo}>
-                                        {(searchQuery || Object.values(searchFilters).some(v => v.trim()) || 
-                                          selectedJenjang !== 'Semua Jenjang' || 
-                                          selectedKecamatan !== 'Semua Kecamatan' || 
-                                          selectedDesa !== 'Semua Desa') && (
-                                            <span className={styles.resultsText}>
-                                                Menampilkan {filteredSchoolData.length} dari {schoolData.length} sekolah
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div className={styles.chartContent}>
+                        <DataTable
+                          data={mappedTableData}
+                          onDetailClick={handleDetailClickNavigate}  // <<< NAVIGASI PER NPSN
+                        />
                     </div>
-                    
-                    <div className={styles.tableWrapper}>
-                        <div className={styles.tableScrollContainer}>
-                            <table className={styles.dataTable}>
-                                <thead className={styles.tableHead}>
-                                    <tr>
-                                        <th className={styles.tableHeader}>No</th>
-                                        <th 
-                                            className={`${styles.tableHeader} ${styles.sortableHeader}`}
-                                            onClick={() => handleSort('npsn')}
-                                        >
-                                            NPSN <SortIcon column="npsn" />
-                                        </th>
-                                        <th 
-                                            className={`${styles.tableHeader} ${styles.sortableHeader}`}
-                                            onClick={() => handleSort('nama')}
-                                        >
-                                            Nama Sekolah <SortIcon column="nama" />
-                                        </th>
-                                        <th className={styles.tableHeader}>Jenjang</th>
-                                        <th className={styles.tableHeader}>Tipe</th>
-                                        <th className={styles.tableHeader}>Desa</th>
-                                        <th className={styles.tableHeader}>Kecamatan</th>
-                                        <th 
-                                            className={`${styles.tableHeader} ${styles.sortableHeader}`}
-                                            onClick={() => handleSort('toiletBaik')}
-                                        >
-                                            T. Baik <SortIcon column="toiletBaik" />
-                                        </th>
-                                        <th 
-                                            className={`${styles.tableHeader} ${styles.sortableHeader}`}
-                                            onClick={() => handleSort('toiletRusakSedang')}
-                                        >
-                                            T. R. Sedang <SortIcon column="toiletRusakSedang" />
-                                        </th>
-                                        <th 
-                                            className={`${styles.tableHeader} ${styles.sortableHeader}`}
-                                            onClick={() => handleSort('toiletRusakBerat')}
-                                        >
-                                            T. R. Berat <SortIcon column="toiletRusakBerat" />
-                                        </th>
-                                        <th 
-                                            className={`${styles.tableHeader} ${styles.sortableHeader}`}
-                                            onClick={() => handleSort('totalToilet')}
-                                        >
-                                            Total <SortIcon column="totalToilet" />
-                                        </th>
-                                        <th className={styles.tableHeader}>Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody className={styles.tableBody}>
-                                    {sortedAndPaginatedData.length > 0 ? (
-                                        sortedAndPaginatedData.map((school, index) => (
-                                            <tr key={school.npsn || index} className={styles.tableRow}>
-                                                <td className={styles.tableCell}>
-                                                    {startItem + index}
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <span className={styles.npsn}>{school.npsn}</span>
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <div className={styles.schoolNameCell}>
-                                                        <span className={styles.schoolName}>{school.nama}</span>
-                                                    </div>
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <JenjangBadge jenjang={school.jenjang} />
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <span className={styles.schoolType}>{school.tipe}</span>
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <span className={styles.location}>{school.desa}</span>
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <span className={styles.location}>{school.kecamatan}</span>
-                                                </td>
-                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                    <span className={styles.toiletGood}>{school.toiletBaik}</span>
-                                                </td>
-                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                    <span className={styles.toiletModerate}>{school.toiletRusakSedang}</span>
-                                                </td>
-                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                    <span className={styles.toiletBad}>{school.toiletRusakBerat}</span>
-                                                </td>
-                                                <td className={`${styles.tableCell} ${styles.numberCell}`}>
-                                                    <span className={styles.toiletTotal}>{school.totalToilet}</span>
-                                                </td>
-                                                <td className={styles.tableCell}>
-                                                    <button
-                                                        className={styles.detailButton}
-                                                        onClick={() => {
-                                                            setSelectedSchool(school);
-                                                            setCurrentView('detail');
-                                                        }}
-                                                    >
-                                                        Detail
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="12" className={styles.noDataCell}>
-                                                <div className={styles.noDataMessage}>
-                                                    <span className={styles.noDataIcon}>🔍</span>
-                                                    <h3>Tidak ada data yang ditemukan</h3>
-                                                    <p>Coba ubah filter atau kata kunci pencarian Anda</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    
-                    {/* Pagination */}
-                    {totalPages > 1 && (
-                        <footer className={styles.tableFooter}>
-                            <div className={styles.paginationInfo}>
-                                Menampilkan {startItem} - {endItem} dari {filteredSchoolData.length} sekolah
-                            </div>
-                            <div className={styles.paginationControls}>
-                                <button
-                                    className={`${styles.paginationButton} ${currentPage === 1 ? styles.disabled : ''}`}
-                                    onClick={() => goToPage(1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    Pertama
-                                </button>
-                                <button
-                                    className={`${styles.paginationButton} ${currentPage === 1 ? styles.disabled : ''}`}
-                                    onClick={() => goToPage(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    Sebelumnya
-                                </button>
-                                
-                                {/* Page numbers */}
-                                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                    let pageNumber;
-                                    if (totalPages <= 5) {
-                                        pageNumber = i + 1;
-                                    } else if (currentPage <= 3) {
-                                        pageNumber = i + 1;
-                                    } else if (currentPage >= totalPages - 2) {
-                                        pageNumber = totalPages - 4 + i;
-                                    } else {
-                                        pageNumber = currentPage - 2 + i;
-                                    }
-                                    
-                                    return (
-                                        <button
-                                            key={pageNumber}
-                                            className={`${styles.paginationButton} ${currentPage === pageNumber ? styles.active : ''}`}
-                                            onClick={() => goToPage(pageNumber)}
-                                        >
-                                            {pageNumber}
-                                        </button>
-                                    );
-                                })}
-                                
-                                <button
-                                    className={`${styles.paginationButton} ${currentPage === totalPages ? styles.disabled : ''}`}
-                                    onClick={() => goToPage(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                >
-                                    Berikutnya
-                                </button>
-                                <button
-                                    className={`${styles.paginationButton} ${currentPage === totalPages ? styles.disabled : ''}`}
-                                    onClick={() => goToPage(totalPages)}
-                                    disabled={currentPage === totalPages}
-                                >
-                                    Terakhir
-                                </button>
-                            </div>
-                        </footer>
-                    )}
                 </section>
             </div>
         );

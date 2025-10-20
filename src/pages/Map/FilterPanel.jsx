@@ -1,94 +1,67 @@
-// src/pages/Map/FilterPanel.jsx - PERBAIKAN DENGAN PENGAMAN DATA
-
-import React, { useMemo } from 'react';
+// src/pages/Map/FilterPanel.jsx
+import React from 'react';
 import styles from './FilterPanel.module.css';
 
-const FilterPanel = ({ schools, geoData, filters, setFilter, resetFilters }) => {
-    
-    const { jenjangList, kecamatanList, desaList } = useMemo(() => {
-        const jenjangSet = new Set();
-        // [PERBAIKAN] Pastikan schools adalah array sebelum di-loop
-        if (Array.isArray(schools)) {
-            schools.forEach(school => {
-                if (school.jenjang) jenjangSet.add(school.jenjang);
-            });
-        }
+const KONDISI = ['Semua Kondisi', 'Baik', 'Rusak Sedang', 'Rusak Berat', 'Kurang RKB'];
 
-        // [PERBAIKAN] Ambil daftar kecamatan dari geoData dengan pengecekan
-        let allKecamatan = [];
-        if (geoData?.kecamatan?.features) {
-            allKecamatan = geoData.kecamatan.features
-                .map(feature => feature.properties.KECAMATAN)
-                .filter(Boolean);
-            allKecamatan = [...new Set(allKecamatan)].sort();
-        }
+/**
+ * Panel Filter (client-side only)
+ * - Memakai data & opsi yang sudah dipass dari Map.jsx
+ * - Tidak memanggil API baru
+ */
+export default function FilterPanel({ schools = [], filters, options, setFilter, resetFilters }) {
+  const { kecamatan = [], desa = [], jenjang = [] } = options ?? {};
 
-        const desaSet = new Set();
-        if (Array.isArray(schools)) {
-            const filteredByKecamatan = schools.filter(school =>
-                filters.kecamatan === 'Semua Kecamatan' || school.kecamatan === filters.kecamatan
-            );
-            filteredByKecamatan.forEach(school => {
-                if (school.desa) desaSet.add(school.desa);
-            });
-        }
+  return (
+    <aside className={styles.filterPanel}>
+      <div className={styles.header}>
+        <h4>Filter Peta</h4>
+        <button className={styles.backButton} onClick={resetFilters}>Reset</button>
+      </div>
 
-        return {
-            jenjangList: [...jenjangSet].sort(),
-            kecamatanList: allKecamatan,
-            desaList: [...desaSet].sort()
-        };
-    }, [schools, geoData, filters.kecamatan]);
+      <div className={styles.filterGroup}>
+        <label>Kecamatan</label>
+        <select
+          value={filters?.kecamatan ?? 'Semua Kecamatan'}
+          onChange={(e) => setFilter('kecamatan', e.target.value)}
+        >
+          <option>Semua Kecamatan</option>
+          {kecamatan.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </div>
 
-    return (
-        <div className={styles.filterPanel}>
-            <div className={styles.header}>
-                <h4>Filter Peta</h4>
-                <button onClick={resetFilters} className={styles.backButton}>Reset</button>
-            </div>
-            
-            <div className={styles.filterGroup}>
-                <label>Jenjang</label>
-                <select value={filters.jenjang} onChange={(e) => setFilter('jenjang', e.target.value)}>
-                    <option value="Semua Jenjang">Semua Jenjang</option>
-                    {jenjangList.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
-            </div>
-            
-            <div className={styles.filterGroup}>
-                <label>Kecamatan</label>
-                <select value={filters.kecamatan} onChange={(e) => setFilter('kecamatan', e.target.value)}>
-                    <option value="Semua Kecamatan">Semua Kecamatan</option>
-                    {/* List ini sekarang dijamin terisi jika geoData ada */}
-                    {kecamatanList.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
-            </div>
-            
-            <div className={styles.filterGroup}>
-                <label>Desa</label>
-                <select 
-                    value={filters.desa} 
-                    onChange={(e) => setFilter('desa', e.target.value)} 
-                    disabled={filters.kecamatan === 'Semua Kecamatan' || filters.kondisi !== 'Semua Kondisi'}
-                >
-                    <option value="Semua Desa">Semua Desa</option>
-                    {desaList.map(item => <option key={item} value={item}>{item}</option>)}
-                </select>
-                {filters.kondisi !== 'Semua Kondisi' && <small>Filter desa dinonaktifkan.</small>}
-            </div>
+      <div className={styles.filterGroup}>
+        <label>Desa</label>
+        <select
+          disabled={!filters || filters.kecamatan === 'Semua Kecamatan'}
+          value={filters?.desa ?? 'Semua Desa'}
+          onChange={(e) => setFilter('desa', e.target.value)}
+        >
+          <option>Semua Desa</option>
+          {desa.map(d => <option key={d} value={d}>{d}</option>)}
+        </select>
+      </div>
 
-            <div className={styles.filterGroup}>
-                <label>Kondisi Ruang Kelas</label>
-                <select value={filters.kondisi} onChange={(e) => setFilter('kondisi', e.target.value)}>
-                    <option value="Semua Kondisi">Semua Kondisi</option>
-                    <option value="Baik">Baik</option>
-                    <option value="Rusak Sedang">Rusak Sedang</option>
-                    <option value="Rusak Berat">Rusak Berat</option>
-                    <option value="Kurang RKB">Kurang RKB</option>
-                </select>
-            </div>
-        </div>
-    );
-};
+      <div className={styles.filterGroup}>
+        <label>Jenjang</label>
+        <select
+          value={filters?.jenjang ?? 'Semua Jenjang'}
+          onChange={(e) => setFilter('jenjang', e.target.value)}
+        >
+          <option>Semua Jenjang</option>
+          {jenjang.map(j => <option key={j} value={j}>{j}</option>)}
+        </select>
+      </div>
 
-export default FilterPanel;
+      <div className={styles.filterGroup}>
+        <label>Kondisi Ruang Kelas</label>
+        <select
+          value={filters?.kondisi ?? 'Semua Kondisi'}
+          onChange={(e) => setFilter('kondisi', e.target.value)}
+        >
+          {KONDISI.map(k => <option key={k} value={k}>{k}</option>)}
+        </select>
+      </div>
+    </aside>
+  );
+}

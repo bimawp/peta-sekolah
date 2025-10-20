@@ -24,41 +24,62 @@ export default function FilterBar({
   const update = (patch) => onChange && onChange({ ...v, ...patch });
 
   return (
-    <div className={styles.filterBar} data-test-id="filter-bar">
-      <div className={styles.control}>
-        <label className={styles.label}>Jenjang</label>
-        <select className={styles.select} value={v.jenjang} onChange={(e)=>update({ jenjang: e.target.value })}>
-          {opts.jenjang.map(o => <option key={o}>{o}</option>)}
-        </select>
-      </div>
+    <div className={styles.wrap}>
+      <div className={styles.inner}>
+        <div className={styles.filterBar} data-test-id="filter-bar">
+          <div className={styles.control}>
+            <label className={styles.label}>Jenjang</label>
+            <select
+              className={styles.select}
+              value={v.jenjang}
+              onChange={(e)=>update({ jenjang: e.target.value })}
+            >
+              {opts.jenjang.map(o => <option key={o}>{o}</option>)}
+            </select>
+          </div>
 
-      {showKondisi && (
-        <div className={styles.control}>
-          <label className={styles.label}>Kondisi</label>
-          <select className={styles.select} value={v.kondisi} onChange={(e)=>update({ kondisi: e.target.value })}>
-            {opts.kondisi.map(o => <option key={o}>{o}</option>)}
-          </select>
+          {showKondisi && (
+            <div className={styles.control}>
+              <label className={styles.label}>Kondisi</label>
+              <select
+                className={styles.select}
+                value={v.kondisi}
+                onChange={(e)=>update({ kondisi: e.target.value })}
+              >
+                {opts.kondisi.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className={styles.control}>
+            <label className={styles.label}>Kecamatan</label>
+            <select
+              className={styles.select}
+              value={v.kecamatan}
+              onChange={(e)=>update({ kecamatan: e.target.value, desa: "(Semua Desa)" })}
+            >
+              {opts.kecamatan.map(o => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+
+          {showDesa && (
+            <div className={styles.control}>
+              <label className={styles.label}>Desa</label>
+              <select
+                className={styles.select}
+                value={v.desa}
+                disabled={v.kecamatan?.startsWith?.("(Semua")}
+                onChange={(e)=>update({ desa: e.target.value })}
+              >
+                {opts.desa.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+          )}
+
+          <div className={styles.actions}>
+            {extraActions}
+          </div>
         </div>
-      )}
-
-      <div className={styles.control}>
-        <label className={styles.label}>Kecamatan</label>
-        <select className={styles.select} value={v.kecamatan} onChange={(e)=>update({ kecamatan: e.target.value, desa: "(Semua Desa)" })}>
-          {opts.kecamatan.map(o => <option key={o}>{o}</option>)}
-        </select>
-      </div>
-
-      {showDesa && (
-        <div className={styles.control}>
-          <label className={styles.label}>Desa</label>
-          <select className={styles.select} value={v.desa} disabled={v.kecamatan?.startsWith?.("(Semua")} onChange={(e)=>update({ desa: e.target.value })}>
-            {opts.desa.map(o => <option key={o}>{o}</option>)}
-          </select>
-        </div>
-      )}
-
-      <div className={styles.actions}>
-        {extraActions}
       </div>
     </div>
   );

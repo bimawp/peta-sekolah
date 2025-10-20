@@ -1,126 +1,189 @@
-// src/pages/Map/Map.jsx
-
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
-
-// [PERBAIKAN WAJIB 1]: Impor CSS Leaflet agar peta tidak rusak.
-import 'leaflet/dist/leaflet.css';
-
-// [PERBAIKAN WAJIB 2]: Impor utilitas untuk memperbaiki ikon marker yang hilang.
-import '../../services/utils/mapUtils.js';
-
+// src/components/common/Map/SimpleMap.jsx
+import React from "react"; // <--- WAJIB ADA
+import { useEffect, useMemo, useRef } from "react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import styles from "./SimpleMap.module.css";
 import {
-  fetchAllSchools,
-  selectFilteredSchools,
-  selectSchoolsStatus,
-  selectAllSchools
-} from '../../store/slices/schoolSlice';
-import { setFilter, resetFilters } from '../../store/slices/filterSlice';
-import styles from './Map.module.css';
-import MapController from './MapController';
-import FilterPanel from './FilterPanel';
-import SuspenseLoader from '../../components/common/SuspenseLoader/SuspenseLoader';
-import ErrorMessage from '../../components/common/ErrorMessage/ErrorMessage';
-import useGeoData from '../../hooks/useGeoData';
+  applyFilters,
+  makeKecamatanNumberIcon,
+  getLatLngSafe,
+  shortLevel,
+  kecKey,
+  uniqueBy,
+  GARUT_BOUNDS
+} from "./mapUtils";
 
-const Map = () => {
-  const dispatch = useDispatch();
+const GARUT_CENTER = [-7.214, 107.903]; // [lat, lng]
+const GARUT_ZOOM = 10;
 
-  const filteredSchools = useSelector(selectFilteredSchools);
-  const allSchools = useSelector(selectAllSchools);
-  const status = useSelector(selectSchoolsStatus);
-  const filters = useSelector((state) => state.filter);
-  const error = useSelector((state) => state.schools.error);
+export default function SimpleMap({
+  schools = [],
+  initialCenter = GARUT_CENTER,
+  initialZoom = GARUT_ZOOM,
+  filters = {},           // { jenjang, kecamatan, desa, kondisi }
+  statsOverride,          // { kecamatanCount, sekolahCount } utk header
+  totalSchools,           // TAMBAHAN: total sekolah dari parent (4842)
+  totalKecamatan,         // TAMBAHAN: total kecamatan dari parent (42)
+}) {
+  const mapRef = useRef(null);
+  const fitTimer = useRef(null);
 
-  // [PERBAIKAN 3]: Gunakan hook untuk memuat data GeoJSON kecamatan dan desa.
-  const { geoData, loading: geoDataLoading, error: geoDataError } = useGeoData();
+  // de-dupe extra guard (by NPSN → fallback)
+  const schoolsUnique = useMemo(() =>
+    uniqueBy(schools, (s) => {
+      const npsn = (s?.npsn || s?.NPSN || "").toString().trim();
+      if (npsn) return `NPSN:${npsn}`;
+      const name = (s?.namaSekolah || s?.name || "").toString().trim().toUpperCase();
+      const desa = (s?.desa || s?.village || "").toString().trim().toUpperCase();
+      const kec  = kecKey(s?.kecamatan || "");
+      return `${name}::${desa}::${kec}`;
+    }), [schools]
+  );
 
-  // [PERBAIKAN 4]: State baru untuk data batas wilayah Garut.
-  const [garutBoundary, setGarutBoundary] = useState(null);
+  // terapkan filter (sekaligus menolak koordinat di luar Garut)
+  const filtered = useMemo(
+    () => applyFilters(schoolsUnique, filters),
+    [schoolsUnique, filters]
+  );
 
-  useEffect(() => {
-    if (status === 'idle') {
-      dispatch(fetchAllSchools());
+  // rekap sederhana per kecamatan (buat titik angka) — pakai koordinat AMAN
+  const kecRekap = useMemo(() => {
+    const group = new Map();
+    for (const s of filtered) {
+      const kk = kecKey(s?.kecamatan);
+      if (!group.has(kk)) group.set(kk, { k: kk, total: 0, any: null, coords: [] });
+      const g = group.get(kk);
+      g.total += 1;
+      g.any = g.any || s;
+
+      const ll = getLatLngSafe(s);
+      if (ll) g.coords.push(ll); // [lat,lng] valid dalam Garut
     }
 
-    // Fungsi untuk memuat data batas wilayah Garut.
-    const fetchGarutBoundary = async () => {
-        try {
-            const response = await fetch('/data/garut-boundary.geojson'); // Path ke file baru
-            if (!response.ok) {
-                throw new Error('Gagal memuat batas wilayah Garut');
-            }
-            const data = await response.json();
-            setGarutBoundary(data);
-        } catch (error) {
-            console.error(error);
-        }
+    return Array.from(group.values()).map((g) => {
+      // pusat = centroid rata-rata koordinat valid; kalau tak ada, fallback center Garut
+      let center = GARUT_CENTER;
+      if (g.coords.length) {
+        const [sumLat, sumLng] = g.coords.reduce(
+          (acc, cur) => [acc[0] + cur[0], acc[1] + cur[1]],
+          [0, 0]
+        );
+        center = [sumLat / g.coords.length, sumLng / g.coords.length];
+      }
+      return {
+        kecKey: g.k,
+        total: g.total,
+        center,
+        displayName: g.any?.kecamatan || g.k,
+      };
+    });
+  }, [filtered]);
+
+  // PERBAIKAN: Prioritaskan totalSchools/totalKecamatan dari parent, fallback ke statsOverride, terakhir ke filtered
+  const badgeKecamatan = totalKecamatan ?? statsOverride?.kecamatanCount ?? kecRekap.length;
+  const badgeSekolah   = totalSchools ?? statsOverride?.sekolahCount ?? filtered.length;
+
+  // Log untuk debugging
+  useEffect(() => {
+    console.log('[SimpleMap] Badge display:', { 
+      badgeKecamatan, 
+      badgeSekolah,
+      totalSchools,
+      totalKecamatan,
+      filteredLength: filtered.length,
+      schoolsLength: schools.length
+    });
+  }, [badgeKecamatan, badgeSekolah, totalSchools, totalKecamatan, filtered.length, schools.length]);
+
+  // auto-fit (debounced) pakai titik rekap yang valid
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const doFit = () => {
+      const pts = kecRekap.map(k => k.center).filter(Boolean);
+
+      if (!pts.length) {
+        map.setView(L.latLng(GARUT_CENTER[0], GARUT_CENTER[1]), initialZoom, { animate: true });
+        return;
+      }
+      if (pts.length === 1) {
+        map.setView(L.latLng(pts[0][0], pts[0][1]), Math.max(initialZoom, 12), { animate: true });
+        return;
+      }
+      const bounds = L.latLngBounds(pts.map(p => L.latLng(p[0], p[1])));
+      map.fitBounds(bounds.pad(0.15), { animate: true });
     };
 
-    fetchGarutBoundary();
-  }, [status, dispatch]);
-
-  const center = [-7.213, 107.900];
-  const zoom = 11;
-
-  const handleFilterChange = (filterType, value) => {
-    dispatch(setFilter({ filterType, value }));
-  };
-
-  const handleResetFilters = () => {
-    dispatch(resetFilters());
-  };
-
-  const renderContent = () => {
-    if ((status === 'loading' && allSchools.length === 0) || geoDataLoading) {
-      return <SuspenseLoader />;
-    }
-
-    if (status === 'failed') {
-      return <ErrorMessage message={error || 'Gagal memuat data sekolah.'} />;
-    }
-
-    if (geoDataError) {
-        return <ErrorMessage message={geoDataError} />;
-    }
-
-    return (
-      <MapContainer center={center} zoom={zoom} className={styles.map}>
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        />
-        {/* [PERBAIKAN 5]: Tampilkan batas wilayah Garut di peta */}
-        {garutBoundary && (
-            <GeoJSON
-                data={garutBoundary}
-                style={() => ({
-                    color: '#FF0000', // Warna garis merah
-                    weight: 2,
-                    fillOpacity: 0.1
-                })}
-            />
-        )}
-        <MapController schools={filteredSchools} geoData={geoData} />
-      </MapContainer>
-    );
-  };
+    clearTimeout(fitTimer.current);
+    fitTimer.current = setTimeout(doFit, 180); // debounce 180ms
+    return () => clearTimeout(fitTimer.current);
+  }, [kecRekap, initialZoom]);
 
   return (
-    <div className={styles.mapPage}>
-      <FilterPanel
-        schools={Array.isArray(allSchools) ? allSchools : []}
-        geoData={geoData} // <-- Kirim geoData ke FilterPanel
-        filters={filters}
-        setFilter={handleFilterChange}
-        resetFilters={handleResetFilters}
-      />
-      <div className={styles.mapWrapper}>
-        {renderContent()}
+    <div className={styles.mapRoot}>
+      {/* Header mini + badge angka */}
+      <div className={styles.filterBar}>
+        <div className={styles.countBadge}>
+          {badgeKecamatan} kecamatan • {badgeSekolah} sekolah
+        </div>
       </div>
+
+      <MapContainer
+        ref={mapRef}
+        center={GARUT_CENTER}
+        zoom={initialZoom}
+        className={styles.map}
+        whenCreated={(m) => (mapRef.current = m)}
+        // Flag performa aman (tanpa ubah UX)
+        preferCanvas
+        updateWhenZooming={false}
+        updateWhenIdle
+        keepBuffer={2}
+      >
+        <TileLayer
+          attribution='&copy; OpenStreetMap'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          detectRetina
+        />
+
+        {/* Titik agregat per kecamatan (angka bulat) */}
+        {kecRekap.map((kec) => {
+          const icon = makeKecamatanNumberIcon(kec.total, "", styles);
+          return (
+            <Marker key={kec.kecKey} position={kec.center} icon={icon}>
+              <Popup>
+                <div className={styles.popup}>
+                  <div className={styles.popupTitle}>{kec.displayName}</div>
+                  <div className={styles.popupCounts}>{kec.total} sekolah</div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* (opsional) titik sekolah individual — aktifkan jika diperlukan */}
+        {/*
+        {filtered.map((s, i) => {
+          const ll = getLatLngSafe(s);
+          if (!ll) return null;
+          return (
+            <Marker key={s.id || s.npsn || i} position={ll}>
+              <Popup>
+                <div style={{ minWidth: 220 }}>
+                  <strong>{s.namaSekolah || s.name || "Sekolah"}</strong>
+                  <div>Jenjang: {shortLevel(s.jenjang)}</div>
+                  <div>Kecamatan: {s.kecamatan || "-"}</div>
+                  <div>Desa: {s.desa || s.village || "-"}</div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+        */}
+      </MapContainer>
     </div>
   );
-};
-
-export default Map;
+}
