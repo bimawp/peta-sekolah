@@ -13,7 +13,7 @@ const Dashboard        = lazy(() => import("../pages/Dashboard/Dashboard.jsx"));
 const SchoolDetailPage = lazy(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"));
 const LoginPage        = lazy(() => import("../pages/Auth/Login.jsx"));
 const NotFound         = lazy(() => import("../pages/NotFound/NotFound.jsx"));
-const MapPage          = lazy(() => import("../pages/Map/Map.jsx"));        // <<— HALAMAN PETA
+const MapPage          = lazy(() => import("../pages/Map/Map.jsx")); // HALAMAN PETA
 
 // Helper redirect yang mempertahankan query string (mis. ?npsn=…)
 function QueryPreservingRedirect({ to }) {
@@ -25,10 +25,10 @@ export default function AppRoutes() {
   return (
     <Suspense fallback={<SuspenseLoader />}>
       <Routes>
-        {/* Halaman login (tanpa layout) */}
+        {/* ====== Halaman login (tanpa layout) ====== */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Semua halaman yang butuh layout + proteksi */}
+        {/* ====== ROUTES DENGAN LAYOUT (Header + Sidebar) ====== */}
         <Route
           element={
             <ProtectedRoute>
@@ -40,21 +40,30 @@ export default function AppRoutes() {
           <Route path="/"          element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* Detail Sekolah */}
-          <Route path="/detail-sekolah" element={<SchoolDetailPage />} />
-
           {/* === PETA (FILTER MAP) === */}
-          <Route path="/peta" element={<MapPage />} />
+          <Route path="/peta"      element={<MapPage />} />
 
-          <Route path="/anggaran" element={<BudgetPage />} />
-
-          <Route path="/lainnya" element={<FacilitiesPage />} />
+          {/* Menu lain */}
+          <Route path="/anggaran"  element={<BudgetPage />} />
+          <Route path="/lainnya"   element={<FacilitiesPage />} />
 
           {/* Alias /map -> /peta */}
           <Route path="/map" element={<Navigate to="/peta" replace />} />
         </Route>
 
-        {/* Alias/redirect lama ke detail-sekolah (tetap jaga query npsn) */}
+        {/* ====== ROUTE TANPA LAYOUT (NO Header + NO Sidebar) ======
+            Catatan: tetap diproteksi login, tapi tidak merender <Layout />. */}
+        <Route
+          path="/detail-sekolah"
+          element={
+            <ProtectedRoute>
+              {/* Opsi hideChrome untuk menyembunyikan chrome internal di halaman jika diperlukan */}
+              <SchoolDetailPage hideChrome />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* ====== Alias/redirect lama ke detail-sekolah (tetap jaga query npsn) ====== */}
         <Route
           path="/smp/school_detail"
           element={<QueryPreservingRedirect to="/detail-sekolah" />}
@@ -71,9 +80,8 @@ export default function AppRoutes() {
           path="/pkbm/school_detail"
           element={<QueryPreservingRedirect to="/detail-sekolah" />}
         />
-        
 
-        {/* 404 HARUS PALING BAWAH */}
+        {/* ====== 404 HARUS PALING BAWAH ====== */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

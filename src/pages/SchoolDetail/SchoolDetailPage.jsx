@@ -331,7 +331,7 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
 });
 
 // ============ MAIN ============
-const SchoolDetailPage = () => {
+const SchoolDetailPage = ({ hideChrome = false }) => {
   const [schoolData, setSchoolData] = useState([]);
   const [geoData, setGeoData] = useState({ kecamatan: null, desa: null });
   const [loading, setLoading] = useState(true);
@@ -343,6 +343,9 @@ const SchoolDetailPage = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState(null);
   const detailCache = useRef(new Map()); // cache by key
+
+  // === NEW: flag untuk tahu apakah halaman ini dibuka dari Facilities
+  const cameFromFacilitiesRef = useRef(qp('from') === 'facilities');
 
   // FILTER (bar atas)
   const [filterJenjang, setFilterJenjang] = useState(DEFAULT_PAGE_FILTERS.jenjang);
@@ -379,6 +382,8 @@ const SchoolDetailPage = () => {
 
     if (!npsn) { alert('NPSN sekolah tidak ditemukan.'); return; }
 
+    // Saat klik dari tabel di halaman ini, tetap ke rute jenjang spesifik (behaviour lama),
+    // pengguna Facilities sudah kirim param `from=facilities` sendiri.
     if (jenjang === 'PAUD') { window.location.assign(`/paud/school_detail?npsn=${encodeURIComponent(npsn)}`); return; }
     if (jenjang === 'SD')   { window.location.assign(`/sd/school_detail?npsn=${encodeURIComponent(npsn)}`);   return; }
     if (jenjang === 'SMP')  { window.location.assign(`/smp/school_detail?npsn=${encodeURIComponent(npsn)}`);  return; }
@@ -387,7 +392,13 @@ const SchoolDetailPage = () => {
     window.location.assign(`/detail-sekolah?jenjang=${encodeURIComponent(jenjang)}&npsn=${encodeURIComponent(npsn)}`);
   }, []);
 
+  // ---------- FIX: Back handler — jika datang dari Facilities, balik ke /facilities
   const handleBackToMain = useCallback(() => {
+    if (cameFromFacilitiesRef.current) {
+      // bersihkan query dan arahkan ke halaman Facilities
+      window.location.assign('/facilities');
+      return;
+    }
     setCurrentView('main');
     setSelectedSchool(null);
     setSelectedDetail(null);
@@ -407,7 +418,6 @@ const SchoolDetailPage = () => {
 
   const fetchAllDesaDistinct = useCallback(async () => {
     // Ambil distinct village seluruh schools (tidak terpengaruh filter)
-    // Note: tidak gunakan head:true agar kompatibel di semua setup
     const { data, error } = await supabase
       .from('schools')
       .select('village')
@@ -435,7 +445,6 @@ const SchoolDetailPage = () => {
   const fetchSchoolsByFilters = useCallback(async ({ levelValue, kecamatanValue, villageValue }) => {
     console.log('[fetchSchoolsByFilters] Starting fetch with filters:', { levelValue, kecamatanValue, villageValue });
     
-    // STRATEGI BARU: Ambil semua data tanpa pagination dulu untuk cek total
     const { count: totalCount, error: countError } = await supabase
       .from('schools')
       .select('*', { count: 'exact', head: true });
@@ -452,7 +461,6 @@ const SchoolDetailPage = () => {
         .select('id,npsn,name,jenjang,level,kecamatan,village,lat,lng,updated_at,student_count,type', { count: 'exact' })
         .order('id', { ascending: true });
       
-      // PERBAIKAN: Hanya tambahkan filter jika ada nilai yang valid
       if (levelValue)     q = q.or(`jenjang.eq.${levelValue},level.eq.${levelValue}`);
       if (kecamatanValue) q = q.eq('kecamatan', kecamatanValue);
       if (villageValue)   q = q.eq('village', villageValue);
@@ -488,17 +496,14 @@ const SchoolDetailPage = () => {
       
       out.push(...rows);
       
-      // Jika jumlah rows kurang dari PAGE_SIZE, artinya ini batch terakhir
       if (rows.length < PAGE_SIZE) {
         console.log('[fetchSchoolsByFilters] Last batch received, breaking loop');
         break;
       }
       
-      // Update offset untuk iterasi berikutnya
       currentOffset += rows.length;
       iteration++;
       
-      // Jika sudah mencapai count dari database, stop
       if (count && out.length >= count) {
         console.log('[fetchSchoolsByFilters] Reached total count, breaking loop');
         break;
@@ -515,7 +520,6 @@ const SchoolDetailPage = () => {
       const lng = Number(s?.lng);
       const lat = Number(s?.lat);
 
-      // normalisasi jenjang -> 4 fixed
       let jenjangNorm = (s?.jenjang ?? s?.level ?? '').toString().trim().toUpperCase();
       if (!['PAUD', 'SD', 'SMP', 'PKBM'].includes(jenjangNorm)) {
         const raw = jenjangNorm;
@@ -535,7 +539,6 @@ const SchoolDetailPage = () => {
 
     console.log(`[fetchSchoolsByFilters] After mapping: ${mapped.length} schools`);
     
-    // Warning jika kurang dari expected
     if (!levelValue && !kecamatanValue && !villageValue) {
       if (mapped.length < 4842) {
         console.warn(`[fetchSchoolsByFilters] ⚠️ KURANG DATA: Hanya ${mapped.length} dari 4842 expected`);
@@ -794,7 +797,6 @@ const SchoolDetailPage = () => {
     
     console.log('[filteredData] Final result:', data.length, 'schools');
     
-    // Log distribusi jenjang untuk debugging
     const jenjangCount = {};
     schoolData.forEach(s => {
       const j = s.jenjang || 'NULL';
@@ -1139,7 +1141,8 @@ const SchoolDetailPage = () => {
 
   return (
     <ErrorBoundary>
-      <div>
+      {/* data-hide-chrome bisa dipakai di CSS untuk meniadakan padding/margin saat mode standalone */}
+      <div data-hide-chrome={hideChrome ? 'true' : 'false'}>
         {currentView === 'main' ? renderMainView() : renderDetailView()}
       </div>
     </ErrorBoundary>
