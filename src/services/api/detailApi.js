@@ -1,8 +1,10 @@
 // src/services/api/detailApi.js
-// SUPABASE ONLY + fleksibel baca tabel untuk PAUD/PKBM/SD/SMP
+// --- Detail API dengan caching & inflight de-dup ---
+// kompatibel dengan API lama: getSdDetailByNpsn, getSmpDetailByNpsn, getPaudDetailByNpsn, getPkbmDetailByNpsn
+
 import supabase from '../supabaseClient';
 
-// ---------- Helpers ----------
+// ======================= UTIL UMUM =======================
 const int = (v, d = 0) => {
   if (v === null || v === undefined) return d;
   const n = Number(v);
@@ -11,7 +13,6 @@ const int = (v, d = 0) => {
 const one = (arr) => (Array.isArray(arr) && arr.length ? arr[0] : null);
 const truthy = (v) => v !== null && v !== undefined && v !== '';
 
-// alias pick number dengan fallback banyak nama kolom
 const pickNum = (obj, keys = [], d = 0) => {
   for (const k of keys) {
     if (obj && Object.prototype.hasOwnProperty.call(obj, k) && truthy(obj[k])) return int(obj[k], d);
@@ -55,11 +56,6 @@ const mapRoomKey = (room_type) => {
   return null;
 };
 
-const mapOwnershipTitle = (key) => String(key || '')
-  .replace(/_/g, ' ')
-  .replace(/^\w/, (c) => c.toUpperCase());
-
-// ---------- Normalizer blok toilet (buat _overall + isi male/female.total_all) ----------
 const normalizeToilets = (rows) => {
   const toilets = emptyToilets();
   let tGood = 0, tMod = 0, tHeavy = 0, tTotalSeen = 0;
@@ -87,20 +83,16 @@ const normalizeToilets = (rows) => {
   return { toilets, toilets_overall };
 };
 
-// ---------- Normalizer furniture/komputer (alias berbagai nama kolom) ----------
 const normalizeFurnitureComputer = (row) => {
   const r = row || {};
-  // aliasing kolom: meja/tables, kursi/chairs, papan/boards/whiteboards, komputer/computer
   const tables   = pickNum(r, ['tables','meja','jumlah_meja','tbl','table'], 0);
   const chairs   = pickNum(r, ['chairs','kursi','jumlah_kursi','chr','chair'], 0);
   const boards   = pickNum(r, ['boards','papan','whiteboards','papan_tulis','board'], 0);
   const computer = pickNum(r, ['computer','komputer','jumlah_komputer','pc','compute'], 0);
 
-  // possible “kekurangan” fields
   const n_tables = pickNum(r, ['n_tables','tables_need','kekurangan_meja'], 0);
   const n_chairs = pickNum(r, ['n_chairs','chairs_need','kekurangan_kursi'], 0);
 
-  // breakdown opsional (jika ada kolom *_good/_moderate/_heavy)
   const tables_good   = pickNum(r, ['tables_good','good_tables'], tables);
   const tables_mod    = pickNum(r, ['tables_moderate','moderate_tables'], 0);
   const tables_heavy  = pickNum(r, ['tables_heavy','heavy_tables'], 0);
@@ -117,44 +109,81 @@ const normalizeFurnitureComputer = (row) => {
   };
 };
 
-// ---------- Normalizer building_status (tanah/gedung — “Ya” flags + land_available) ----------
 const normalizeBuildingStatus = (row) => {
   const b = row || {};
   const tanah = b.tanah || b.land || {};
   const gedung = b.gedung || b.building || {};
   const tanahOut = { ...tanah };
   const gedungOut = { ...gedung };
-
-  // pastikan ada land_available (luas tanah)
   if (!('land_available' in tanahOut)) {
     tanahOut.land_available = pickNum(b, ['land_area', 'luas_tanah'], 0);
   }
   return { tanah: tanahOut, gedung: gedungOut };
 };
 
-// =================== SMP ===================
-export async function getSmpDetailByNpsn(npsn) {
-  const { data: school } = await supabase
+// ======================= CACHING & DEDUPE =======================
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 menit (ubah sesuai kebutuhan)
+const SS_PREFIX = 'sch-detail:v2:'; // bump versi kalau struktur berubah
+const inflight = new Map(); // key -> Promise
+
+const cacheKey = (jenjang, npsn) => `${SS_PREFIX}${jenjang}:${String(npsn).trim()}`;
+
+const readCache = (jenjang, npsn) => {
+  try {
+    const raw = sessionStorage.getItem(cacheKey(jenjang, npsn));
+    if (!raw) return null;
+    const { ts, data } = JSON.parse(raw);
+    if (!ts || !data) return null;
+    if (Date.now() - ts > CACHE_TTL_MS) return null;
+    return data;
+  } catch {
+    return null;
+  }
+};
+const writeCache = (jenjang, npsn, data) => {
+  try {
+    sessionStorage.setItem(cacheKey(jenjang, npsn), JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* ignore quota */ }
+};
+
+// helper umum: ambil BASE sekolah by NPSN (field konsisten)
+async function fetchSchoolBaseByNpsn(npsn, extraFields = '') {
+  const baseFields = 'id,name,npsn,address,village,kecamatan,student_count,st_male,st_female,lat,lng,latitude,longitude,jenjang,level,type,updated_at';
+  const fields = extraFields ? `${baseFields},${extraFields}` : baseFields;
+  const { data: school, error } = await supabase
     .from('schools')
-    .select('id,name,npsn,address,village,kecamatan,student_count,st_male,st_female,lat,lng,latitude,longitude')
+    .select(fields)
     .eq('npsn', npsn)
     .maybeSingle();
+
+  if (error) throw error;
   if (!school) return null;
 
-  const schoolId = school.id;
   const lat = school.lat != null ? Number(school.lat) : (school.latitude != null ? Number(school.latitude) : null);
   const lng = school.lng != null ? Number(school.lng) : (school.longitude != null ? Number(school.longitude) : null);
 
-  const base = {
-    id: schoolId,
+  return {
+    id: school.id,
     name: school.name || '-',
     npsn: school.npsn || '-',
     address: school.address || '-',
     village: school.village || '-',
     kecamatan: school.kecamatan || '-',
-    student_count: int(school.student_count, 0),
+    type: school.type || null,
+    student_count: int(school.student_count, (int(school.st_male,0)+int(school.st_female,0))),
+    st_male: int(school.st_male, 0),
+    st_female: int(school.st_female, 0),
     coordinates: (typeof lat === 'number' && typeof lng === 'number') ? [lat, lng] : null,
   };
+}
+
+// ======================= CORE PER-JENJANG =======================
+// SMP
+async function _getSmpDetail(npsn) {
+  const base = await fetchSchoolBaseByNpsn(npsn);
+  if (!base) return null;
+
+  const schoolId = base.id;
 
   const [
     { data: ccRows },
@@ -178,7 +207,6 @@ export async function getSmpDetailByNpsn(npsn) {
     supabase.from('building_status').select('*').eq('school_id', schoolId).limit(1),
   ]);
 
-  // class_condition
   const cc = one(ccRows) || {};
   const class_condition = {
     classrooms_good: int(cc.classrooms_good, 0),
@@ -189,7 +217,6 @@ export async function getSmpDetailByNpsn(npsn) {
     total_mh: int(cc.classrooms_moderate_damage, 0) + int(cc.classrooms_heavy_damage, 0),
   };
 
-  // library
   const lib = one(libRows) || {};
   const library = {
     good: int(lib.good, 0),
@@ -201,7 +228,6 @@ export async function getSmpDetailByNpsn(npsn) {
       : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
   };
 
-  // labs
   const labs = emptyLabPack();
   (labRows || []).forEach((r) => {
     const k = mapLabKey(r.lab_type);
@@ -218,7 +244,6 @@ export async function getSmpDetailByNpsn(npsn) {
     };
   });
 
-  // rooms
   const rooms = {
     kepsek_room:         { ...EMPTY_BLOCK },
     teacher_room:        { ...EMPTY_BLOCK },
@@ -239,13 +264,8 @@ export async function getSmpDetailByNpsn(npsn) {
     };
   });
 
-  // toilets (detail + overall)
   const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-
-  // furniture_computer (dengan alias)
   const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
-
-  // residences
   const offic = one(officRows) || {};
   const official_residences = {
     total: int(offic.total, 0),
@@ -254,7 +274,6 @@ export async function getSmpDetailByNpsn(npsn) {
     heavy_damage: int(offic.heavy_damage, 0),
   };
 
-  // kegiatan
   const pembangunanRKB = (kegRows || [])
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
@@ -262,7 +281,6 @@ export async function getSmpDetailByNpsn(npsn) {
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
 
-  // facilities/building_status
   const bstat = normalizeBuildingStatus(one(bstatRows) || {});
   const facilities = {
     land_area: pickNum(one(bstatRows) || {}, ['land_area','luas_tanah'], null),
@@ -277,7 +295,7 @@ export async function getSmpDetailByNpsn(npsn) {
     ...labs,
     ...rooms,
     ...toilets,
-    toilets_overall,          // keseluruhan
+    toilets_overall,
     furniture_computer: fcomp,
     official_residences,
     pembangunanRKB,
@@ -287,29 +305,12 @@ export async function getSmpDetailByNpsn(npsn) {
   };
 }
 
-// =================== SD ===================
-export async function getSdDetailByNpsn(npsn) {
-  const { data: school } = await supabase
-    .from('schools')
-    .select('id,name,npsn,address,village,kecamatan,student_count,lat,lng,latitude,longitude')
-    .eq('npsn', npsn)
-    .maybeSingle();
-  if (!school) return null;
+// SD
+async function _getSdDetail(npsn) {
+  const base = await fetchSchoolBaseByNpsn(npsn);
+  if (!base) return null;
 
-  const schoolId = school.id;
-  const lat = school.lat != null ? Number(school.lat) : (school.latitude != null ? Number(school.latitude) : null);
-  const lng = school.lng != null ? Number(school.lng) : (school.longitude != null ? Number(school.longitude) : null);
-
-  const base = {
-    id: schoolId,
-    name: school.name || '-',
-    npsn: school.npsn || '-',
-    address: school.address || '-',
-    village: school.village || '-',
-    kecamatan: school.kecamatan || '-',
-    student_count: int(school.student_count, 0),
-    coordinates: (typeof lat === 'number' && typeof lng === 'number') ? [lat, lng] : null,
-  };
+  const schoolId = base.id;
 
   const [
     { data: ccRows },
@@ -337,7 +338,6 @@ export async function getSdDetailByNpsn(npsn) {
     supabase.from('uks').select('*').eq('school_id', schoolId).limit(1),
   ]);
 
-  // class_condition
   const cc = one(ccRows) || {};
   const class_condition = {
     classrooms_good: int(cc.classrooms_good, 0),
@@ -348,7 +348,6 @@ export async function getSdDetailByNpsn(npsn) {
     total_mh: int(cc.classrooms_moderate_damage, 0) + int(cc.classrooms_heavy_damage, 0),
   };
 
-  // library
   const lib = one(libRows) || {};
   const library = {
     good: int(lib.good, 0),
@@ -360,7 +359,6 @@ export async function getSdDetailByNpsn(npsn) {
       : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
   };
 
-  // rooms (kepsek/ruang guru/tata usaha)
   const rooms = {
     kepsek_room:         { ...EMPTY_BLOCK },
     teacher_room:        { ...EMPTY_BLOCK },
@@ -381,13 +379,8 @@ export async function getSdDetailByNpsn(npsn) {
     };
   });
 
-  // toilets (detail + overall)
   const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-
-  // furniture_computer (alias supaya tidak 0)
   const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
-
-  // residences
   const offic = one(officRows) || {};
   const official_residences = {
     total: int(offic.total, 0),
@@ -396,7 +389,6 @@ export async function getSdDetailByNpsn(npsn) {
     heavy_damage: int(offic.heavy_damage, 0),
   };
 
-  // kegiatan
   const pembangunanRKB = (kegRows || [])
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
@@ -404,7 +396,6 @@ export async function getSdDetailByNpsn(npsn) {
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
 
-  // facilities
   const bstatRaw = one(bstatRows) || {};
   const bstat = normalizeBuildingStatus(bstatRaw);
   const facilities = {
@@ -413,7 +404,6 @@ export async function getSdDetailByNpsn(npsn) {
     yard_area: pickNum(bstatRaw, ['yard_area','luas_halaman'], null),
   };
 
-  // classes (L/P)
   const cls = one(classesRows) || {};
   const classes = {
     '1_L': int(cls.g1_male, 0), '1_P': int(cls.g1_female, 0),
@@ -424,7 +414,6 @@ export async function getSdDetailByNpsn(npsn) {
     '6_L': int(cls.g6_male, 0), '6_P': int(cls.g6_female, 0),
   };
 
-  // rombel
   const rb = one(rombelRows) || {};
   const rombel = {
     '1': int(rb.r1, 0), '2': int(rb.r2, 0), '3': int(rb.r3, 0),
@@ -432,7 +421,6 @@ export async function getSdDetailByNpsn(npsn) {
     total: int(rb.total, 0),
   };
 
-  // uks
   const u = one(uksRows) || {};
   const uks_room = {
     total: int(u.total_all ?? u.total, 0),
@@ -447,7 +435,7 @@ export async function getSdDetailByNpsn(npsn) {
     library,
     ...rooms,
     ...toilets,
-    toilets_overall,         // keseluruhan
+    toilets_overall,
     furniture_computer: fcomp,
     official_residences,
     pembangunanRKB,
@@ -460,29 +448,11 @@ export async function getSdDetailByNpsn(npsn) {
   };
 }
 
-// =================== PAUD ===================
-export async function getPaudDetailByNpsn(npsn) {
-  const { data: school } = await supabase
-    .from('schools')
-    .select('id,name,npsn,address,village,kecamatan,student_count,st_male,st_female,lat,lng,latitude,longitude')
-    .eq('npsn', npsn)
-    .maybeSingle();
-  if (!school) return null;
-
-  const schoolId = school.id;
-  const lat = school.lat != null ? Number(school.lat) : (school.latitude != null ? Number(school.latitude) : null);
-  const lng = school.lng != null ? Number(school.lng) : (school.longitude != null ? Number(school.longitude) : null);
-
-  const base = {
-    id: schoolId,
-    name: school.name || '-',
-    npsn: school.npsn || '-',
-    address: school.address || '-',
-    village: school.village || '-',
-    kecamatan: school.kecamatan || '-',
-    student_count: int(school.student_count, (int(school.st_male,0)+int(school.st_female,0))),
-    coordinates: (typeof lat === 'number' && typeof lng === 'number') ? [lat, lng] : null,
-  };
+// PAUD
+async function _getPaudDetail(npsn) {
+  const base = await fetchSchoolBaseByNpsn(npsn);
+  if (!base) return null;
+  const schoolId = base.id;
 
   const [
     { data: ccRows },
@@ -514,7 +484,6 @@ export async function getPaudDetailByNpsn(npsn) {
     supabase.from('rombel').select('*').eq('school_id', schoolId).limit(1),
   ]);
 
-  // class_condition → PAUD hanya butuh: heavy, moderate, lacking_rkb
   const cc = one(ccRows) || {};
   const class_condition = {
     heavy_damage: int(cc.classrooms_heavy_damage ?? cc.heavy_damage, 0),
@@ -522,13 +491,11 @@ export async function getPaudDetailByNpsn(npsn) {
     lacking_rkb: int(cc.lacking_rkb, 0),
   };
 
-  // student_data (komponen PAUD butuh nested)
   const student_data = {
-    male_students: int(school.st_male, 0),
-    female_students: int(school.st_female, 0),
+    male_students: base.st_male,
+    female_students: base.st_female,
   };
 
-  // library (jika ada)
   const lib = one(libRows) || {};
   const library = {
     good: int(lib.good, 0),
@@ -540,13 +507,9 @@ export async function getPaudDetailByNpsn(npsn) {
       : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
   };
 
-  // toilets
   const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-
-  // furniture_computer (alias lengkap)
   const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
 
-  // teacher (jumlah guru, kekurangan, tendik) — opsional
   const t = one(teacherRows) || {};
   const teacher = {
     teachers: int(t.teachers ?? t.jumlah_guru, 0),
@@ -554,7 +517,6 @@ export async function getPaudDetailByNpsn(npsn) {
     tendik: int(t.tendik ?? t.tenaga_kependidikan, 0),
   };
 
-  // RGKS (opsional)
   const rg = one(rgksRows) || {};
   const rgks = {
     n_available: truthy(rg.n_available) ? rg.n_available : (truthy(rg.available) ? rg.available : 'Tidak Ada'),
@@ -563,7 +525,6 @@ export async function getPaudDetailByNpsn(npsn) {
     heavy_damage: int(rg.heavy_damage, 0),
   };
 
-  // residences
   const offic = one(officRows) || {};
   const official_residences = {
     total: int(offic.total, 0),
@@ -572,7 +533,6 @@ export async function getPaudDetailByNpsn(npsn) {
     heavy_damage: int(offic.heavy_damage, 0),
   };
 
-  // kegiatan
   const pembangunanRKB = (kegRows || [])
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
@@ -580,26 +540,21 @@ export async function getPaudDetailByNpsn(npsn) {
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
 
-  // building_status
   const bstatRaw = one(bstatRows) || {};
   const bstat = normalizeBuildingStatus(bstatRaw);
 
-  // APE
   const ape = one(apeRows) || {};
   const apeOut = {
     luar:  { available: ape.luar_available ?? ape.luar ?? '-',  condition: ape.luar_condition ?? '-' },
     dalam: { available: ape.dalam_available ?? ape.dalam ?? '-', condition: ape.dalam_condition ?? '-' },
   };
 
-  // UKS
   const u = one(uksRows) || {};
   const uks = { n_available: truthy(u.n_available) ? u.n_available : (truthy(u.available) ? u.available : 'Tidak Ada') };
 
-  // Playground area
   const play = one(playgroundRows) || {};
   const playground_area = { n_available: truthy(play.n_available) ? play.n_available : (truthy(play.available) ? play.available : '-') };
 
-  // Rombel
   const rb = one(rombelRows) || {};
   const rombel = { kb: int(rb.kb ?? rb.total ?? 0, 0) };
 
@@ -624,31 +579,11 @@ export async function getPaudDetailByNpsn(npsn) {
   };
 }
 
-// =================== PKBM ===================
-export async function getPkbmDetailByNpsn(npsn) {
-  const { data: school } = await supabase
-    .from('schools')
-    .select('id,name,npsn,address,village,kecamatan,student_count,st_male,st_female,lat,lng,latitude,longitude')
-    .eq('npsn', npsn)
-    .maybeSingle();
-  if (!school) return null;
-
-  const schoolId = school.id;
-  const lat = school.lat != null ? Number(school.lat) : (school.latitude != null ? Number(school.latitude) : null);
-  const lng = school.lng != null ? Number(school.lng) : (school.longitude != null ? Number(school.longitude) : null);
-
-  const base = {
-    id: schoolId,
-    name: school.name || '-',
-    npsn: school.npsn || '-',
-    address: school.address || '-',
-    village: school.village || '-',
-    kecamatan: school.kecamatan || '-',
-    student_count: int(school.student_count, (int(school.st_male,0)+int(school.st_female,0))),
-    st_male: int(school.st_male, 0),
-    st_female: int(school.st_female, 0),
-    coordinates: (typeof lat === 'number' && typeof lng === 'number') ? [lat, lng] : null,
-  };
+// PKBM
+async function _getPkbmDetail(npsn) {
+  const base = await fetchSchoolBaseByNpsn(npsn);
+  if (!base) return null;
+  const schoolId = base.id;
 
   const [
     { data: ccRows },
@@ -672,7 +607,6 @@ export async function getPkbmDetailByNpsn(npsn) {
     supabase.from('uks').select('*').eq('school_id', schoolId).limit(1),
   ]);
 
-  // class_condition untuk PKBM memakai field SD/SMP style
   const cc = one(ccRows) || {};
   const class_condition = {
     classrooms_good: int(cc.classrooms_good, 0),
@@ -683,7 +617,6 @@ export async function getPkbmDetailByNpsn(npsn) {
     total_mh: int(cc.classrooms_moderate_damage, 0) + int(cc.classrooms_heavy_damage, 0),
   };
 
-  // library
   const lib = one(libRows) || {};
   const library = {
     good: int(lib.good, 0),
@@ -695,13 +628,9 @@ export async function getPkbmDetailByNpsn(npsn) {
       : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
   };
 
-  // toilets
   const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-
-  // furniture_computer (alias)
   const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
 
-  // teacher
   const t = one(teacherRows) || {};
   const teacher = {
     teachers: int(t.teachers ?? t.jumlah_guru, 0),
@@ -709,7 +638,6 @@ export async function getPkbmDetailByNpsn(npsn) {
     tendik: int(t.tendik ?? t.tenaga_kependidikan, 0),
   };
 
-  // residences
   const offic = one(officRows) || {};
   const official_residences = {
     total: int(offic.total, 0),
@@ -718,7 +646,6 @@ export async function getPkbmDetailByNpsn(npsn) {
     heavy_damage: int(offic.heavy_damage, 0),
   };
 
-  // kegiatan
   const pembangunanRKB = (kegRows || [])
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
@@ -726,15 +653,12 @@ export async function getPkbmDetailByNpsn(npsn) {
     .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
     .reduce((acc, r) => acc + int(r.lokal, 0), 0);
 
-  // building_status
   const bstatRaw = one(bstatRows) || {};
   const bstat = normalizeBuildingStatus(bstatRaw);
 
-  // UKS
   const u = one(uksRows) || {};
   const uks = { n_available: truthy(u.n_available) ? u.n_available : (truthy(u.available) ? u.available : 'Tidak Tersedia') };
 
-  // facilities (opsional dari building_status)
   const facilities = {
     land_area: pickNum(bstatRaw, ['land_area','luas_tanah'], null),
     building_area: pickNum(bstatRaw, ['building_area','luas_bangunan'], null),
@@ -756,3 +680,34 @@ export async function getPkbmDetailByNpsn(npsn) {
     facilities,
   };
 }
+
+// ======================= PUBLIC API + DEDUPE WRAPPER =======================
+async function withCacheAndDedupe(jenjang, npsn, fetcher) {
+  const key = `${jenjang}:${String(npsn).trim()}`;
+
+  // 1) sessionStorage
+  const cached = readCache(jenjang, npsn);
+  if (cached) return cached;
+
+  // 2) inflight dedupe
+  if (inflight.has(key)) return inflight.get(key);
+
+  // 3) fetch
+  const p = (async () => {
+    try {
+      const data = await fetcher(npsn);
+      if (data) writeCache(jenjang, npsn, data);
+      return data;
+    } finally {
+      inflight.delete(key);
+    }
+  })();
+
+  inflight.set(key, p);
+  return p;
+}
+
+export function getSmpDetailByNpsn(npsn)  { return withCacheAndDedupe('SMP',  npsn, _getSmpDetail); }
+export function getSdDetailByNpsn(npsn)   { return withCacheAndDedupe('SD',   npsn, _getSdDetail); }
+export function getPaudDetailByNpsn(npsn) { return withCacheAndDedupe('PAUD', npsn, _getPaudDetail); }
+export function getPkbmDetailByNpsn(npsn) { return withCacheAndDedupe('PKBM', npsn, _getPkbmDetail); }

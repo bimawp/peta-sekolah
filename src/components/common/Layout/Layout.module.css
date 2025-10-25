@@ -1,10 +1,11 @@
-/* Layout Container */
+/* src/components/common/Layout/Layout.module.css */
+
 .layout {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
   background-color: #f0f2f5;
   position: relative;
-  overflow-x: hidden; /* Prevent horizontal scroll */
+  overflow-x: hidden;
 }
 
 /* Main Content Area */
@@ -12,53 +13,50 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100dvh;
   margin-left: 280px;
-  max-width: calc(100vw - 280px); /* PENTING: Batasi lebar */
-  overflow-x: hidden; /* Prevent horizontal scroll */
+  /* KUNCI anti “dempet” & overflow */
+  min-width: 0;                /* biar flex child boleh mengecil dan tidak meledak */
+  max-width: calc(100vw - 280px);
+  transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mainContentCollapsed {
   margin-left: 80px;
-  max-width: calc(100vw - 80px); /* PENTING: Batasi lebar */
+  max-width: calc(100vw - 80px);
 }
 
 /* Content Area */
 .contentArea {
   flex: 1;
-  padding: 24px;
+  display: block;
   margin-top: 80px;
-  overflow-y: auto;
-  overflow-x: hidden; /* PENTING: Prevent horizontal scroll */
+  padding: 24px;
+  overflow: auto;              /* biar vertical scroll ada di area konten, bukan body */
   background-color: #f0f2f5;
-  min-height: calc(100vh - 80px);
-  max-width: 100%; /* PENTING: Batasi lebar */
+  min-height: calc(100dvh - 80px);
 }
 
-/* Responsive untuk Tablet */
+/* Stabilkan lebar ketika scrollbar muncul */
+[data-scroll-stable] .contentArea {
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Tablet */
 @media (max-width: 1024px) {
-  .contentArea {
-    padding: 20px;
-  }
+  .contentArea { padding: 20px; }
 }
 
-/* Responsive untuk Mobile */
+/* Mobile */
 @media (max-width: 768px) {
   .mainContent,
   .mainContentCollapsed {
     margin-left: 0;
     max-width: 100vw;
   }
-
   .contentArea {
     padding: 16px;
     margin-top: 70px;
-    min-height: calc(100vh - 70px);
+    min-height: calc(100dvh - 70px);
   }
 }
-/* src/components/common/Layout/Layout.module.css */
-/* gunakan nama class yang sudah ada di filemu; kalau beda, sesuaikan */
-.layout { display: flex; min-height: 100dvh; }
-.mainContent { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.contentArea { flex: 1; overflow: auto; }

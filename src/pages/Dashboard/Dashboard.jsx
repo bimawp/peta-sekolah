@@ -1,5 +1,7 @@
 // src/pages/Dashboard/Dashboard.jsx - KODE LENGKAP FINAL
 
+// FIXED: Corrected import path for ChartKit
+import ChartKit from "@/components/chart/ChartKit";
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList } from 'recharts';
 import styles from './Dashboard.module.css';
@@ -9,17 +11,17 @@ import ErrorMessage from '../../components/common/ErrorMessage/ErrorMessage'; //
 const Dashboard = () => {
   // BAGIAN PENGAMBILAN DATA DIGANTI DENGAN CUSTOM HOOK
   const { data, loading, error } = useDashboardData();
-  
+
   // STATE FILTER LOKAL TETAP SAMA
   const [kecamatanFilters, setKecamatanFilters] = useState({
     tipe: 'berat',
     jumlah: 5,
     urutan: 'teratas'
   });
-  
+
   const [desaFilters, setDesaFilters] = useState({
     jenjang: 'Semua Jenjang',
-    kecamatan: 'Semua Kecamatan', 
+    kecamatan: 'Semua Kecamatan',
     tipe: 'berat',
     jumlah: 20,
     urutan: 'teratas'
@@ -34,12 +36,12 @@ const Dashboard = () => {
 
     const calculateSummary = () => {
       const countSchools = (dataObj) =>
-        Object.values(dataObj).reduce(
+        Object.values(dataObj || {}).reduce( // Added null check for dataObj
           (total, kecamatan) => total + (Array.isArray(kecamatan) ? kecamatan.length : 0),
           0
         );
       const countTeachers = (dataObj) =>
-        Object.values(dataObj).reduce((total, kecamatan) => {
+        Object.values(dataObj || {}).reduce((total, kecamatan) => { // Added null check for dataObj
           if (!Array.isArray(kecamatan)) return total;
           return (
             total +
@@ -71,7 +73,7 @@ const Dashboard = () => {
         PKBM: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
       };
       const processData = (dataObj, jenjang) => {
-        Object.values(dataObj).forEach((kecamatan) => {
+        Object.values(dataObj || {}).forEach((kecamatan) => { // Added null check for dataObj
           if (!Array.isArray(kecamatan)) return;
           kecamatan.forEach((school) => {
             const condition = school.class_condition;
@@ -104,7 +106,7 @@ const Dashboard = () => {
         PKBM: { rehab: 0, pembangunan: 0 },
       };
       const processKegiatan = (kegiatanArray, jenjang) => {
-        kegiatanArray.forEach((kegiatan) => {
+        (kegiatanArray || []).forEach((kegiatan) => { // Added null check
           const kegiatanName = (kegiatan.Kegiatan || '').trim().toLowerCase();
           const lokal = Number(kegiatan.Lokal) || 1;
           if (kegiatanName.includes('rehab') || kegiatanName.includes('rehabilitasi')) {
@@ -123,10 +125,10 @@ const Dashboard = () => {
 
     const getAllKecamatan = () => {
       const kecamatanSet = new Set();
-      Object.keys(data.paud).forEach((kec) => kecamatanSet.add(kec));
-      Object.keys(data.sd).forEach((kec) => kecamatanSet.add(kec));
-      Object.keys(data.smp).forEach((kec) => kecamatanSet.add(kec));
-      Object.keys(data.pkbm).forEach((kec) => kecamatanSet.add(kec));
+      Object.keys(data.paud || {}).forEach((kec) => kecamatanSet.add(kec));
+      Object.keys(data.sd || {}).forEach((kec) => kecamatanSet.add(kec));
+      Object.keys(data.smp || {}).forEach((kec) => kecamatanSet.add(kec));
+      Object.keys(data.pkbm || {}).forEach((kec) => kecamatanSet.add(kec));
       return Array.from(kecamatanSet).sort();
     };
 
@@ -144,7 +146,7 @@ const Dashboard = () => {
     const finalData = [];
     const getTopKecamatanPerJenjang = (dataObj, jenjangName) => {
       const kecamatanData = [];
-      Object.entries(dataObj).forEach(([kecamatanName, schools]) => {
+      Object.entries(dataObj || {}).forEach(([kecamatanName, schools]) => { // Added null check
         if (!Array.isArray(schools)) return;
         let totalValue = 0;
         schools.forEach((school) => {
@@ -193,7 +195,7 @@ const Dashboard = () => {
     const desaStats = {};
     const processData = (dataObj, jenjangName) => {
       if (desaFilters.jenjang !== 'Semua Jenjang' && desaFilters.jenjang !== jenjangName) return;
-      Object.entries(dataObj).forEach(([kecamatanName, schools]) => {
+      Object.entries(dataObj || {}).forEach(([kecamatanName, schools]) => { // Added null check
         if (desaFilters.kecamatan !== 'Semua Kecamatan' && desaFilters.kecamatan !== kecamatanName)
           return;
         if (!Array.isArray(schools)) return;

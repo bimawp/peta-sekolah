@@ -1,26 +1,32 @@
 // src/pages/SchoolDetail/SchoolDetailPage.jsx
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, Tooltip
-} from 'recharts';
-
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import 'leaflet/dist/leaflet.css';
-import '../../services/utils/mapUtils.js';
-
+import '../../services/utils/mapUtils.js'; // Assuming this path is correct
 import SimpleMap from '../../components/common/Map/SimpleMap';
 import styles from './SchoolDetailPage.module.css';
-import SchoolDetailPaud from '../../components/schools/SchoolDetail/Paud/SchoolDetailPaud';
-import SchoolDetailSd from '../../components/schools/SchoolDetail/Sd/SchoolDetailSd';
-import SchoolDetailSmp from '../../components/schools/SchoolDetail/Smp/SchoolDetailSmp';
-import SchoolDetailPkbm from '../../components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm';
 
-import { useHydratedSchools } from '../../hooks/useHydratedSchools';
-import { getPageFiltersFromURL, setPageFiltersToURL, DEFAULT_PAGE_FILTERS } from '../../utils/urlFilters';
-import supabase from '@/services/supabaseClient';
+// FIXED: Corrected import path for ChartKit
+import { default as ChartKit } from "@/components/chart/ChartKit";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, Tooltip, LabelList
+} from "@/components/chart/ChartKitImpl"; // Adjusted path here too
 
 // DETAIL API
 import { getSdDetailByNpsn, getSmpDetailByNpsn, getPaudDetailByNpsn, getPkbmDetailByNpsn } from '../../services/api/detailApi';
+// Import hook and context if needed later, though not used in current logic
+import { useHydratedSchools } from '../../hooks/useHydratedSchools';
+import { supabase } from '@/services/supabaseClient'; // Adjusted path assuming supabaseClient is directly in services
+// Removed unused Context import
+// Import URL filter utils
+import { DEFAULT_PAGE_FILTERS, getPageFiltersFromURL, setPageFiltersToURL } from '../../utils/urlFilters';
+
+// DETAIL COMPONENTS (Lazy loaded if preferred, but direct import is fine too)
+import SchoolDetailPaud from '@/components/schools/SchoolDetail/Paud/SchoolDetailPaud';
+import SchoolDetailSd from '@/components/schools/SchoolDetail/Sd/SchoolDetailSd';
+import SchoolDetailSmp from '@/components/schools/SchoolDetail/Smp/SchoolDetailSmp';
+import SchoolDetailPkbm from '@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm';
+
 
 // ============ UTIL ============
 const isValidCoordinate = (lng, lat) =>
@@ -46,7 +52,81 @@ function qp(name) {
   return v && String(v).trim() !== '' ? v : null;
 }
 
-// ============ ERROR BOUNDARY ============
+// ====== Prefetch helpers (sessionStorage) ======
+const CACHE_PREFIX = "sch-detail:";
+const getCacheKey = (jenjang, npsn) => `${CACHE_PREFIX}${jenjang}:${npsn}`;
+function readDetailCache(jenjang, npsn) {
+  try {
+    const raw = sessionStorage.getItem(getCacheKey(jenjang, npsn));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.data || null;
+  } catch { return null; }
+}
+function writeDetailCache(jenjang, npsn, data) {
+  try {
+    sessionStorage.setItem(getCacheKey(jenjang, npsn), JSON.stringify({ ts: Date.now(), data }));
+  } catch { /* ignore */ }
+}
+async function prefetchDetailByNpsn(jenjang, npsn) {
+  if (!jenjang || !npsn) return;
+  // skip kalau sudah ada cache
+  if (readDetailCache(jenjang, npsn)) return;
+  try {
+    let data = null;
+    if (jenjang === 'SD')   data = await getSdDetailByNpsn(npsn);
+    if (jenjang === 'SMP')  data = await getSmpDetailByNpsn(npsn);
+    if (jenjang === 'PAUD') data = await getPaudDetailByNpsn(npsn);
+    if (jenjang === 'PKBM') data = await getPkbmDetailByNpsn(npsn);
+    if (data) writeDetailCache(jenjang, npsn, data);
+  } catch { /* diamkan saja agar tidak mengganggu UI */ }
+}
+
+// requestIdleCallback shim
+const ric = typeof window !== 'undefined' && window.requestIdleCallback
+  ? window.requestIdleCallback
+  : (cb) => setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 16 }), 0);
+
+// ======== SWR ringan untuk JSON statis ========
+async function swrJson(url, cacheName = 'ps-cache-v1') {
+  let fromCache = null;
+  try {
+    if ('caches' in window) {
+      const cache = await caches.open(cacheName);
+      const cached = await cache.match(url, { ignoreVary: true, ignoreSearch: true });
+      if (cached) fromCache = await cached.json();
+    }
+  } catch { /* noop */ }
+
+  (async () => {
+    try {
+      const res = await fetch(url, { cache: 'no-cache' });
+      if (res.ok) {
+        const fresh = await res.json();
+        if ('caches' in window) {
+          const cache = await caches.open(cacheName);
+          await cache.put(url, new Response(JSON.stringify(fresh), {
+            headers: { 'Content-Type': 'application/json' }
+          }));
+        }
+      }
+    } catch { /* noop */ }
+  })();
+
+  if (fromCache) return fromCache;
+  const res = await fetch(url, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`Fetch failed for ${url}`);
+  return res.json();
+}
+
+/* ==================== TAMBAHAN UTIL NORMALISASI ==================== */
+const norm = (x) =>
+  String(x ?? '')
+    .normalize('NFKD')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/* ==================== ERROR BOUNDARY ==================== */
 class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
@@ -63,7 +143,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// ============ PIE CHART ============
+/* ==================== PIE CHART ==================== */
 const PieChartComponent = React.memo(({ title, data }) => {
   const [hoveredIndex, setHoveredIndex] = useState(-1);
   const safe = (data || []).map(d => ({ ...d, value: Number(d?.value || 0) }));
@@ -145,7 +225,7 @@ const PieChartComponent = React.memo(({ title, data }) => {
   );
 });
 
-// ============ BAR CHART ============
+/* ==================== BAR CHART ==================== */
 const BarChartComponent = React.memo(({ title, data, colors }) => {
   const [hoveredIndex, setHoveredIndex] = useState(0);
   const safeData = (data || []).map(d => ({ ...d, value: Number(d?.value || 0) }));
@@ -206,32 +286,31 @@ const BarChartComponent = React.memo(({ title, data, colors }) => {
   );
 });
 
-// ============ DATA TABLE ============
-const DataTable = React.memo(({ data, onDetailClick }) => {
+/* ==================== DATA TABLE ==================== */
+const DataTable = React.memo(({ data, onDetailClick, onDetailPrefetch }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState('');
   const [sortDirection, setSortDirection] = useState('asc');
 
-  // Log data yang diterima
-  useEffect(() => {
-    console.log('[DataTable] Received data:', data?.length, 'schools');
-  }, [data]);
+  useEffect(() => {}, [data]);
 
   const filteredData = useMemo(() => {
     let f = data || [];
     if (searchTerm) {
+      const q = searchTerm.toLowerCase();
       f = f.filter(s =>
-        (s.namaSekolah || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (s.npsn || '').toString().includes(searchTerm) ||
-        (s.kecamatan || '').toLowerCase().includes(searchTerm.toLowerCase())
+        (s.namaSekolah || '').toLowerCase().includes(q) ||
+        String(s.npsn || '').includes(searchTerm) ||
+        (s.kecamatan || '').toLowerCase().includes(q)
       );
     }
     if (sortField) {
       f = [...f].sort((a, b) => {
         let aVal = a[sortField]; let bVal = b[sortField];
         if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); }
+        if (aVal === bVal) return 0;
         return sortDirection === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
       });
     }
@@ -284,32 +363,38 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
             </tr>
           </thead>
           <tbody>
-            {paginatedData.length > 0 ? paginatedData.map((school, index) => (
-              <tr key={`${school.npsn || index}-${index}`} className={styles.tableRow}>
-                <td>{((currentPage - 1) * itemsPerPage) + index + 1}</td>
-                <td><span className={styles.npsnBadge}>{school.npsn || '-'}</span></td>
-                <td className={styles.schoolNameCell}>{school.namaSekolah || '-'}</td>
-                <td><span className={`${styles.jenjangBadge} ${styles[school.jenjang?.toLowerCase?.() || '']}`}>{school.jenjang || '-'}</span></td>
-                <td>{school.tipeSekolah || '-'}</td>
-                <td>{school.desa || '-'}</td>
-                <td>{school.kecamatan || '-'}</td>
-                <td><span className={styles.numberBadge}>{Number(school.student_count || 0)}</span></td>
-                <td><span className={styles.conditionGood}>{Number(school.kondisiKelas?.baik || 0)}</span></td>
-                <td><span className={styles.conditionModerate}>{Number(school.kondisiKelas?.rusakSedang || 0)}</span></td>
-                <td><span className={styles.conditionBad}>{Number(school.kondisiKelas?.rusakBerat || 0)}</span></td>
-                <td><span className={styles.numberBadge}>{Number(school.kurangRKB || 0)}</span></td>
-                <td><span className={styles.numberBadge}>{Number(school.rehabRuangKelas || 0)}</span></td>
-                <td><span className={styles.numberBadge}>{Number(school.pembangunanRKB || 0)}</span></td>
-                <td>
-                  <button
-                    className={styles.detailButton}
-                    onClick={() => onDetailClick && onDetailClick(school)}
-                  >
-                    <span className={styles.detailIcon}>👁️</span> Detail
-                  </button>
-                </td>
-              </tr>
-            )) : (
+            {paginatedData.length > 0 ? paginatedData.map((school, index) => {
+              const jenjang = String(school?.jenjang || school?.level || '').toUpperCase();
+              const npsn = school?.npsn;
+              return (
+                <tr key={`${school.npsn || index}-${index}`} className={styles.tableRow}>
+                  <td>{((currentPage - 1) * itemsPerPage) + index + 1}</td>
+                  <td><span className={styles.npsnBadge}>{school.npsn || '-'}</span></td>
+                  <td className={styles.schoolNameCell}>{school.namaSekolah || '-'}</td>
+                  <td><span className={`${styles.jenjangBadge} ${styles[school.jenjang?.toLowerCase?.() || '']}`}>{school.jenjang || '-'}</span></td>
+                  <td>{school.tipeSekolah || '-'}</td>
+                  <td>{school.desa || '-'}</td>
+                  <td>{school.kecamatan || '-'}</td>
+                  <td><span className={styles.numberBadge}>{Number(school.student_count || 0)}</span></td>
+                  <td><span className={styles.conditionGood}>{Number(school.kondisiKelas?.baik || 0)}</span></td>
+                  <td><span className={styles.conditionModerate}>{Number(school.kondisiKelas?.rusakSedang || 0)}</span></td>
+                  <td><span className={styles.conditionBad}>{Number(school.kondisiKelas?.rusakBerat || 0)}</span></td>
+                  <td><span className={styles.numberBadge}>{Number(school.kurangRKB || 0)}</span></td>
+                  <td><span className={styles.numberBadge}>{Number(school.rehabRuangKelas || 0)}</span></td>
+                  <td><span className={styles.numberBadge}>{Number(school.pembangunanRKB || 0)}</span></td>
+                  <td>
+                    <button
+                      className={styles.detailButton}
+                      onMouseEnter={() => onDetailPrefetch && onDetailPrefetch(jenjang, npsn)}
+                      onFocus={() => onDetailPrefetch && onDetailPrefetch(jenjang, npsn)}
+                      onClick={() => onDetailClick && onDetailClick(school)}
+                    >
+                      <span className={styles.detailIcon}>👁️</span> Detail
+                    </button>
+                  </td>
+                </tr>
+              );
+            }) : (
               <tr><td colSpan="15" className={styles.noDataCell}><div className={styles.chartEmpty}><img className={styles.chartEmptyIcon} alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ccircle cx='24' cy='24' r='20' fill='%23E2E8F0'/%3E%3C/svg%3E" />Tidak ada data</div></td></tr>
             )}
           </tbody>
@@ -330,7 +415,7 @@ const DataTable = React.memo(({ data, onDetailClick }) => {
   );
 });
 
-// ============ MAIN ============
+/* ==================== MAIN ==================== */
 const SchoolDetailPage = ({ hideChrome = false }) => {
   const [schoolData, setSchoolData] = useState([]);
   const [geoData, setGeoData] = useState({ kecamatan: null, desa: null });
@@ -344,7 +429,6 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
   const [detailError, setDetailError] = useState(null);
   const detailCache = useRef(new Map()); // cache by key
 
-  // === NEW: flag untuk tahu apakah halaman ini dibuka dari Facilities
   const cameFromFacilitiesRef = useRef(qp('from') === 'facilities');
 
   // FILTER (bar atas)
@@ -354,9 +438,9 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
   const [kondisiFilter, setKondisiFilter] = useState('Semua Kondisi');
 
   // daftar pilihan
-  const [jenjangList, setJenjangList] = useState(['PAUD', 'SD', 'SMP', 'PKBM']);
-  const [kecamatanList, setKecamatanList] = useState([]);
-  const [desaList, setDesaList] = useState([]);
+  const [jenjangList] = useState(['PAUD', 'SD', 'SMP', 'PKBM']);
+  const [kecamatanList, setKecamatanList] = useState([]); // ← harus 42
+  const [desaList, setDesaList] = useState([]);           // ← mengikuti kecamatan
   const [mapView] = useState({ center: [-7.21, 107.91], zoom: 11 });
 
   // angka rollup intervensi global
@@ -375,27 +459,29 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     setPageFiltersToURL({ jenjang: filterJenjang, kecamatan: filterKecamatan, desa: filterDesa });
   }, [filterJenjang, filterKecamatan, filterDesa]);
 
-  // ---------- handleDetailClick ----------
+  // ---------- handleDetailClick (BUKA TAB BARU) + prefetch helper ----------
   const handleDetailClick = useCallback((school) => {
     const npsn = school?.npsn;
     const jenjang = String(school?.jenjang || school?.level || '').toUpperCase();
 
     if (!npsn) { alert('NPSN sekolah tidak ditemukan.'); return; }
 
-    // Saat klik dari tabel di halaman ini, tetap ke rute jenjang spesifik (behaviour lama),
-    // pengguna Facilities sudah kirim param `from=facilities` sendiri.
-    if (jenjang === 'PAUD') { window.location.assign(`/paud/school_detail?npsn=${encodeURIComponent(npsn)}`); return; }
-    if (jenjang === 'SD')   { window.location.assign(`/sd/school_detail?npsn=${encodeURIComponent(npsn)}`);   return; }
-    if (jenjang === 'SMP')  { window.location.assign(`/smp/school_detail?npsn=${encodeURIComponent(npsn)}`);  return; }
-    if (jenjang === 'PKBM') { window.location.assign(`/pkbm/school_detail?npsn=${encodeURIComponent(npsn)}`); return; }
+    let url = `/detail-sekolah?npsn=${encodeURIComponent(npsn)}&jenjang=${encodeURIComponent(jenjang)}`;
+    if (jenjang === 'PAUD') { url = `/paud/school_detail?npsn=${encodeURIComponent(npsn)}`; }
+    if (jenjang === 'SD')   { url = `/sd/school_detail?npsn=${encodeURIComponent(npsn)}`; }
+    if (jenjang === 'SMP')  { url = `/smp/school_detail?npsn=${encodeURIComponent(npsn)}`; }
+    if (jenjang === 'PKBM') { url = `/pkbm/school_detail?npsn=${encodeURIComponent(npsn)}`; }
 
-    window.location.assign(`/detail-sekolah?jenjang=${encodeURIComponent(jenjang)}&npsn=${encodeURIComponent(npsn)}`);
+    window.open(url, '_blank', 'noopener,noreferrer');
   }, []);
 
-  // ---------- FIX: Back handler — jika datang dari Facilities, balik ke /facilities
+  const handlePrefetchDetail = useCallback((jenjang, npsn) => {
+    prefetchDetailByNpsn(jenjang, npsn);
+  }, []);
+
+  // ---------- FIX: Back handler (tak dipakai tombol kembali) ----------
   const handleBackToMain = useCallback(() => {
     if (cameFromFacilitiesRef.current) {
-      // bersihkan query dan arahkan ke halaman Facilities
       window.location.assign('/facilities');
       return;
     }
@@ -406,65 +492,152 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     setDetailLoading(false);
   }, []);
 
-  // ---------- MASTER: kecamatan & desa ----------
+  /* ==================== MASTER LIST DARI SUPABASE (TETAP 1 SUMBER) ==================== */
+
+  // >>>>>>>>>>>>>>>>>>>>>>>> BEGIN: PERUBAHAN UNTUK 42 KECAMATAN <<<<<<<<<<<<<<<<<<<<<<
+
+  // Gunakan ejaan kanonik dari schools agar .eq('kecamatan', value) selalu match
+  const cleanName = (x) =>
+    String(x ?? "")
+      .normalize("NFKC")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // DISTINCT kecamatan dari tabel schools secara paginated (aman untuk 4.8k+ rows)
+  const distinctKecamatanFromSchools = async () => {
+    const seen = new Map(); // key lower -> canonical (dari schools)
+    let offset = 0;
+    let iter = 0;
+    const MAX_ITERS = 30;
+
+    while (iter < MAX_ITERS) {
+      const { data, error } = await supabase
+        .from("schools")
+        .select("kecamatan", { count: "exact" })
+        .not("kecamatan", "is", null)
+        .range(offset, offset + PAGE_SIZE - 1);
+
+      if (error) throw error;
+      const rows = data || [];
+      if (rows.length === 0) break;
+
+      for (const r of rows) {
+        const raw = cleanName(r?.kecamatan);
+        if (!raw) continue;
+        const key = raw.toLowerCase();
+        if (!seen.has(key)) seen.set(key, raw);
+      }
+
+      if (rows.length < PAGE_SIZE) break;
+      offset += rows.length;
+      iter++;
+    }
+
+    return Array.from(seen.values());
+  };
+
   const fetchKecamatanMaster = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('kecamatan')
-      .select('name')
-      .order('name', { ascending: true });
-    if (error) throw error;
-    return (data || []).map(d => d.name).filter(Boolean);
+    // 1) coba dari tabel kecamatan (kalau ada)
+    let kecFromTable = [];
+    try {
+      const { data: kraw, error: kErr } = await supabase
+        .from('kecamatan')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (!kErr && Array.isArray(kraw)) {
+        kecFromTable = kraw
+          .map(r => cleanName(r?.name || r?.nama || r?.kec_name || r?.kecamatan || ''))
+          .filter(Boolean);
+      }
+    } catch (e) {
+      // abaikan, lanjut pakai schools
+    }
+
+    // 2) DISTINCT dari schools (pasti lengkap)
+    const kecFromSchools = await distinctKecamatanFromSchools();
+
+    // 3) gabungkan dengan preferensi ejaan dari schools (kanonik)
+    const canonical = new Map(); // lower -> label
+    for (const n of kecFromSchools) {
+      const key = n.toLowerCase();
+      if (!canonical.has(key)) canonical.set(key, n);
+    }
+    for (const n of kecFromTable) {
+      const key = n.toLowerCase();
+      if (!canonical.has(key)) canonical.set(key, n);
+    }
+
+    // 4) urutkan rapi
+    const result = Array.from(canonical.values()).sort((a, b) => a.localeCompare(b, 'id'));
+
+    return result; // target: 42
   }, []);
 
-  const fetchAllDesaDistinct = useCallback(async () => {
-    // Ambil distinct village seluruh schools (tidak terpengaruh filter)
+  const fetchDesaByKecamatan = useCallback(async (kecName) => {
+    if (!kecName || kecName === 'Semua Kecamatan') return [];
     const { data, error } = await supabase
       .from('schools')
       .select('village')
+      .eq('kecamatan', kecName)
       .not('village', 'is', null);
+
     if (error) throw error;
-    return [...new Set((data || []).map(r => r.village).filter(Boolean))].sort();
+
+    const list = [...new Set((data || []).map(d => cleanName(d?.village)).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'id'));
+    return list;
   }, []);
+
+  // <<<<<<<<<<<<<<<<<<<<<< END: PERUBAHAN UNTUK 42 KECAMATAN <<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [kList, dList] = await Promise.all([fetchKecamatanMaster(), fetchAllDesaDistinct()]);
+        const kList = await fetchKecamatanMaster();
         if (!alive) return;
         setKecamatanList(kList);
-        setDesaList(dList);
       } catch (e) {
-        console.warn('Gagal load master kec/desa:', e);
+        console.warn('Gagal load master kecamatan:', e);
+        setKecamatanList([]);
       }
     })();
     return () => { alive = false; };
-  }, [fetchKecamatanMaster, fetchAllDesaDistinct]);
+  }, [fetchKecamatanMaster]);
 
-  // ---------- FETCH: schools (pagination aman) ----------
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        if (filterKecamatan && filterKecamatan !== 'Semua Kecamatan') {
+          const dList = await fetchDesaByKecamatan(filterKecamatan);
+          if (!alive) return;
+          setDesaList(dList);
+          if (!dList.includes(filterDesa)) setFilterDesa('Semua Desa');
+        } else {
+          setDesaList([]);
+          if (filterDesa !== 'Semua Desa') setFilterDesa('Semua Desa');
+        }
+      } catch (e) {
+        console.warn('Gagal load desa by kecamatan:', e);
+        setDesaList([]);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterKecamatan]);
+
+  /* ==================== FETCH LIST DATA (schools + join lainnya) ==================== */
+
   const fetchSchoolsByFilters = useCallback(async ({ levelValue, kecamatanValue, villageValue }) => {
-    console.log('[fetchSchoolsByFilters] Starting fetch with filters:', { levelValue, kecamatanValue, villageValue });
-    
-    const { count: totalCount, error: countError } = await supabase
-      .from('schools')
-      .select('*', { count: 'exact', head: true });
-    
-    if (countError) {
-      console.error('[fetchSchoolsByFilters] Count error:', countError);
-    } else {
-      console.log('[fetchSchoolsByFilters] Total rows in database:', totalCount);
-    }
-
     const base = () => {
       let q = supabase
         .from('schools')
         .select('id,npsn,name,jenjang,level,kecamatan,village,lat,lng,updated_at,student_count,type', { count: 'exact' })
         .order('id', { ascending: true });
-      
       if (levelValue)     q = q.or(`jenjang.eq.${levelValue},level.eq.${levelValue}`);
       if (kecamatanValue) q = q.eq('kecamatan', kecamatanValue);
       if (villageValue)   q = q.eq('village', villageValue);
-      
       return q;
     };
 
@@ -476,45 +649,15 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     while (iteration < maxIterations) {
       const fromIndex = currentOffset;
       const toIndex = currentOffset + PAGE_SIZE - 1;
-      
-      console.log(`[fetchSchoolsByFilters] Iteration ${iteration + 1}: Fetching range [${fromIndex}, ${toIndex}]`);
-      
-      const { data, error, count } = await base().range(fromIndex, toIndex);
-      
-      if (error) {
-        console.error('[fetchSchoolsByFilters] Error:', error);
-        throw error;
-      }
-      
+      const { data, error } = await base().range(fromIndex, toIndex);
+      if (error) throw error;
       const rows = data || [];
-      console.log(`[fetchSchoolsByFilters] Iteration ${iteration + 1}: Received ${rows.length} rows, Total count from query: ${count}`);
-      
-      if (rows.length === 0) {
-        console.log('[fetchSchoolsByFilters] No more data, breaking loop');
-        break;
-      }
-      
+      if (rows.length === 0) break;
       out.push(...rows);
-      
-      if (rows.length < PAGE_SIZE) {
-        console.log('[fetchSchoolsByFilters] Last batch received, breaking loop');
-        break;
-      }
-      
+      if (rows.length < PAGE_SIZE) break;
       currentOffset += rows.length;
       iteration++;
-      
-      if (count && out.length >= count) {
-        console.log('[fetchSchoolsByFilters] Reached total count, breaking loop');
-        break;
-      }
     }
-
-    if (iteration >= maxIterations) {
-      console.warn(`[fetchSchoolsByFilters] Reached max iterations (${maxIterations})`);
-    }
-
-    console.log(`[fetchSchoolsByFilters] Total fetched: ${out.length} schools in ${iteration + 1} iterations`);
 
     const mapped = out.map((s) => {
       const lng = Number(s?.lng);
@@ -537,21 +680,9 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
       };
     });
 
-    console.log(`[fetchSchoolsByFilters] After mapping: ${mapped.length} schools`);
-    
-    if (!levelValue && !kecamatanValue && !villageValue) {
-      if (mapped.length < 4842) {
-        console.warn(`[fetchSchoolsByFilters] ⚠️ KURANG DATA: Hanya ${mapped.length} dari 4842 expected`);
-        console.warn(`[fetchSchoolsByFilters] Database total: ${totalCount}, Fetched: ${out.length}, Mapped: ${mapped.length}`);
-      } else {
-        console.log(`[fetchSchoolsByFilters] ✅ Berhasil fetch semua ${mapped.length} sekolah`);
-      }
-    }
-
     return mapped;
   }, []);
 
-  // ---------- FETCH: kegiatan (list) ----------
   const fetchKegiatan = useCallback(async (ids) => {
     if (!ids?.length) return [];
     const res = await Promise.all(
@@ -567,7 +698,6 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     return res.flat();
   }, []);
 
-  // ---------- FETCH: class_conditions (list) ----------
   const fetchClassConditions = useCallback(async (ids) => {
     if (!ids?.length) return [];
     const res = await Promise.all(
@@ -593,7 +723,6 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     return res.flat();
   }, []);
 
-  // ---------- FETCH: intervensi rollup (global) ----------
   const fetchIntervensiRollup = useCallback(async () => {
     const { data, error } = await supabase
       .from('v_intervensi_rollup')
@@ -603,7 +732,6 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     return data || { rehab_unit: 0, pembangunan_unit: 0 };
   }, []);
 
-  // ---------- MERGE LIST ----------
   const mergeDataset = useCallback((schools, kegiatan, classConds) => {
     const kegBySid = new Map();
     const intervensiFlag = new Map();
@@ -641,7 +769,6 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     });
   }, []);
 
-  // ---------- DETAIL FETCH ----------
   const fetchSchoolDetail = useCallback(async (schoolId) => {
     const { data, error } = await supabase
       .from('schools')
@@ -700,18 +827,21 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     return mergedDetail;
   }, []);
 
-  // ---------- GEOJSON ----------
+  // GEOJSON cache
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const [kecGeo, desaGeo] = await Promise.all([
-          fetch('/data/kecamatan.geojson').then(r => r.ok ? r.json() : null),
-          fetch('/data/desa.geojson').then(r => r.ok ? r.json() : null),
+          swrJson('/data/kecamatan.geojson'),
+          swrJson('/data/desa.geojson'),
         ]);
         if (!alive) return;
         setGeoData({ kecamatan: kecGeo, desa: desaGeo });
-      } catch { /* noop */ }
+      } catch {
+        if (!alive) return;
+        setGeoData({ kecamatan: null, desa: null });
+      }
     })();
     return () => { alive = false; };
   }, []);
@@ -741,11 +871,8 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
 
         const merged = mergeDataset(schools, keg, cc);
 
-        setSchoolData(merged);
-        setIntervensiSum(roll);
-
-        // PAKSA 4 JENJANG
-        setJenjangList(['PAUD','SD','SMP','PKBM']);
+        ric(() => setSchoolData(merged));
+        ric(() => setIntervensiSum(roll));
       } catch (e) {
         console.error('[SchoolDetailPage] load error:', e);
         if (!alive) return;
@@ -758,61 +885,36 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     return () => { alive = false; };
   }, [filterJenjang, filterKecamatan, filterDesa, fetchSchoolsByFilters, fetchKegiatan, fetchClassConditions, fetchIntervensiRollup, mergeDataset]);
 
-  // ---------- Hydration (untuk detail), mapData pakai schoolData ----------
+  // Use the hook to hydrate schools
   const hydratedSchools = useHydratedSchools(schoolData);
 
   // ---------- Filter (chart & tabel) ----------
   const filteredData = useMemo(() => {
-    let data = [...schoolData];
-    
-    console.log('[filteredData] Starting with:', data.length, 'schools');
-    console.log('[filteredData] Filters:', { filterJenjang, filterKecamatan, filterDesa, kondisiFilter });
-    
-    if (filterJenjang !== 'Semua Jenjang') {
-      const before = data.length;
-      data = data.filter(d => d.jenjang === filterJenjang);
-      console.log(`[filteredData] After jenjang filter (${filterJenjang}):`, data.length, '(removed', before - data.length, ')');
-    }
-    
-    if (filterKecamatan !== 'Semua Kecamatan') {
-      const before = data.length;
-      data = data.filter(d => d.kecamatan === filterKecamatan);
-      console.log(`[filteredData] After kecamatan filter (${filterKecamatan}):`, data.length, '(removed', before - data.length, ')');
-    }
-    
-    if (filterDesa !== 'Semua Desa') {
-      const before = data.length;
-      data = data.filter(d => d.desa === filterDesa);
-      console.log(`[filteredData] After desa filter (${filterDesa}):`, data.length, '(removed', before - data.length, ')');
-    }
+    // Use hydratedSchools here for filtering
+    let data = [...hydratedSchools];
 
+    if (filterJenjang !== 'Semua Jenjang') {
+      data = data.filter(d => d.jenjang === filterJenjang);
+    }
+    if (filterKecamatan !== 'Semua Kecamatan') {
+      data = data.filter(d => d.kecamatan === filterKecamatan);
+    }
+    if (filterDesa !== 'Semua Desa') {
+      data = data.filter(d => d.desa === filterDesa);
+    }
     if (kondisiFilter !== 'Semua Kondisi') {
-      const before = data.length;
       if (kondisiFilter === 'Baik') data = data.filter(d => Number(d?.kondisiKelas?.baik || 0) > 0);
       if (kondisiFilter === 'Rusak Sedang') data = data.filter(d => Number(d?.kondisiKelas?.rusakSedang || 0) > 0);
       if (kondisiFilter === 'Rusak Berat') data = data.filter(d => Number(d?.kondisiKelas?.rusakBerat || 0) > 0);
       if (kondisiFilter === 'Kurang RKB') data = data.filter(d => Number(d?.kurangRKB || 0) > 0);
-      console.log(`[filteredData] After kondisi filter (${kondisiFilter}):`, data.length, '(removed', before - data.length, ')');
     }
-    
-    console.log('[filteredData] Final result:', data.length, 'schools');
-    
-    const jenjangCount = {};
-    schoolData.forEach(s => {
-      const j = s.jenjang || 'NULL';
-      jenjangCount[j] = (jenjangCount[j] || 0) + 1;
-    });
-    console.log('[filteredData] Jenjang distribution in schoolData:', jenjangCount);
-    
     return data;
-  }, [schoolData, filterJenjang, filterKecamatan, filterDesa, kondisiFilter]);
+  }, [hydratedSchools, filterJenjang, filterKecamatan, filterDesa, kondisiFilter]);
 
   // ---------- Data MAP ----------
   const mapData = useMemo(() => {
-    let data = [...schoolData];
-    
-    console.log('[mapData] Starting with:', data.length, 'schools');
-    
+    // Use hydratedSchools for map data as well
+    let data = [...hydratedSchools];
     if (filterJenjang   !== 'Semua Jenjang')   data = data.filter(d => d.jenjang   === filterJenjang);
     if (filterKecamatan !== 'Semua Kecamatan') data = data.filter(d => d.kecamatan === filterKecamatan);
     if (filterDesa      !== 'Semua Desa')      data = data.filter(d => d.desa      === filterDesa);
@@ -824,21 +926,12 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
       if (kondisiFilter === 'Kurang RKB') data = data.filter(d => Number(d?.kurangRKB || 0) > 0);
     }
 
-    const beforeCoordFilter = data.length;
     const validCoords = data.filter(s =>
       Array.isArray(s.coordinates) && s.coordinates.length === 2 &&
       !Number.isNaN(+s.coordinates[0]) && !Number.isNaN(+s.coordinates[1])
     );
-    
-    const invalidCoords = beforeCoordFilter - validCoords.length;
-    console.log(`[mapData] After coordinate filter: ${validCoords.length} valid (removed ${invalidCoords} with invalid coordinates)`);
-    
-    if (invalidCoords > 0) {
-      console.log(`[mapData] ⚠️ ${invalidCoords} sekolah tidak memiliki koordinat valid dan tidak ditampilkan di peta`);
-    }
-
     return validCoords;
-  }, [schoolData, filterJenjang, filterKecamatan, filterDesa, kondisiFilter]);
+  }, [hydratedSchools, filterJenjang, filterKecamatan, filterDesa, kondisiFilter]);
 
   // ---------- Hitung data chart ----------
   const { chartData } = useMemo(() => {
@@ -909,7 +1002,7 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     setKondisiFilter('Semua Kondisi');
   }, []);
 
-  // ---------- LOAD DETAIL SAAT MASUK DETAIL ----------
+  // ---------- DETAIL ----------
   useEffect(() => {
     const run = async () => {
       if (currentView !== 'detail' || !selectedSchool) return;
@@ -959,7 +1052,6 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
     run();
   }, [currentView, selectedSchool, hydratedSchools, fetchSchoolDetail]);
 
-  // ---------- AUTO-OPEN dari URL ----------
   useEffect(() => {
     const qJenjang = qp('jenjang');
     if (qJenjang && qJenjang !== filterJenjang) setFilterJenjang(qJenjang);
@@ -967,10 +1059,10 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
 
   useEffect(() => {
     const qNpsn = qp('npsn');
-    if (!qNpsn || !schoolData.length) return;
-    const target = schoolData.find(s => String(s.npsn) === String(qNpsn));
+    if (!qNpsn || !hydratedSchools.length) return; // Wait until hydratedSchools is populated
+    const target = hydratedSchools.find(s => String(s.npsn) === String(qNpsn));
     if (target) { setSelectedSchool(target); setCurrentView('detail'); }
-  }, [schoolData]);
+  }, [hydratedSchools, filterJenjang, filterKecamatan, filterDesa]); // Rerun when filters change too
 
   // ---------- RENDER ----------
   if (loading) return <div className={styles.loading}>Memuat Data Sekolah…</div>;
@@ -983,8 +1075,7 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
         <div className={styles.error}>
           <div>⚠️ {detailError}</div>
           <div style={{ marginTop: 8 }}>
-            <button className={styles.resetTableButton} onClick={() => detailCache.current.delete(selectedSchool?.id) || setSelectedDetail(null)}>🔁 Coba Lagi</button>{' '}
-            <button className={styles.resetTableButton} onClick={handleBackToMain}>⬅️ Kembali</button>
+            <button className={styles.resetTableButton} onClick={() => detailCache.current.delete(selectedSchool?.id) || setSelectedDetail(null)}>🔁 Coba Lagi</button>
           </div>
         </div>
       );
@@ -1000,7 +1091,7 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
       case 'PKBM': DetailComponent = SchoolDetailPkbm; break;
       default:     return (<div className={styles.error}>Detail tidak tersedia untuk jenjang ini.</div>);
     }
-    return <DetailComponent schoolData={detailObj} onBack={handleBackToMain} />;
+    return <DetailComponent schoolData={detailObj} />; // TANPA onBack
   };
 
   const renderMainView = () => (
@@ -1008,7 +1099,7 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
       <header className={styles.dashboardHeader}>
         <h1>Detail Peta Sekolah</h1>
         <div style={{ fontSize: '14px', color: '#666', marginTop: '8px' }}>
-          Total: {schoolData.length} sekolah • Filtered: {filteredData.length} sekolah • Map: {mapData.length} sekolah
+          Total: {hydratedSchools.length} sekolah • Filtered: {filteredData.length} sekolah • Map: {mapData.length} sekolah
         </div>
       </header>
 
@@ -1024,7 +1115,7 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
                 onChange={e => setFilterJenjang(e.target.value)}
               >
                 <option>Semua Jenjang</option>
-                {jenjangList.map((jenjang, idx) => (
+                {['PAUD', 'SD', 'SMP', 'PKBM'].map((jenjang, idx) => (
                   <option key={idx} value={jenjang}>{jenjang}</option>
                 ))}
               </select>
@@ -1084,8 +1175,10 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
                 geoData={geoData}
                 initialCenter={mapView.center}
                 initialZoom={mapView.zoom}
-                totalSchools={schoolData.length}
-                totalKecamatan={kecamatanList.length}
+                statsOverride={{ // Provide stats override
+                   kecamatanCount: kecamatanList.length,
+                   sekolahCount: mapData.length
+                }}
               />
             </ErrorBoundary>
           </div>
@@ -1132,7 +1225,11 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
         </div>
         <div className={styles.chartContent}>
           <ErrorBoundary>
-            <DataTable data={filteredData} onDetailClick={handleDetailClick} />
+            <DataTable
+              data={filteredData} // Use filteredData which comes from hydratedSchools
+              onDetailClick={handleDetailClick}
+              onDetailPrefetch={handlePrefetchDetail}
+            />
           </ErrorBoundary>
         </div>
       </section>
@@ -1141,9 +1238,9 @@ const SchoolDetailPage = ({ hideChrome = false }) => {
 
   return (
     <ErrorBoundary>
-      {/* data-hide-chrome bisa dipakai di CSS untuk meniadakan padding/margin saat mode standalone */}
       <div data-hide-chrome={hideChrome ? 'true' : 'false'}>
-        {currentView === 'main' ? renderMainView() : renderDetailView()}
+        {/* Removed logic for currentView === 'detail' as it's handled by opening new tabs */}
+        {renderMainView()}
       </div>
     </ErrorBoundary>
   );

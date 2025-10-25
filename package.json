@@ -14,7 +14,8 @@
     "fetch:merge": "node scripts/fetch_and_merge.js",
     "upsert": "node scripts/upsert_to_supabase.js",
     "import:all": "npm run fetch:merge && npm run upsert",
-    "convert:csv": "node scripts/json_to_csv.mjs"
+    "convert:csv": "node scripts/json_to_csv.mjs",
+    "clean:vite": "rimraf node_modules/.vite"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -59,6 +60,9 @@
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.13",
-    "vite": "^5.3.1"
+    "vite": "^5.3.1",
+    "vite-plugin-compression": "^0.5.1",
+    "vite-plugin-pwa": "^1.1.0",
+    "workbox-window": "^7.3.0"
   }
 }
