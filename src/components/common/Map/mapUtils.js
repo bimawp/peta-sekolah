@@ -1,4 +1,5 @@
-// (SAMA seperti yang terakhir aku kirim — tidak diubah)
+// (SAMA dasar, + ekspor GARUT_LEAFLET_BOUNDS untuk Leaflet)
+
 import L from "leaflet";
 import marker2x from "leaflet/dist/images/marker-icon-2x.png";
 import marker1x from "leaflet/dist/images/marker-icon.png";
@@ -19,6 +20,7 @@ export const normalizeAnyAll = (v = "") => {
   if (up.startsWith("(SEMUA") || up.startsWith("SEMUA")) return "";
   return s;
 };
+
 export const kecKey = (name) => {
   if (!name) return "";
   let x = name.toString().toUpperCase();
@@ -26,6 +28,7 @@ export const kecKey = (name) => {
   x = x.replace(/[^A-Z]/g, "");
   return x;
 };
+
 const toNumber = (x) => Number((x ?? "").toString().replace(",", "."));
 
 export const GARUT_BOUNDS = { MIN_LAT: -7.70, MAX_LAT: -6.95, MIN_LNG: 107.25, MAX_LNG: 108.20 };
@@ -74,6 +77,7 @@ export const getLatLngSafe = (row) => {
 
 export const groupBy = (arr, keyFn) =>
   arr.reduce((acc, it) => { const k = keyFn(it); (acc[k] ??= []).push(it); return acc; }, {});
+
 export const shortLevel = (lvl) => {
   if (!lvl) return "Lainnya";
   const s = lvl.toString().toUpperCase().replace(/\s+/g, "");
@@ -83,8 +87,14 @@ export const shortLevel = (lvl) => {
   if (s.includes("PKBM")) return "PKBM";
   return "Lainnya";
 };
+
 export const makeKecamatanNumberIcon = (count, sizeClass, styles) =>
-  L.divIcon({ className: "", html: `<div class="${styles.kecamatanCircle} ${sizeClass || ""}">${count}</div>`, iconSize: [0, 0], popupAnchor: [0, -12] });
+  L.divIcon({
+    className: "",
+    html: `<div class="${styles.kecamatanCircle} ${sizeClass || ""}">${count}</div>`,
+    iconSize: [0, 0],
+    popupAnchor: [0, -12]
+  });
 
 export const applyFilters = (schools, filters) => {
   let { jenjang = "", kecamatan = "", desa = "" } = filters || {};
@@ -101,4 +111,9 @@ export const applyFilters = (schools, filters) => {
     return true;
   });
 };
-export const uniqueBy = (arr = [], keyFn) => { const m = new Map(); for (const it of arr) { const k = keyFn(it); if (!m.has(k)) m.set(k, it); } return Array.from(m.values()); };
+
+export const uniqueBy = (arr = [], keyFn) => {
+  const m = new Map();
+  for (const it of arr) { const k = keyFn(it); if (!m.has(k)) m.set(k, it); }
+  return Array.from(m.values());
+};

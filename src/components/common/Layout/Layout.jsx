@@ -1,6 +1,3 @@
-// ============================================
-// src/components/common/Layout/Layout.jsx
-// ============================================
 import React, { useEffect, useState, Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../Sidebar/Sidebar";
@@ -10,18 +7,19 @@ import SuspenseLoader from "../SuspenseLoader/SuspenseLoader";
 import { useIdlePrefetch } from "@/hooks/useIdlePrefetch";
 
 const Layout = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const toggleSidebar = () => setIsSidebarOpen((v) => !v);
+  // === State hasil broadcast dari Sidebar ===
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop only
+  const [isMobile, setIsMobile] = useState(false);                  // <=768
+  const [mobileOpen, setMobileOpen] = useState(false);              // overlay state (informasi)
+
   const idlePrefetch = useIdlePrefetch();
 
-  // Idle prefetch: data & chunk halaman yang sering dipakai
+  // Prefetch ringan saat idle (chunk + JSON yang sering dipakai)
   useEffect(() => {
     idlePrefetch([
-      // chunks
       { type: "chunk", importer: () => import("@/pages/Map/Map.jsx") },
       { type: "chunk", importer: () => import("@/pages/Facilities/FacilitiesPage.jsx") },
       { type: "chunk", importer: () => import("@/pages/Dashboard/Dashboard.jsx") },
-      // data (samakan dengan Map.jsx & FacilitiesPage.jsx)
       { type: "json", url: "/data/kecamatan.geojson" },
       { type: "json", url: "/data/desa.geojson" },
       { type: "json", url: "/data/sd_new.json" },
@@ -35,22 +33,35 @@ const Layout = () => {
     ]);
   }, [idlePrefetch]);
 
+  // Dengarkan event dari Sidebar
+  useEffect(() => {
+    const onSidebarState = (e) => {
+      const { collapsed, isMobile: mob, isOpen } = e.detail || {};
+      setSidebarCollapsed(Boolean(collapsed));
+      setIsMobile(Boolean(mob));
+      setMobileOpen(Boolean(isOpen));
+    };
+    window.addEventListener("sidebar:state", onSidebarState);
+    return () => window.removeEventListener("sidebar:state", onSidebarState);
+  }, []);
+
   return (
     <div className={styles.layout}>
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+      <Sidebar />
 
+      {/* Desktop: geser konten jika collapsed.
+          Mobile: margin-left selalu 0 via CSS. */}
       <div
-        className={`${styles.mainContent} ${
-          isSidebarOpen ? "" : styles.mainContentCollapsed
-        }`}
-        // hindari layout shift karena scrollbar
+        className={`${styles.mainContent} ${sidebarCollapsed ? styles.mainContentCollapsed : ""}`}
         data-scroll-stable
+        data-mobile-open={mobileOpen}
+        data-is-mobile={isMobile}
       >
-        <Header toggleSidebar={toggleSidebar} isSidebarOpen={isSidebarOpen} />
+        <Header />
 
-        {/* Suspense lokal, loader tidak full-screen supaya header/sidebar tetap terlihat */}
-        <main className={styles.contentArea}>
-          <Suspense fallback={<SuspenseLoader fullScreen={false} />}>
+        {/* Suspense lokal → header/sidebar tetap kelihatan saat halaman lazy-load */}
+        <main className={styles.contentArea} aria-busy={false}>
+          <Suspense fallback={<SuspenseLoader />}>
             <Outlet />
           </Suspense>
         </main>

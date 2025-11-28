@@ -1,15 +1,25 @@
 // src/routes/AppRoutes.jsx
-import React, { Suspense, lazy, useMemo, useEffect, useState } from "react";
+import React, {
+  Suspense,
+  lazy,
+  useMemo,
+  useEffect,
+  useState,
+  useCallback,
+  startTransition,
+} from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "../components/common/Layout/Layout";
-import ProtectedRoute from "./ProtectedRoute.jsx";
+// HAPUS ProtectedRoute
+// import ProtectedRoute from "./ProtectedRoute.jsx";
 import SuspenseLoader from "../components/common/SuspenseLoader/SuspenseLoader";
 
-// === Lazy load pages (semuanya dipisah dari initial bundle) ===
+// === Lazy load pages (dipisah dari initial bundle) ===
 const Dashboard        = lazy(() => import("../pages/Dashboard/Dashboard.jsx"));
 const SchoolDetailPage = lazy(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"));
-const LoginPage        = lazy(() => import("../pages/Auth/Login.jsx"));
+// HAPUS LoginPage
+// const LoginPage        = lazy(() => import("../pages/Auth/Login.jsx"));
 const NotFound         = lazy(() => import("../pages/NotFound/NotFound.jsx"));
 const MapPage          = lazy(() => import("../pages/Map/Map.jsx"));
 const BudgetPage       = lazy(() => import("../pages/Budget/BudgetPage.jsx"));
@@ -22,6 +32,33 @@ import {
   getPaudDetailByNpsn,
   getPkbmDetailByNpsn,
 } from "@/services/api/detailApi";
+
+/* =====================================================================
+   Prefetch helper: panggil dynamic import saat hover/focus untuk nyiapin chunk
+===================================================================== */
+const prefetch = (() => {
+  const inFlight = new Set();
+  return (loader, key) => {
+    const k = key || loader.toString();
+    if (inFlight.has(k)) return;
+    inFlight.add(k);
+    queueMicrotask(() => {
+      loader().catch(() => {}).finally(() => {
+        setTimeout(() => inFlight.delete(k), 5000);
+      });
+    });
+  };
+})();
+
+// Prefetch map komponen utama (dipakai sidebar/menu)
+export const prefetchPages = {
+  dashboard:   () => prefetch(() => import("../pages/Dashboard/Dashboard.jsx"), "pg:dashboard"),
+  map:         () => prefetch(() => import("../pages/Map/Map.jsx"), "pg:map"),
+  budget:      () => prefetch(() => import("../pages/Budget/BudgetPage.jsx"), "pg:budget"),
+  facilities:  () => prefetch(() => import("../pages/Facilities/FacilitiesPage.jsx"), "pg:facilities"),
+  detail:      () => prefetch(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"), "pg:detail"),
+  // HAPUS prefetch login
+};
 
 // Helper: redirect yang mempertahankan query string (mis. ?npsn=…)
 function QueryPreservingRedirect({ to }) {
@@ -53,9 +90,7 @@ function writeDetailCache(jenjang, npsn, data) {
       getCacheKey(jenjang, npsn),
       JSON.stringify({ ts: Date.now(), data })
     );
-  } catch {
-    /* ignore */
-  }
+  } catch { /* ignore */ }
 }
 
 /**
@@ -67,6 +102,18 @@ const DetailLazyMap = {
   PAUD: lazy(() => import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud")),
   PKBM: lazy(() => import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm")),
 };
+
+// Prefetch modul detail by jenjang (buat link/hover)
+export function prefetchDetailModule(jenjang) {
+  const map = {
+    SD:   () => import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd"),
+    SMP:  () => import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp"),
+    PAUD: () => import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud"),
+    PKBM: () => import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm"),
+  };
+  const loader = map[jenjang];
+  if (loader) prefetch(loader, `detail:${jenjang}`);
+}
 
 /**
  * Standalone detail route per jenjang:
@@ -80,6 +127,11 @@ function StandaloneDetailRoute({ jenjang }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [detail, setDetail] = useState(null);
+
+  // Prefetch chunk sesuai jenjang secepat mungkin
+  useEffect(() => {
+    prefetchDetailModule(jenjang);
+  }, [jenjang]);
 
   useEffect(() => {
     let alive = true;
@@ -110,7 +162,7 @@ function StandaloneDetailRoute({ jenjang }) {
 
         writeDetailCache(jenjang, npsn, data);
         if (!alive) return;
-        setDetail((prev) => prev || data); // kalau sudah punya cache, jangan flicker
+        setDetail((prev) => prev || data);
         setLoading(false);
       } catch (e) {
         if (!alive) return;
@@ -120,7 +172,7 @@ function StandaloneDetailRoute({ jenjang }) {
         }
       }
     }
-    run();
+    startTransition(run);
     return () => {
       alive = false;
     };
@@ -144,19 +196,49 @@ function StandaloneDetailRoute({ jenjang }) {
   );
 }
 
+/**
+ * Komponen root routes
+ */
 export default function AppRoutes() {
+  const location = useLocation();
+
+  // Heuristik prefetch tetangga rute
+  useEffect(() => {
+    const path = location.pathname;
+    if (path === "/" || path === "/dashboard") {
+      prefetchPages.map();
+      prefetchPages.facilities();
+      prefetchPages.budget();
+    } else if (path === "/peta" || path === "/map") {
+      prefetchPages.dashboard();
+      prefetchPages.facilities();
+    } else if (path === "/lainnya") {
+      prefetchPages.dashboard();
+      prefetchPages.map();
+    }
+  }, [location.pathname]);
+
   return (
     <Suspense fallback={<SuspenseLoader />}>
       <Routes>
-        {/* ====== Halaman login (tanpa layout) ====== */}
-        <Route path="/login" element={<LoginPage />} />
+        {/* ====== Halaman login (DIHAPUS) ====== */}
+        {/* <Route path="/login" element={<LoginPage />} /> */}
 
         {/* ====== ROUTES DENGAN LAYOUT (Header + Sidebar) ====== */}
         <Route
           element={
-            <ProtectedRoute>
-              <Layout />
-            </ProtectedRoute>
+            // HAPUS ProtectedRoute
+            <Layout
+              onMenuHover={(key) => {
+                const map = {
+                  dashboard: prefetchPages.dashboard,
+                  peta: prefetchPages.map,
+                  anggaran: prefetchPages.budget,
+                  fasilitas: prefetchPages.facilities,
+                };
+                map[key]?.();
+              }}
+            />
           }
         >
           {/* Rute utama */}
@@ -169,47 +251,32 @@ export default function AppRoutes() {
 
           {/* Menu lain */}
           <Route path="/anggaran"  element={<BudgetPage />} />
-          <Route path="/lainnya" element={<FacilitiesPage />} />
+          <Route path="/lainnya"   element={<FacilitiesPage />} />
 
           {/* Halaman gabungan (punya header/sidebar) */}
           <Route path="/detail-sekolah" element={<SchoolDetailPage />} />
         </Route>
 
         {/* ====== ROUTES TANPA LAYOUT: detail per jenjang (standalone) ====== */}
+        {/* HAPUS ProtectedRoute */}
         <Route
           path="/sd/school_detail"
-          element={
-            <ProtectedRoute>
-              <StandaloneDetailRoute jenjang="SD" />
-            </ProtectedRoute>
-          }
+          element={<StandaloneDetailRoute jenjang="SD" />}
         />
         <Route
           path="/smp/school_detail"
-          element={
-            <ProtectedRoute>
-              <StandaloneDetailRoute jenjang="SMP" />
-            </ProtectedRoute>
-          }
+          element={<StandaloneDetailRoute jenjang="SMP" />}
         />
         <Route
           path="/paud/school_detail"
-          element={
-            <ProtectedRoute>
-              <StandaloneDetailRoute jenjang="PAUD" />
-            </ProtectedRoute>
-          }
+          element={<StandaloneDetailRoute jenjang="PAUD" />}
         />
         <Route
           path="/pkbm/school_detail"
-          element={
-            <ProtectedRoute>
-              <StandaloneDetailRoute jenjang="PKBM" />
-            </ProtectedRoute>
-          }
+          element={<StandaloneDetailRoute jenjang="PKBM" />}
         />
 
-        {/* ====== Alias/redirect lama → detail rute baru (jaga ?npsn=…) ====== */}
+        {/* ====== Alias/redirect lama → detail rute baru ====== */}
         <Route
           path="/smp/school_detail_old"
           element={<QueryPreservingRedirect to="/smp/school_detail" />}
@@ -227,7 +294,7 @@ export default function AppRoutes() {
           element={<QueryPreservingRedirect to="/pkbm/school_detail" />}
         />
 
-        {/* ====== 404 HARUS PALING BAWAH ====== */}
+        {/* ====== 404 ====== */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

@@ -1,4 +1,3 @@
-// src/pages/SchoolDetail/SchoolDetailPage.jsx
 import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import 'leaflet/dist/leaflet.css';
 import '../../services/utils/mapUtils.js'; // Assuming this path is correct
@@ -144,6 +143,10 @@ class ErrorBoundary extends React.Component {
 }
 
 /* ==================== PIE CHART ==================== */
+/* Perubahan:
+   1) Tetap legend di kanan (nama+nominal+%)
+   2) Tambah label nilai+(%) DI ATAS IRISAN langsung.
+*/
 const PieChartComponent = React.memo(({ title, data }) => {
   const [hoveredIndex, setHoveredIndex] = useState(-1);
   const safe = (data || []).map(d => ({ ...d, value: Number(d?.value || 0) }));
@@ -162,9 +165,27 @@ const PieChartComponent = React.memo(({ title, data }) => {
     );
   }
 
-  const renderCustomLabel = (entry) => {
-    const pct = total ? ((entry.value / total) * 100).toFixed(1) : '0.0';
-    return `${pct}%`;
+  // Label kustom di luar irisan: "1.234 (12.3%)"
+  const RADIAN = Math.PI / 180;
+  const renderSliceLabel = (props) => {
+    const {
+      cx, cy, midAngle, outerRadius, percent, value,
+    } = props;
+    const radius = outerRadius + 16; // posisi sedikit di luar tepi
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const txt = `${Number(value || 0).toLocaleString('id-ID')} (${(percent * 100).toFixed(1)}%)`;
+    return (
+      <text
+        x={x}
+        y={y}
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        className={styles.pieValueLabel}
+      >
+        {txt}
+      </text>
+    );
   };
 
   const CustomTooltip = ({ active, payload }) => {
@@ -189,43 +210,80 @@ const PieChartComponent = React.memo(({ title, data }) => {
   return (
     <div className={styles.chartContainer}>
       <div className={styles.chartHeader}><h3>{title}</h3></div>
-      <div className={styles.chartContent}>
-        <ResponsiveContainer width="100%" height={360}>
-          <PieChart>
-            <Pie
-              data={validData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={120}
-              label={renderCustomLabel}
-              labelLine={false}
-              animationBegin={0}
-              animationDuration={1200}
-              onMouseEnter={(_, i) => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(-1)}
-            >
-              {validData.map((entry, idx) => (
-                <Cell
-                  key={idx}
-                  fill={entry.color}
-                  stroke={hoveredIndex === idx ? '#fff' : 'none'}
-                  strokeWidth={hoveredIndex === idx ? 3 : 0}
-                  style={{ filter: hoveredIndex === idx ? 'brightness(1.1)' : 'brightness(1)', cursor: 'pointer' }}
-                />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ paddingTop: '12px' }} iconType="circle" />
-          </PieChart>
-        </ResponsiveContainer>
+
+      {/* ROW: kiri pie, kanan legend */}
+      <div className={`${styles.chartContent} ${styles.pieRow}`}>
+        {/* KIRI = PIE */}
+        <div className={styles.pieLeft}>
+          <ResponsiveContainer width="100%" height={360}>
+            <PieChart>
+              <Pie
+                data={validData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={120}
+                labelLine={false}
+                label={renderSliceLabel}
+                animationBegin={0}
+                animationDuration={1200}
+                onMouseEnter={(_, i) => setHoveredIndex(i)}
+                onMouseLeave={() => setHoveredIndex(-1)}
+              >
+                {validData.map((entry, idx) => (
+                  <Cell
+                    key={idx}
+                    fill={entry.color}
+                    stroke={hoveredIndex === idx ? '#fff' : 'none'}
+                    strokeWidth={hoveredIndex === idx ? 3 : 0}
+                    style={{ filter: hoveredIndex === idx ? 'brightness(1.1)' : 'brightness(1)', cursor: 'pointer' }}
+                  />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* KANAN = LEGEND CUSTOM */}
+        <div className={styles.pieRight}>
+          <ul className={styles.legendList}>
+            {validData.map((d, i) => {
+              const pct = total ? (d.value / total) * 100 : 0;
+              const isHover = i === hoveredIndex;
+              return (
+                <li
+                  key={`${d.name}-${i}`}
+                  className={`${styles.legendItem} ${isHover ? styles.legendItemActive : ''}`}
+                  onMouseEnter={() => setHoveredIndex(i)}
+                  onMouseLeave={() => setHoveredIndex(-1)}
+                >
+                  <span className={styles.legendDot} style={{ backgroundColor: d.color }} />
+                  <div className={styles.legendTexts}>
+                    <span className={styles.legendLabel}>{d.name}</span>
+                    <span className={styles.legendSub}>
+                      {Number(d.value || 0).toLocaleString('id-ID')} • {pct.toFixed(1)}%
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+            <li className={styles.legendTotal}>
+              <span className={styles.legendTotalLabel}>Total</span>
+              <span className={styles.legendTotalValue}>{Number(total || 0).toLocaleString('id-ID')}</span>
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );
 });
 
 /* ==================== BAR CHART ==================== */
+/* Perubahan:
+   - Tambah LabelList custom di atas setiap batang (format id-ID)
+*/
 const BarChartComponent = React.memo(({ title, data, colors }) => {
   const [hoveredIndex, setHoveredIndex] = useState(0);
   const safeData = (data || []).map(d => ({ ...d, value: Number(d?.value || 0) }));
@@ -243,6 +301,19 @@ const BarChartComponent = React.memo(({ title, data, colors }) => {
     return null;
   };
 
+  // LabelList custom utk format lokal
+  const BarValueLabel = (props) => {
+    const { x, y, width, value } = props;
+    const val = Number(value || 0).toLocaleString('id-ID');
+    const tx = x + width / 2;
+    const ty = (y || 0) - 8;
+    return (
+      <text x={tx} y={ty} textAnchor="middle" className={styles.barValueLabel}>
+        {val}
+      </text>
+    );
+  };
+
   return (
     <div className={styles.chartContainer}>
       <div className={styles.chartHeader}><h3>{title}</h3></div>
@@ -256,7 +327,7 @@ const BarChartComponent = React.memo(({ title, data, colors }) => {
           <ResponsiveContainer width="100%" height={380}>
             <BarChart
               data={safeData}
-              margin={{ top: 24, right: 30, left: 20, bottom: 60 }}
+              margin={{ top: 32, right: 30, left: 20, bottom: 60 }}
               onMouseMove={(s) => { if (s && s.activeTooltipIndex !== undefined) setHoveredIndex(s.activeTooltipIndex); }}
               onMouseLeave={() => setHoveredIndex(-1)}
               className="horizontal-bar-chart"
@@ -277,6 +348,7 @@ const BarChartComponent = React.memo(({ title, data, colors }) => {
                 {safeData.map((_, i) => (
                   <Cell key={i} fill={`url(#gradient-${i % colors.length})`} stroke={colors[i % colors.length]} strokeWidth={1} />
                 ))}
+                <LabelList dataKey="value" content={<BarValueLabel />} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

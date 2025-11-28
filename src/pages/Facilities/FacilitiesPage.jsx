@@ -7,6 +7,8 @@ import React, {
   Suspense,
   memo,
   lazy,
+  startTransition,     // update non-blocking
+  useDeferredValue,    // biar ketikan search tetap halus
 } from "react";
 import styles from "./FacilitiesPage.module.css";
 
@@ -14,10 +16,19 @@ const ChartsSection = lazy(() => import("./ChartsSection"));
 import ChartSkeleton from "./ChartSkeleton";
 import ErrorBoundary from "@/components/common/ErrorBoundary.jsx";
 
-import SchoolDetailPaud from "../../components/schools/SchoolDetail/Paud/SchoolDetailPaud";
-import SchoolDetailSd from "../../components/schools/SchoolDetail/Sd/SchoolDetailSd";
-import SchoolDetailSmp from "../../components/schools/SchoolDetail/Smp/SchoolDetailSmp";
-import SchoolDetailPkbm from "../../components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm";
+// Ubah: komponen detail jadi lazy agar tidak ikut initial bundle
+const SchoolDetailPaud = lazy(() =>
+  import("../../components/schools/SchoolDetail/Paud/SchoolDetailPaud")
+);
+const SchoolDetailSd = lazy(() =>
+  import("../../components/schools/SchoolDetail/Sd/SchoolDetailSd")
+);
+const SchoolDetailSmp = lazy(() =>
+  import("../../components/schools/SchoolDetail/Smp/SchoolDetailSmp")
+);
+const SchoolDetailPkbm = lazy(() =>
+  import("../../components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm")
+);
 
 import {
   getSdDetailByNpsn,
@@ -26,7 +37,7 @@ import {
   getPkbmDetailByNpsn,
 } from "@/services/api/detailApi";
 
-import { httpJSON } from "@/utils/http"; // <<< gunakan helper global
+import { httpJSON } from "@/utils/http"; // helper global (SWR cache)
 
 /* =====================================================================
    Helpers: cache detail di sessionStorage agar hover "Detail" terasa cepat
@@ -70,10 +81,14 @@ async function prefetchDetailByNpsn(jenjang, npsn) {
 /** Prefetch modul detail (biar first render komponen detail lebih cepat di tab baru) */
 async function prefetchDetailModule(jenjang) {
   try {
-    if (jenjang === "SD") await import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd");
-    if (jenjang === "SMP") await import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp");
-    if (jenjang === "PAUD") await import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud");
-    if (jenjang === "PKBM") await import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm");
+    if (jenjang === "SD")
+      await import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd");
+    if (jenjang === "SMP")
+      await import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp");
+    if (jenjang === "PAUD")
+      await import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud");
+    if (jenjang === "PKBM")
+      await import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm");
   } catch {}
 }
 
@@ -92,20 +107,23 @@ const DataTable = memo(function DataTable({
   const [sortField, setSortField] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
 
+  // Tentukan nilai search yang ditunda supaya ketikan halus
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+
   const scrollRef = React.useRef(null);
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollLeft = 0;
-  }, [data, searchTerm, sortField, sortDirection, currentPage, itemsPerPage]);
+  }, [data, deferredSearchTerm, sortField, sortDirection, currentPage, itemsPerPage]);
 
   const filteredData = useMemo(() => {
     let f = data || [];
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+    if (deferredSearchTerm) {
+      const q = deferredSearchTerm.toLowerCase();
       f = f.filter(
         (s) =>
           (s.namaSekolah || "").toLowerCase().includes(q) ||
-          String(s.npsn || "").includes(searchTerm) ||
+          String(s.npsn || "").includes(deferredSearchTerm) ||
           (s.kecamatan || "").toLowerCase().includes(q)
       );
     }
@@ -118,17 +136,11 @@ const DataTable = memo(function DataTable({
           bVal = bVal.toLowerCase();
         }
         if (aVal === bVal) return 0;
-        return sortDirection === "asc"
-          ? aVal > bVal
-            ? 1
-            : -1
-          : aVal < bVal
-          ? 1
-          : -1;
+        return sortDirection === "asc" ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
       });
     }
     return f;
-  }, [data, searchTerm, sortField, sortDirection]);
+  }, [data, deferredSearchTerm, sortField, sortDirection]);
 
   const { data: paginatedData, totalPages, totalItems } = useMemo(() => {
     const t = Math.ceil(filteredData.length / itemsPerPage);
@@ -141,8 +153,7 @@ const DataTable = memo(function DataTable({
   }, [filteredData, currentPage, itemsPerPage]);
 
   const handleSort = (field) => {
-    if (sortField === field)
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    if (sortField === field) setSortDirection(sortDirection === "asc" ? "desc" : "asc");
     else {
       setSortField(field);
       setSortDirection("asc");
@@ -151,7 +162,7 @@ const DataTable = memo(function DataTable({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, itemsPerPage]);
+  }, [deferredSearchTerm, itemsPerPage]);
 
   return (
     <div className={styles.tableContainer}>
@@ -198,24 +209,13 @@ const DataTable = memo(function DataTable({
           <thead>
             <tr>
               <th>NO</th>
-              <th
-                className={styles.sortableHeader}
-                onClick={() => handleSort("npsn")}
-              >
+              <th className={styles.sortableHeader} onClick={() => handleSort("npsn")}>
                 NPSN {sortField === "npsn" && (sortDirection === "asc" ? "↑" : "↓")}
               </th>
-              <th
-                className={styles.sortableHeader}
-                onClick={() => handleSort("namaSekolah")}
-              >
-                NAMA SEKOLAH{" "}
-                {sortField === "namaSekolah" &&
-                  (sortDirection === "asc" ? "↑" : "↓")}
+              <th className={styles.sortableHeader} onClick={() => handleSort("namaSekolah")}>
+                NAMA SEKOLAH {sortField === "namaSekolah" && (sortDirection === "asc" ? "↑" : "↓")}
               </th>
-              <th
-                className={styles.sortableHeader}
-                onClick={() => handleSort("jenjang")}
-              >
+              <th className={styles.sortableHeader} onClick={() => handleSort("jenjang")}>
                 JENJANG {sortField === "jenjang" && (sortDirection === "asc" ? "↑" : "↓")}
               </th>
               <th>TIPE</th>
@@ -238,18 +238,12 @@ const DataTable = memo(function DataTable({
                 const npsn = school?.npsn;
                 return (
                   <tr
-                    key={`${school.npsn || index}-${index}`}
+                    key={`${school.npsn ?? "n"}-${(currentPage - 1) * itemsPerPage + index}`}
                     className={styles.tableRow}
                   >
                     <td>{(currentPage - 1) * itemsPerPage + index + 1}</td>
-                    <td>
-                      <span className={styles.npsnBadge}>
-                        {school.npsn || "-"}
-                      </span>
-                    </td>
-                    <td className={styles.schoolNameCell}>
-                      {school.namaSekolah || "-"}
-                    </td>
+                    <td><span className={styles.npsnBadge}>{school.npsn || "-"}</span></td>
+                    <td className={styles.schoolNameCell}>{school.namaSekolah || "-"}</td>
                     <td>
                       <span
                         className={`${styles.jenjangBadge} ${
@@ -262,41 +256,13 @@ const DataTable = memo(function DataTable({
                     <td>{school.tipeSekolah || "-"}</td>
                     <td>{school.desa || "-"}</td>
                     <td>{school.kecamatan || "-"}</td>
-                    <td>
-                      <span className={styles.numberBadge}>
-                        {Number(school.student_count || 0)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={styles.conditionGood}>
-                        {Number(school.kondisiKelas?.baik || 0)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={styles.conditionModerate}>
-                        {Number(school.kondisiKelas?.rusakSedang || 0)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={styles.conditionBad}>
-                        {Number(school.kondisiKelas?.rusakBerat || 0)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={styles.numberBadge}>
-                        {Number(school.kurangRKB || 0)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={styles.numberBadge}>
-                        {Number(school.rehabRuangKelas || 0)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={styles.numberBadge}>
-                        {Number(school.pembangunanRKB || 0)}
-                      </span>
-                    </td>
+                    <td><span className={styles.numberBadge}>{Number(school.student_count || 0)}</span></td>
+                    <td><span className={styles.conditionGood}>{Number(school.kondisiKelas?.baik || 0)}</span></td>
+                    <td><span className={styles.conditionModerate}>{Number(school.kondisiKelas?.rusakSedang || 0)}</span></td>
+                    <td><span className={styles.conditionBad}>{Number(school.kondisiKelas?.rusakBerat || 0)}</span></td>
+                    <td><span className={styles.numberBadge}>{Number(school.kurangRKB || 0)}</span></td>
+                    <td><span className={styles.numberBadge}>{Number(school.rehabRuangKelas || 0)}</span></td>
+                    <td><span className={styles.numberBadge}>{Number(school.pembangunanRKB || 0)}</span></td>
                     <td>
                       <button
                         className={styles.detailButton}
@@ -308,9 +274,7 @@ const DataTable = memo(function DataTable({
                           onDetailPrefetch && onDetailPrefetch(jenjang, npsn);
                           onDetailModulePrefetch && onDetailModulePrefetch(jenjang);
                         }}
-                        onClick={() =>
-                          onDetailClick && onDetailClick(school)
-                        }
+                        onClick={() => onDetailClick && onDetailClick(school)}
                       >
                         <span className={styles.detailIcon}>👁️</span> Detail
                       </button>
@@ -339,42 +303,15 @@ const DataTable = memo(function DataTable({
       <div className={styles.pagination}>
         <div className={styles.paginationInfo}>
           <span className={styles.pageInfo}>
-            Menampilkan <strong>{paginatedData.length}</strong> dari{" "}
-            <strong>{totalItems}</strong> data
+            Menampilkan <strong>{paginatedData.length}</strong> dari <strong>{totalItems}</strong> data
           </span>
         </div>
         <div className={styles.pageButtons}>
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage(1)}
-            className={styles.pageButton}
-          >
-            ⏮️
-          </button>
-          <button
-            disabled={currentPage === 1}
-            onClick={() => setCurrentPage((p) => p - 1)}
-            className={styles.pageButton}
-          >
-            ⬅️
-          </button>
-          <span className={styles.pageIndicator}>
-            <strong>{currentPage}</strong> / {totalPages}
-          </span>
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage((p) => p + 1)}
-            className={styles.pageButton}
-          >
-            ➡️
-          </button>
-          <button
-            disabled={currentPage === totalPages}
-            onClick={() => setCurrentPage(totalPages)}
-            className={styles.pageButton}
-          >
-            ⏭️
-          </button>
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className={styles.pageButton}>⏮️</button>
+          <button disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className={styles.pageButton}>⬅️</button>
+          <span className={styles.pageIndicator}><strong>{currentPage}</strong> / {totalPages}</span>
+          <button disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className={styles.pageButton}>➡️</button>
+          <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} className={styles.pageButton}>⏭️</button>
         </div>
       </div>
     </div>
@@ -389,6 +326,8 @@ const FacilitiesPage = () => {
   const [selectedSchool, setSelectedSchool] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery); // haluskan input
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -427,9 +366,7 @@ const FacilitiesPage = () => {
 
   // Normalisasi 1 row sekolah
   const normalizeSchoolData = (school) => {
-    let toiletBaik = 0,
-      toiletRusakSedang = 0,
-      toiletRusakBerat = 0;
+    let toiletBaik = 0, toiletRusakSedang = 0, toiletRusakBerat = 0;
     let tipe = school.type || school.status || "Tidak Diketahui";
 
     if (school.jenjang === "PAUD" || school.jenjang === "PKBM") {
@@ -479,10 +416,11 @@ const FacilitiesPage = () => {
     };
   };
 
-  // Search
+  // Search (pakai deferred value)
   const performSearch = (data) => {
-    if (!searchQuery.trim()) return data;
-    const q = searchQuery.toLowerCase().trim();
+    const qRaw = (deferredSearchQuery || "").trim();
+    if (!qRaw) return data;
+    const q = qRaw.toLowerCase();
     return data.filter(
       (s) =>
         s.nama?.toLowerCase().includes(q) ||
@@ -522,7 +460,7 @@ const FacilitiesPage = () => {
 
         if (cancelled) return;
 
-        const paud = paudRes?.data || paudRes;     // httpJSON mengembalikan {data, ...}
+        const paud = paudRes?.data || paudRes;
         const sd = sdRes?.data || sdRes;
         const smp = smpRes?.data || smpRes;
         const pkbm = pkbmRes?.data || pkbmRes;
@@ -568,45 +506,58 @@ const FacilitiesPage = () => {
       }
     };
     initializeData();
+
+    // Idle: prefetch chunk ChartsSection biar cepat saat muncul
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(() => {
+        import("./ChartsSection").catch(() => {});
+      }, { timeout: 1500 });
+    } else {
+      setTimeout(() => import("./ChartsSection").catch(() => {}), 0);
+    }
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Refilter + charts
+  // Refilter + charts (non-blocking biar UI halus)
   useEffect(() => {
     if (schoolData.length === 0) return;
 
-    let filtered = schoolData;
-    if (selectedJenjang !== "Semua Jenjang")
-      filtered = filtered.filter((s) => s.jenjang === selectedJenjang);
-    if (selectedKecamatan !== "Semua Kecamatan")
-      filtered = filtered.filter((s) => s.kecamatan === selectedKecamatan);
-    if (selectedDesa !== "Semua Desa")
-      filtered = filtered.filter((s) => s.desa === selectedDesa);
+    startTransition(() => {
+      // 1) filter + search
+      let filtered = schoolData;
+      if (selectedJenjang !== "Semua Jenjang")
+        filtered = filtered.filter((s) => s.jenjang === selectedJenjang);
+      if (selectedKecamatan !== "Semua Kecamatan")
+        filtered = filtered.filter((s) => s.kecamatan === selectedKecamatan);
+      if (selectedDesa !== "Semua Desa")
+        filtered = filtered.filter((s) => s.desa === selectedDesa);
 
-    filtered = performSearch(filtered);
-    setFilteredSchoolData(filtered);
+      filtered = performSearch(filtered);
+      setFilteredSchoolData(filtered);
 
-    // hitung chart async microtask agar UI tak jank
-    setTimeout(() => {
-      const t0 = performance.now?.() ?? Date.now();
-      generateChartData(filtered, schoolData, kegiatanData);
-      const t1 = performance.now?.() ?? Date.now();
-      if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[Perf] generateChartData ${(t1 - t0).toFixed(1)}ms • sample=${filtered?.length ?? 0}`
-        );
-      }
-    }, 0);
+      // 2) hitung chart setelah render tabel → tanpa jank
+      queueMicrotask(() => {
+        const t0 = performance.now?.() ?? Date.now();
+        generateChartData(filtered, schoolData, kegiatanData);
+        const t1 = performance.now?.() ?? Date.now();
+        if (process.env.NODE_ENV !== "production") {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[Perf] generateChartData ${(t1 - t0).toFixed(1)}ms • sample=${filtered?.length ?? 0}`
+          );
+        }
+      });
+    });
   }, [
     schoolData,
     kegiatanData,
     selectedJenjang,
     selectedKecamatan,
     selectedDesa,
-    searchQuery,
+    deferredSearchQuery,
   ]);
 
   const resetAllFilters = () => {
@@ -642,9 +593,7 @@ const FacilitiesPage = () => {
         <div className={styles.customTooltip}>
           <div className={styles.tooltipContent}>
             <span className={styles.tooltipLabel}>{name}</span>
-            <span className={styles.tooltipValue}>
-              {actualCount} unit ({percent.toFixed(1)}%)
-            </span>
+            <span className={styles.tooltipValue}>{actualCount} unit ({percent.toFixed(1)}%)</span>
           </div>
         </div>
       );
@@ -658,9 +607,7 @@ const FacilitiesPage = () => {
         <div className={styles.customTooltip}>
           <div className={styles.tooltipContent}>
             <span className={styles.tooltipLabel}>{label}</span>
-            <span className={styles.tooltipValue}>
-              {payload[0].value} unit
-            </span>
+            <span className={styles.tooltipValue}>{payload[0].value} unit</span>
           </div>
         </div>
       );
@@ -704,8 +651,7 @@ const FacilitiesPage = () => {
         {
           name: "Kebutuhan Toilet (Belum dibangun)",
           value: Math.max(0, kebutuhan_belum_dibangun),
-          percent:
-            (Math.max(0, kebutuhan_belum_dibangun) / totalPembangunan) * 100,
+          percent: (Math.max(0, kebutuhan_belum_dibangun) / totalPembangunan) * 100,
           color: "#FF6B6B",
         },
         {
@@ -717,15 +663,13 @@ const FacilitiesPage = () => {
       ].map(pieDataMapper)
     );
 
-    const totalRehabilitasi =
-      rekap.kebutuhan_rehabilitasi + rekap.rehab_dilakukan || 1;
+    const totalRehabilitasi = rekap.kebutuhan_rehabilitasi + rekap.rehab_dilakukan || 1;
     setRehabilitasiPieData(
       [
         {
           name: "Rusak Berat (Belum Direhab)",
           value: rekap.kebutuhan_rehabilitasi,
-          percent:
-            (rekap.kebutuhan_rehabilitasi / totalRehabilitasi) * 100,
+          percent: (rekap.kebutuhan_rehabilitasi / totalRehabilitasi) * 100,
           color: "#FF6B6B",
         },
         {
@@ -804,17 +748,11 @@ const FacilitiesPage = () => {
       alert("NPSN sekolah tidak ditemukan.");
       return;
     }
-    let url = `/detail-sekolah?npsn=${encodeURIComponent(
-      npsn
-    )}&jenjang=${encodeURIComponent(jenjang)}`;
-    if (jenjang === "PAUD")
-      url = `/paud/school_detail?npsn=${encodeURIComponent(npsn)}`;
-    if (jenjang === "SD")
-      url = `/sd/school_detail?npsn=${encodeURIComponent(npsn)}`;
-    if (jenjang === "SMP")
-      url = `/smp/school_detail?npsn=${encodeURIComponent(npsn)}`;
-    if (jenjang === "PKBM")
-      url = `/pkbm/school_detail?npsn=${encodeURIComponent(npsn)}`;
+    let url = `/detail-sekolah?npsn=${encodeURIComponent(npsn)}&jenjang=${encodeURIComponent(jenjang)}`;
+    if (jenjang === "PAUD") url = `/paud/school_detail?npsn=${encodeURIComponent(npsn)}`;
+    if (jenjang === "SD")   url = `/sd/school_detail?npsn=${encodeURIComponent(npsn)}`;
+    if (jenjang === "SMP")  url = `/smp/school_detail?npsn=${encodeURIComponent(npsn)}`;
+    if (jenjang === "PKBM") url = `/pkbm/school_detail?npsn=${encodeURIComponent(npsn)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
 
@@ -1038,42 +976,44 @@ const FacilitiesPage = () => {
     <main className={styles.pageWrapper}>
       {currentView === "main" && renderMainView()}
 
-      {/* Opsi render detail lokal (tidak dipakai saat open tab baru) */}
-      {currentView === "detail" &&
-        selectedSchool &&
-        (() => {
-          let DetailComponent;
-          switch (selectedSchool.jenjang) {
-            case "PAUD":
-              DetailComponent = SchoolDetailPaud;
-              break;
-            case "SD":
-              DetailComponent = SchoolDetailSd;
-              break;
-            case "SMP":
-              DetailComponent = SchoolDetailSmp;
-              break;
-            case "PKBM":
-              DetailComponent = SchoolDetailPkbm;
-              break;
-            default:
-              return (
-                <div className={styles.container}>
-                  <div className={styles.card}>
-                    <h2>Detail tidak tersedia</h2>
+      {/* Opsi render detail lokal (jarang dipakai; tetap disiapkan & lazy) */}
+      {currentView === "detail" && selectedSchool && (
+        <Suspense fallback={<div style={{ padding: 16 }}>Memuat detail…</div>}>
+          {(() => {
+            let DetailComponent;
+            switch (selectedSchool.jenjang) {
+              case "PAUD":
+                DetailComponent = SchoolDetailPaud;
+                break;
+              case "SD":
+                DetailComponent = SchoolDetailSd;
+                break;
+              case "SMP":
+                DetailComponent = SchoolDetailSmp;
+                break;
+              case "PKBM":
+                DetailComponent = SchoolDetailPkbm;
+                break;
+              default:
+                return (
+                  <div className={styles.container}>
+                    <div className={styles.card}>
+                      <h2>Detail tidak tersedia</h2>
+                    </div>
                   </div>
-                </div>
-              );
-          }
-          return (
-            <DetailComponent
-              schoolData={{
-                ...selectedSchool.originalData,
-                kecamatan: selectedSchool.kecamatan,
-              }}
-            />
-          );
-        })()}
+                );
+            }
+            return (
+              <DetailComponent
+                schoolData={{
+                  ...selectedSchool.originalData,
+                  kecamatan: selectedSchool.kecamatan,
+                }}
+              />
+            );
+          })()}
+        </Suspense>
+      )}
     </main>
   );
 };

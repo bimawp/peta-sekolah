@@ -1,5 +1,3 @@
-// src/components/common/Sidebar/Sidebar.jsx
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 
@@ -50,8 +48,7 @@ const menuItems = [
 
 // helper untuk menentukan menu aktif
 function useActiveMatcher() {
-  const location = useLocation();
-  const { pathname } = location;
+  const { pathname } = useLocation();
 
   // Rute yang dianggap "Detail Sekolah" agar highlight konsisten
   const detailPaths = [
@@ -76,16 +73,27 @@ function useActiveMatcher() {
   // Khusus: saat berada di /facilities, JANGAN sorot menu apa pun
   const suppressActive = pathname.startsWith('/facilities');
 
-  return { isActive, suppressActive, pathname };
+  return { isActive, suppressActive };
 }
 
 const Sidebar = () => {
   const { isActive, suppressActive } = useActiveMatcher();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false); // desktop
   const [isMobile, setIsMobile] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);       // mobile overlay
   const debounceRef = useRef(null);
-  const animationRef = useRef(null);
+  const animRef = useRef(null);
+
+  // Broadcast helper → kirim state ke Layout
+  const broadcast = useCallback((next = {}) => {
+    const payload = {
+      collapsed: next.collapsed ?? (collapsed && !isMobile),
+      isMobile:  next.isMobile  ?? isMobile,
+      isOpen:    next.isOpen    ?? isOpen,
+    };
+    const ev = new CustomEvent('sidebar:state', { detail: payload });
+    window.dispatchEvent(ev);
+  }, [collapsed, isMobile, isOpen]);
 
   // cek mobile
   const checkMobile = useCallback(() => {
@@ -110,9 +118,10 @@ const Sidebar = () => {
       window.removeEventListener('resize', handleResize);
       clearTimeout(debounceRef.current);
     };
-  }, [checkMobile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // simpan state collapsed
+  // simpan state collapsed (desktop)
   useEffect(() => {
     if (isMobile) return;
     clearTimeout(debounceRef.current);
@@ -123,19 +132,42 @@ const Sidebar = () => {
     }, 300);
   }, [collapsed, isMobile]);
 
+  // broadcast setiap ada perubahan penting
+  useEffect(() => {
+    broadcast();
+  }, [collapsed, isMobile, isOpen, broadcast]);
+
+  // broadcast awal setelah mount
+  useEffect(() => {
+    broadcast();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // toggle
   const toggleSidebar = useCallback(() => {
-    if (animationRef.current) return;
-    animationRef.current = requestAnimationFrame(() => {
-      if (isMobile) setIsOpen(v => !v);
-      else setCollapsed(v => !v);
-      setTimeout(() => { animationRef.current = null; }, 250);
+    if (animRef.current) return;
+    animRef.current = requestAnimationFrame(() => {
+      if (isMobile) {
+        const nextOpen = !isOpen;
+        setIsOpen(nextOpen);
+        broadcast({ isOpen: nextOpen });
+      } else {
+        setCollapsed(v => {
+          const next = !v;
+          broadcast({ collapsed: next });
+          return next;
+        });
+      }
+      setTimeout(() => { animRef.current = null; }, 250);
     });
-  }, [isMobile]);
+  }, [isMobile, isOpen, broadcast]);
 
   const closeSidebar = useCallback(() => {
-    if (isMobile && isOpen) setIsOpen(false);
-  }, [isMobile, isOpen]);
+    if (isMobile && isOpen) {
+      setIsOpen(false);
+      broadcast({ isOpen: false });
+    }
+  }, [isMobile, isOpen, broadcast]);
 
   // esc to close (mobile)
   useEffect(() => {
@@ -148,6 +180,33 @@ const Sidebar = () => {
       document.body.style.overflow = '';
     };
   }, [isMobile, isOpen, closeSidebar]);
+
+  // ⬇️ Dengarkan perintah toggle dari Header (khusus mobile)
+  useEffect(() => {
+    const handler = (e) => {
+      const { forceOpen, forceClose, toggle } = e.detail || {};
+      if (!isMobile) return;
+
+      if (forceOpen) {
+        setIsOpen(true);
+        broadcast({ isOpen: true });
+        return;
+      }
+      if (forceClose) {
+        setIsOpen(false);
+        broadcast({ isOpen: false });
+        return;
+      }
+      if (toggle) {
+        const next = !isOpen;
+        setIsOpen(next);
+        broadcast({ isOpen: next });
+      }
+    };
+
+    window.addEventListener('sidebar:toggle', handler);
+    return () => window.removeEventListener('sidebar:toggle', handler);
+  }, [isMobile, isOpen, broadcast]);
 
   const sidebarClasses = [
     styles.sidebar,

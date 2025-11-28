@@ -352,33 +352,33 @@ export default function BudgetPage() {
         </div>
       </Card>
 
-      {/* Stats Overview */}
+      {/* Stats Overview - 2x2 Grid */}
       <div className={styles.statsGrid}>
         <StatCard
           title="Total Anggaran 5 Tahun"
           value={formatCurrency(total5Tahun)}
-          icon={<Calculator size={24} />}
+          icon={<Calculator size={28} />}
           color="primary"
           trend={12.5}
         />
         <StatCard
           title="Rusak Berat"
           value={`${currentData.anggaranDetail.belumDirehabRusakBerat.jumlahKelas} Kelas`}
-          icon={<Building size={24} />}
+          icon={<Building size={28} />}
           color="accent"
           trend={-5.2}
         />
         <StatCard
           title="Rusak Sedang"
           value={`${currentData.anggaranDetail.belumDirehabRusakSedang.jumlahKelas} Kelas`}
-          icon={<Building size={24} />}
+          icon={<Building size={28} />}
           color="secondary"
           trend={2.8}
         />
         <StatCard
           title="Kurang RKB"
           value={`${currentData.anggaranDetail.belumDibangunRKB.jumlahKelas} Kelas`}
-          icon={<Building size={24} />}
+          icon={<Building size={28} />}
           color="success"
           trend={-8.1}
         />
@@ -477,7 +477,7 @@ export default function BudgetPage() {
         </Card>
       </div>
 
-      {/* Tables Section - UPDATED: Changed from grid to vertical stack */}
+      {/* Tables Section */}
       <div className={styles.tablesSection}>
         {/* Budget Details Table */}
         <Card className={styles.tableCard} animate={true}>
@@ -543,7 +543,7 @@ export default function BudgetPage() {
           </div>
         </Card>
 
-        {/* 5-Year Budget Plan - UPDATED: Now full width */}
+        {/* 5-Year Budget Plan */}
         <Card className={styles.planCard} animate={true}>
           <div className={styles.planHeader}>
             <div className={styles.planHeaderIcon}>
@@ -581,7 +581,7 @@ export default function BudgetPage() {
           </div>
         </Card>
 
-        {/* Annual Budget Details - UPDATED: Now full width */}
+        {/* Annual Budget Details */}
         <Card className={styles.planCard} animate={true}>
           <div className={styles.planHeader}>
             <div className={styles.planHeaderIcon}>

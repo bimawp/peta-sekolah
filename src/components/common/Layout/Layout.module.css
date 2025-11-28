@@ -1,11 +1,10 @@
-/* src/components/common/Layout/Layout.module.css */
-
+/* Layout Container */
 .layout {
   display: flex;
-  min-height: 100dvh;
+  min-height: 100vh;
   background-color: #f0f2f5;
   position: relative;
-  overflow-x: hidden;
+  overflow-x: hidden; /* Prevent horizontal scroll */
 }
 
 /* Main Content Area */
@@ -13,12 +12,11 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: 280px;
-  /* KUNCI anti “dempet” & overflow */
-  min-width: 0;                /* biar flex child boleh mengecil dan tidak meledak */
   max-width: calc(100vw - 280px);
-  transition: margin-left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
 }
 
 .mainContentCollapsed {
@@ -29,34 +27,33 @@
 /* Content Area */
 .contentArea {
   flex: 1;
-  display: block;
-  margin-top: 80px;
   padding: 24px;
-  overflow: auto;              /* biar vertical scroll ada di area konten, bukan body */
+  margin-top: 80px; /* tinggi header */
+  overflow-y: auto;
+  overflow-x: hidden;
   background-color: #f0f2f5;
-  min-height: calc(100dvh - 80px);
+  min-height: calc(100vh - 80px);
+  max-width: 100%;
 }
 
-/* Stabilkan lebar ketika scrollbar muncul */
-[data-scroll-stable] .contentArea {
-  scrollbar-gutter: stable both-edges;
-}
-
-/* Tablet */
+/* Responsive Tablet */
 @media (max-width: 1024px) {
-  .contentArea { padding: 20px; }
+  .contentArea {
+    padding: 20px;
+  }
 }
 
-/* Mobile */
+/* Responsive Mobile */
 @media (max-width: 768px) {
   .mainContent,
   .mainContentCollapsed {
     margin-left: 0;
     max-width: 100vw;
   }
+
   .contentArea {
     padding: 16px;
-    margin-top: 70px;
-    min-height: calc(100dvh - 70px);
+    margin-top: 70px; /* header mobile */
+    min-height: calc(100vh - 70px);
   }
 }

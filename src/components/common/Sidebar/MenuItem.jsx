@@ -1,15 +1,14 @@
-// src/components/common/Sidebar/MenuItem.jsx
 import React, { useCallback } from "react";
 import { Link } from "react-router-dom";
 import styles from "./MenuItem.module.css";
 
 // Peta rute -> dynamic import untuk prefetch chunk halaman di hover
 const preloads = {
-  "/":         () => import("@/pages/Dashboard/Dashboard.jsx" /* webpackPrefetch: true */),
-  "/peta":     () => import("@/pages/Map/Map.jsx" /* webpackPrefetch: true */),
-  "/detail":   () => import("@/pages/SchoolDetail/SchoolDetailPage.jsx" /* webpackPrefetch: true */),
-  "/anggaran": () => import("@/pages/Budget/BudgetPage.jsx" /* webpackPrefetch: true */).catch(() => {}),
-  "/lainnya":  () => import("@/pages/Facilities/FacilitiesPage.jsx" /* webpackPrefetch: true */).catch(() => {}),
+  "/":                () => import("@/pages/Dashboard/Dashboard.jsx" /* webpackPrefetch: true */),
+  "/peta":            () => import("@/pages/Map/Map.jsx" /* webpackPrefetch: true */),
+  "/detail-sekolah":  () => import("@/pages/SchoolDetail/SchoolDetailPage.jsx" /* webpackPrefetch: true */),
+  "/anggaran":        () => import("@/pages/Budget/BudgetPage.jsx" /* webpackPrefetch: true */).catch(() => {}),
+  "/lainnya":         () => import("@/pages/Facilities/FacilitiesPage.jsx" /* webpackPrefetch: true */).catch(() => {}),
 };
 
 export default function MenuItem({

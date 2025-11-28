@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  z-index: 0;
+  z-index: 0; /* header memiliki z-index lebih tinggi → kontrol tidak “nembus” */
 }
 
 .filterBar {
@@ -31,8 +31,10 @@
   overflow: hidden;
   outline: 1px solid #e5e7eb;
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.06);
+  z-index: 0;
 }
 
+/* pastikan kontrol leaflet tidak lebih tinggi dari header */
 .map :global(.leaflet-control-container) {
   z-index: 1;
 }
@@ -42,6 +44,7 @@
   margin-bottom: 10px;
 }
 
+/* label kecamatan tebal + readable */
 .kecLabel {
   background: transparent;
   color: #000;
@@ -54,12 +57,14 @@
   border: none;
   white-space: nowrap;
   pointer-events: none;
-  text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.8), 
-               -1px -1px 3px rgba(255, 255, 255, 0.8),
-               1px -1px 3px rgba(255, 255, 255, 0.8),
-               -1px 1px 3px rgba(255, 255, 255, 0.8);
+  text-shadow:
+    1px 1px 3px rgba(255, 255, 255, 0.8),
+   -1px -1px 3px rgba(255, 255, 255, 0.8),
+    1px -1px 3px rgba(255, 255, 255, 0.8),
+   -1px  1px 3px rgba(255, 255, 255, 0.8);
 }
 
+/* badge angka per kecamatan */
 .kecamatanCircle {
   display: inline-flex;
   align-items: center;
@@ -105,19 +110,11 @@
 }
 
 @media (max-width: 1024px) {
-  .map {
-    height: 480px;
-  }
+  .map { height: 480px; }
 }
-
 @media (max-width: 768px) {
-  .map {
-    height: 420px;
-  }
+  .map { height: 420px; }
 }
-
 @media (max-width: 480px) {
-  .map {
-    height: 360px;
-  }
+  .map { height: 360px; }
 }

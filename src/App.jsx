@@ -3,7 +3,8 @@ import React, { useEffect } from "react";
 import { BrowserRouter } from "react-router-dom";
 import { SWRConfig } from "swr";
 import AppRoutes from "./routes/AppRoutes.jsx";
-import { AuthProvider } from "./contexts/AuthContext.jsx";
+// HAPUS AuthProvider
+// import { AuthProvider } from "./contexts/AuthContext.jsx";
 import SuspenseLoader from "./components/common/SuspenseLoader/SuspenseLoader";
 import { purgeSessionPrefix } from "@/utils/http";
 
@@ -21,25 +22,25 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <SWRConfig
-          value={{
-            fetcher,
-            suspense: true,
-            revalidateOnFocus: false,
-            revalidateOnReconnect: true,
-            dedupingInterval: 60_000,
-            focusThrottleInterval: 60_000,
-            keepPreviousData: true,
-            errorRetryCount: 2,
-            errorRetryInterval: 3000,
-          }}
-        >
-          <React.Suspense fallback={<SuspenseLoader />}>
-            <AppRoutes />
-          </React.Suspense>
-        </SWRConfig>
-      </AuthProvider>
+      {/* HAPUS AuthProvider */}
+      <SWRConfig
+        value={{
+          fetcher,
+          suspense: true,
+          revalidateOnFocus: false,
+          revalidateOnReconnect: true,
+          dedupingInterval: 60_000,
+          focusThrottleInterval: 60_000,
+          keepPreviousData: true,
+          errorRetryCount: 2,
+          errorRetryInterval: 3000,
+        }}
+      >
+        <React.Suspense fallback={<SuspenseLoader />}>
+          <AppRoutes />
+        </React.Suspense>
+      </SWRConfig>
+      {/* HAPUS AuthProvider */}
     </BrowserRouter>
   );
 }

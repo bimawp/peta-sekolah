@@ -222,6 +222,102 @@
 /* Map wrapper */
 .mapWrapper { width: 100%; min-height: 420px; border-radius: 14px; overflow: hidden; }
 
+/* --- PIE CHART: layout kiri-kanan --- */
+.pieRow {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+}
+.pieLeft {
+  flex: 1 1 60%;
+  min-height: 360px;
+}
+.pieRight {
+  flex: 0 0 280px;
+  border-left: 1px solid var(--border-light);
+  padding-left: 1rem;
+  display: flex;
+  align-items: stretch;
+}
+.legendList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .6rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  transition: var(--transition-fast);
+  cursor: default;
+}
+.legendItem:hover {
+  border-color: var(--primary-soft);
+  box-shadow: var(--shadow-light);
+}
+.legendItemActive {
+  outline: 2px solid rgba(20,92,60,.15);
+}
+.legendDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: 0 0 14px;
+  border: 2px solid rgba(0,0,0,.05);
+}
+.legendTexts {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.legendLabel {
+  font-weight: 700;
+  font-size: .92rem;
+  color: var(--text-primary);
+}
+.legendSub {
+  font-size: .82rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.legendTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: .6rem;
+  padding: .6rem .75rem;
+  border-top: 1px dashed var(--border-color);
+  font-weight: 800;
+}
+.legendTotalLabel { color: var(--text-secondary); }
+.legendTotalValue { color: var(--text-primary); }
+
+/* === LABEL STYLES === */
+.pieValueLabel {
+  fill: var(--text-secondary);
+  font-weight: 700;
+  font-size: .8rem;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px; /* biar terbaca di atas warna pie */
+}
+.barValueLabel {
+  fill: var(--text-primary);
+  font-weight: 800;
+  font-size: .82rem;
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px; /* outline putih agar tetap terbaca */
+}
+
 /* Table */
 .tableContainer { width: 100%; }
 .tableControls {
@@ -314,6 +410,16 @@
 @media (max-width: 1200px) {
   .chartsContainer { grid-template-columns: 1fr; }
   .dashboard { padding: 1.5rem .75rem; }
+}
+@media (max-width: 900px) {
+  .pieRow { flex-direction: column; }
+  .pieRight {
+    border-left: none;
+    border-top: 1px solid var(--border-light);
+    padding-left: 0;
+    padding-top: 1rem;
+    flex-basis: auto;
+  }
 }
 @media (max-width: 768px) {
   .dashboard { padding: 1rem .5rem; }

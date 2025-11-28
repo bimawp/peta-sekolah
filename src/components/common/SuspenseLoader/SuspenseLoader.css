@@ -1,40 +1,30 @@
-/* src/components/common/SuspenseLoader/SuspenseLoader.css */
-.suspense-loader {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  color: #374151;
-  background: transparent;
+/* src/components/common/SuspenseLoader/SuspenseLoader.module.css */
+.wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:16px;
+  min-height:56px;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
 }
-
-.suspense-loader.is-full {
-  height: 100vh;
-  background-color: rgba(249, 250, 251, 0.8);
+.spinner{
+  width:18px;
+  height:18px;
+  border-radius:9999px;
+  border:3px solid rgba(0,0,0,.08);
+  border-top-color: rgba(0,0,0,.55);
+  animation: spin .8s linear infinite;
 }
-
-.suspense-loader.is-inline {
-  height: min(320px, 40vh); /* cukup untuk area konten; tidak menutup header/sidebar */
-  border: 1px dashed #e5e7eb;
-  border-radius: 12px;
-  background-color: #ffffffa6;
+.text{
+  font-size:14px;
+  color:#444;
+  letter-spacing:.2px;
 }
-
-.suspense-loader p {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+@keyframes spin{
+  to{ transform: rotate(360deg); }
 }
-
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 6px solid #f3f4f6;
-  border-top: 6px solid #3b82f6;
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
+@media (prefers-color-scheme: dark){
+  .spinner{ border-color: rgba(255,255,255,.12); border-top-color: rgba(255,255,255,.8); }
+  .text{ color:#e5e5e5; }
 }
-
-@keyframes spin { to { transform: rotate(360deg); } }

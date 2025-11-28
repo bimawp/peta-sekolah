@@ -257,6 +257,8 @@
   overflow-x: auto; overflow-y: visible;
   padding: 1.5rem;
   background: var(--bg-card);
+  min-width: 320px; /* ⬅️ penting agar ResponsiveContainer tidak membaca width=0 di iOS */
+  -webkit-overflow-scrolling: touch;
 }
 .chartOverflow::-webkit-scrollbar { height: 8px; }
 .chartOverflow::-webkit-scrollbar-track { background: var(--bg-hover); border-radius: 4px; }

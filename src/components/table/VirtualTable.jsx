@@ -1,211 +1,234 @@
 // src/components/table/VirtualTable.jsx
-import React, { useMemo, useCallback, useRef, useEffect } from "react";
+import React, { useMemo, useRef, useCallback } from "react";
+import AutoSizer from "react-virtualized-auto-sizer";
+import { FixedSizeList as List } from "react-window";
 
 /**
- * Tabel tervirtualisasi (tanpa lib eksternal)
- * - Render hanya baris yang terlihat (viewport)
- * - Kolom "non-fixed" sekarang punya minWidth sehingga tidak "dempet"
- * - Otomatis memunculkan scroll horizontal jika total lebar kolom > viewport
- *
+ * VirtualTable
+ * ----------------------------------------------------
  * Props:
- *  - columns: [{ key, title, width?: number, render?, headerProps? }]
- *      • width (number) = px tetap (fixed)
- *      • tanpa width = kolom fleksibel, pakai flexColMinWidth (default 180)
- *  - data: any[]
- *  - rowHeight?: number (default 44)
- *  - height?: number (default 420)
- *  - headerSticky?: boolean
- *  - headerExtra?: ReactNode
- *  - onRowClick?: (row) => void
- *  - emptyContent?: ReactNode
- *  - flexColMinWidth?: number (default 180)
+ * - rows: Array<any>
+ * - columns: Array<{
+ *     key: string
+ *     title: string
+ *     width?: string | number // "120px" | "1fr" | "2fr" | number(px)
+ *     render?: (value, row) => ReactNode
+ *   }>
+ * - rowHeight?: number (default 44)
+ * - includeDetailButton?: boolean
+ * - onDetailHover?: (row) => void
+ * - onDetailClick?: (row) => void
+ *
+ * Catatan:
+ * - Sorting/pagination ditangani di parent (supaya komponen ini tetap kecil & cepat).
+ * - Width mendukung kombinasi px & fr; fr akan mengisi sisa ruang container.
  */
-export default function VirtualTable({
-  columns = [],
-  data = [],
-  rowHeight = 44,
-  height = 420,
-  headerSticky = true,
-  headerExtra = null,
-  onRowClick,
-  emptyContent = null,
-  flexColMinWidth = 180,
-}) {
-  const scrollYRef = useRef(0);
-  const viewportRef = useRef(null);
-  const [state, setState] = React.useState({ start: 0, end: 0, viewportRows: 0 });
 
-  // hitung total lebar tabel: jumlah width fixed + jumlah kolom fleksibel * flexColMinWidth
-  const layout = useMemo(() => {
-    let fixedTotal = 0;
-    let flexCount = 0;
-    for (const c of columns) {
-      if (Number.isFinite(c.width)) fixedTotal += c.width;
-      else flexCount += 1;
-    }
-    const minTableWidth = fixedTotal + flexCount * flexColMinWidth;
-    return { fixedTotal, flexCount, minTableWidth };
-  }, [columns, flexColMinWidth]);
+const HEADER_H = 56;
+const GAP_X = 0; // pakai 0 biar align seperti <table>
 
-  const totalRows = data.length;
-  const totalHeight = totalRows * rowHeight;
+function parseWidth(w) {
+  if (w == null) return { type: "fr", value: 1 };
+  if (typeof w === "number") return { type: "px", value: w };
+  const s = String(w).trim();
+  if (s.endsWith("px")) return { type: "px", value: parseFloat(s) || 0 };
+  if (s.endsWith("fr")) return { type: "fr", value: parseFloat(s) || 1 };
+  const n = Number(s);
+  if (!Number.isNaN(n)) return { type: "px", value: n };
+  return { type: "fr", value: 1 };
+}
 
-  const recompute = useCallback(() => {
-    const el = viewportRef.current;
-    if (!el) return;
-    const viewportRows = Math.max(1, Math.floor(height / rowHeight));
-    const buffer = 6;
-    const start = Math.max(0, Math.floor(scrollYRef.current / rowHeight) - buffer);
-    const end = Math.min(totalRows - 1, start + viewportRows + buffer * 2);
-    setState({ start, end, viewportRows });
-  }, [height, rowHeight, totalRows]);
+function useComputedWidths(columns, containerW, withDetail) {
+  return useMemo(() => {
+    const meta = columns.map((c) => parseWidth(c.width));
+    const fixedSum =
+      meta.reduce((acc, m) => acc + (m.type === "px" ? m.value : 0), 0) +
+      (withDetail ? 128 : 0);
+    const frSum = meta.reduce((acc, m) => acc + (m.type === "fr" ? m.value : 0), 0);
+    const remain = Math.max(0, containerW - fixedSum - GAP_X * (columns.length - 1));
+    const frUnit = frSum > 0 ? remain / frSum : 0;
 
-  useEffect(() => { recompute(); }, [recompute, data, height, rowHeight]);
+    const widths = meta.map((m) => (m.type === "px" ? m.value : Math.max(80, Math.floor(m.value * frUnit))));
+    return withDetail ? [...widths, 128] : widths;
+  }, [columns, containerW, withDetail]);
+}
 
-  const onScrollY = useCallback((e) => {
-    scrollYRef.current = e.currentTarget.scrollTop;
-    recompute();
-  }, [recompute]);
-
-  const visibleRows = useMemo(() => {
-    if (totalRows === 0) return [];
-    return data.slice(state.start, state.end + 1);
-  }, [data, state, totalRows]);
-
-  const topPad = state.start * rowHeight;
-  const bottomPad = totalHeight - topPad - visibleRows.length * rowHeight;
-
-  // Styles
-  const s = {
-    outer: {
-      border: "1px solid #e5e7eb",
-      borderRadius: 12,
-      background: "#fff",
-      overflow: "hidden",
-    },
-    // wrapper X: supaya bisa scroll horizontal
-    xScroll: {
-      overflowX: "auto",
-    },
-    head: (minW) => ({
-      display: "flex",
-      alignItems: "center",
-      position: headerSticky ? "sticky" : "relative",
-      top: 0,
-      zIndex: 2,
-      background:
-        "linear-gradient(135deg, var(--primary-dark, #145C3C), var(--primary-color, #1E7F4F))",
-      color: "#fff",
-      borderBottom: "2px solid var(--accent-color, #F2B705)",
-      fontWeight: 800,
-      letterSpacing: "0.08em",
-      textTransform: "uppercase",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-      minWidth: minW,
-    }),
-    headCell: {
-      padding: "12px 10px",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      fontSize: 13,
-      borderRight: "1px solid rgba(255,255,255,.1)",
-      boxSizing: "border-box",
-    },
-    yScroll: {
-      height,
-      overflowY: "auto",
-      // Tidak set overflowX di sini — scroll X ada di wrapper di atasnya
-    },
-    // content meniru lebar header (minWidth) agar baris tidak “ngecil”
-    content: (minW) => ({
-      minWidth: minW,
-    }),
-    row: {
-      display: "flex",
-      alignItems: "center",
-      height: rowHeight,
-      borderBottom: "1px solid var(--border-light, #F1F5F9)",
-      background: "var(--bg-card, #fff)",
-      transition: "transform .15s ease",
-    },
-    cell: {
-      padding: "10px 12px",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      fontSize: 14,
-      color: "var(--text-primary, #0F172A)",
-      borderRight: "1px solid #F8FAFC",
-      boxSizing: "border-box",
-    },
-    pad: { height: 0 },
-  };
-
-  const headCellStyle = (col) =>
-    Number.isFinite(col.width)
-      ? { ...s.headCell, flex: `0 0 ${col.width}px`, width: col.width }
-      : { ...s.headCell, flex: `0 0 ${flexColMinWidth}px`, width: flexColMinWidth };
-
-  const cellStyle = (col) =>
-    Number.isFinite(col.width)
-      ? { ...s.cell, flex: `0 0 ${col.width}px`, width: col.width }
-      : { ...s.cell, flex: `0 0 ${flexColMinWidth}px`, width: flexColMinWidth };
-
+const HeaderCell = React.memo(function HeaderCell({ w, title }) {
   return (
-    <div style={s.outer}>
-      {/* wrapper horizontal scroll untuk header + body */}
-      <div style={s.xScroll}>
-        {/* Header */}
-        <div style={s.head(layout.minTableWidth)}>
-          {columns.map((col, i) => (
-            <div key={col.key || i} style={headCellStyle(col)} {...(col.headerProps || {})}>
-              {col.title}
-            </div>
-          ))}
-          {headerExtra && (
-            <div style={{ marginLeft: "auto", paddingRight: 10, fontWeight: 600 }}>
-              {headerExtra}
-            </div>
+    <div
+      style={{
+        width: w,
+        minWidth: w,
+        maxWidth: w,
+        padding: "12px 14px",
+        fontSize: 13,
+        fontWeight: 800,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: "#fff",
+        background: "linear-gradient(135deg,#145C3C,#1E7F4F)",
+        borderBottom: "3px solid #F2B705",
+        position: "relative",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+      title={title}
+    >
+      {title}
+    </div>
+  );
+});
+
+const Cell = React.memo(function Cell({ w, children }) {
+  return (
+    <div
+      style={{
+        width: w,
+        minWidth: w,
+        maxWidth: w,
+        padding: "12px 14px",
+        fontSize: 15,
+        color: "var(--text-primary, #0F172A)",
+        borderBottom: "1px solid var(--border-light, #E2E8F0)",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        background: "var(--bg-card, #fff)",
+      }}
+    >
+      {children}
+    </div>
+  );
+});
+
+const DetailButton = React.memo(function DetailButton({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "8px 14px",
+        background: "linear-gradient(135deg, var(--primary-color,#1E7F4F), var(--primary-light,#56B789))",
+        color: "#fff",
+        border: "none",
+        borderRadius: 8,
+        fontWeight: 700,
+        fontSize: 14,
+        cursor: "pointer",
+        boxShadow: "0 1px 2px rgba(0,0,0,.08)",
+      }}
+    >
+      <span style={{ fontSize: 16 }}>👁️</span> Detail
+    </button>
+  );
+});
+
+export default function VirtualTable({
+  rows = [],
+  columns = [],
+  rowHeight = 44,
+  includeDetailButton = false,
+  onDetailHover,
+  onDetailClick,
+}) {
+  const listRef = useRef(null);
+
+  const RowRenderer = useCallback(
+    ({ index, style, data }) => {
+      const row = data.rows[index];
+      const widths = data.widths;
+
+      return (
+        <div
+          style={{
+            ...style,
+            display: "flex",
+            gap: GAP_X,
+            alignItems: "stretch",
+            background: index % 2 === 0 ? "var(--bg-card, #fff)" : "var(--bg-hover, #F8FAFC)",
+            transition: "transform .15s ease-out, box-shadow .15s ease-out, background .15s ease-out",
+          }}
+          onMouseEnter={() => onDetailHover && onDetailHover(row)}
+        >
+          {data.columns.map((col, i) => {
+            const v = row[col.key];
+            return (
+              <Cell key={`${index}-${col.key}`} w={widths[i]}>
+                {col.render ? col.render(v, row) : (v ?? "-")}
+              </Cell>
+            );
+          })}
+          {includeDetailButton && (
+            <Cell w={widths[widths.length - 1]}>
+              <DetailButton onClick={() => onDetailClick && onDetailClick(row)} />
+            </Cell>
           )}
         </div>
+      );
+    },
+    [includeDetailButton, onDetailClick, onDetailHover]
+  );
 
-        {/* Body (scroll vertikal) */}
-        <div style={s.yScroll} ref={viewportRef} onScroll={onScrollY}>
-          <div style={s.content(layout.minTableWidth)}>
-            {totalRows === 0 ? (
-              emptyContent || (
-                <div style={{ padding: 16, color: "#64748B" }}>Tidak ada data</div>
-              )
-            ) : (
-              <>
-                {/* padding atas */}
-                <div style={{ ...s.pad, height: topPad }} />
-                {/* baris terlihat */}
-                {visibleRows.map((row, idx) => {
-                  const realIndex = state.start + idx;
-                  return (
-                    <div
-                      key={row?.npsn ?? realIndex}
-                      style={s.row}
-                      className="vt-row"
-                      onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    >
-                      {columns.map((col, ci) => (
-                        <div key={col.key || ci} style={cellStyle(col)}>
-                          {col.render ? col.render(row, realIndex) : row[col.key]}
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })}
-                {/* padding bawah */}
-                <div style={{ ...s.pad, height: bottomPad }} />
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+  return (
+    <div
+      style={{
+        height: "100%",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        border: "1px solid var(--border-light, #E2E8F0)",
+        borderRadius: 12,
+        overflow: "hidden",
+        boxShadow: "var(--shadow-md, 0 4px 6px rgba(0,0,0,.06))",
+      }}
+    >
+      <AutoSizer disableHeight>
+        {({ width }) => {
+          const widths = useComputedWidths(columns, width, includeDetailButton);
+          const header = (
+            <div
+              style={{
+                display: "flex",
+                gap: GAP_X,
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
+                height: HEADER_H,
+                boxShadow: "0 2px 8px rgba(0,0,0,.08)",
+              }}
+            >
+              {columns.map((c, i) => (
+                <HeaderCell key={c.key} w={widths[i]} title={c.title} />
+              ))}
+              {includeDetailButton && <HeaderCell w={widths[widths.length - 1]} title="Detail" />}
+            </div>
+          );
+
+          const bodyH = `calc(100% - ${HEADER_H}px)`;
+
+          return (
+            <>
+              {header}
+              <div style={{ height: bodyH }}>
+                <List
+                  ref={listRef}
+                  height={typeof window !== "undefined" ? document.querySelector(":root") ? undefined : undefined : undefined}
+                  itemCount={rows.length}
+                  itemSize={rowHeight}
+                  width={width}
+                  style={{ willChange: "transform" }}
+                  itemData={{ rows, columns, widths }}
+                >
+                  {RowRenderer}
+                </List>
+              </div>
+            </>
+          );
+        }}
+      </AutoSizer>
     </div>
   );
 }
