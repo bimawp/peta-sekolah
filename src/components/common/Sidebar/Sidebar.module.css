@@ -2,9 +2,11 @@
   --sidebar-w: 280px;
   --sidebar-w-collapsed: 80px;
   --header-h: 80px; /* disamakan dengan Header.module.css; turun di breakpoint */
+
   --surface: #ffffff;
   --surface-weak: #f8fafc;
   --border: #e2e8f0;
+
   --text-900: #0f172a;
   --muted-600: #475569;
   --primary-600: #176241;
@@ -39,13 +41,14 @@
 }
 
 .logoSection {
-  display: flex; flex-direction: column;
+  display: flex;
+  flex-direction: column;
   gap: 2px;
 }
 
 .logo {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: .2px;
   background: linear-gradient(135deg, var(--text-900) 0%, #475569 100%);
@@ -54,7 +57,7 @@
 }
 
 .tagline {
-  font-size: 11px;
+  font-size: 12px;
   color: #64748b;
   margin-top: 2px;
 }
@@ -75,12 +78,58 @@
 
 /* MENU LIST */
 .menu {
-  padding: 8px;
+  padding: 10px 8px 4px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* teks menu default agak dibesarkan untuk orang tua */
+  font-size: 16px;
+}
+
+/* RINGKASAN DI BAWAH MENU */
+.summaryBox {
+  margin: 8px 10px 10px;
+  padding: 14px 14px;
+  border-radius: 16px;
+  background: rgba(23, 98, 65, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.55);
+}
+
+.summaryTitle {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin: 0 0 4px;
+}
+
+.summaryItem {
+  margin: 5px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.summaryNumber {
+  font-weight: 700;
+  font-size: 18px; /* angka besar supaya kebaca orang tua */
+  color: #166534;
+  line-height: 1.1;
+}
+
+.summaryLabel {
+  font-size: 14px;
+  color: var(--text-900);
+}
+
+.summaryNote {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #6b7280;
 }
 
 /* FOOTER */
@@ -107,6 +156,7 @@
 /* ===== Mobile behaviour: sidebar jadi overlay, tidak mendorong konten ===== */
 @media (max-width: 768px){
   :root { --header-h: 68px; }
+
   .sidebar {
     width: var(--sidebar-w);
     transform: translateX(-100%);
@@ -116,6 +166,10 @@
   .open {
     transform: translateX(0);
     box-shadow: 0 12px 32px rgba(0,0,0,.22), 0 6px 16px rgba(0,0,0,.12);
+  }
+
+  .summaryBox {
+    margin-bottom: 14px;
   }
 }
 

@@ -1,16 +1,24 @@
 /* src/components/common/Sidebar/MenuItem.module.css */
+
 .menuItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 14px;
+  padding: 11px 13px;
   border-radius: 12px;
   text-decoration: none;
-  color: #1f2937;
-  transition: background 160ms ease, transform 120ms ease;
+  color: #111827;
+  background: transparent;
+  transition:
+    background 160ms ease,
+    transform 120ms ease,
+    box-shadow 160ms ease;
+  font-size: 15px;              /* dasar teks menu diperbesar */
 }
 .menuItem:hover {
-  background: #eef7ec; /* hijau muda */
+  background: #eef7ec;          /* hijau muda */
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
 }
 .active {
   background: #d4f7c5;
@@ -19,22 +27,28 @@
 .collapsed .label {
   display: none;
 }
+
 .iconWrapper {
   position: relative;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
 }
+
 .activeIndicator {
   position: absolute;
   right: -10px;
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   background: #10b981;
   border-radius: 999px;
 }
+
+/* label menu utama – ini yang paling penting biar kebaca orang tua */
 .label {
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: .2px;
+  font-size: 16px;              /* 👀 teks besar & tebal */
+  line-height: 1.4;
 }

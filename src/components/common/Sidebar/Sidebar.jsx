@@ -19,28 +19,28 @@ const menuItems = [
   {
     id: 'dashboard',
     label: 'Dashboard',
-    icon: <LayoutDashboard size={20} />,
+    icon: <LayoutDashboard size={22} />,
     path: '/',
     description: 'Lihat statistik umum'
   },
   {
     id: 'detail',
     label: 'Detail Sekolah',
-    icon: <Building size={20} />,
+    icon: <Building size={22} />,
     path: '/detail-sekolah',
     description: 'Informasi lengkap sekolah'
   },
   {
     id: 'anggaran',
     label: 'Anggaran',
-    icon: <Wallet size={20} />,
+    icon: <Wallet size={22} />,
     path: '/anggaran',
     description: 'Rekap & monitoring anggaran'
   },
   {
     id: 'lainnya',
     label: 'Lainnya',
-    icon: <MoreHorizontal size={20} />,
+    icon: <MoreHorizontal size={22} />,
     path: '/lainnya',
     description: 'Menu tambahan'
   }
@@ -216,7 +216,11 @@ const Sidebar = () => {
 
   return (
     <>
-      <aside className={sidebarClasses} role="navigation" aria-label="Menu navigasi utama">
+      <aside
+        className={sidebarClasses}
+        role="navigation"
+        aria-label="Menu navigasi utama"
+      >
         <div className={styles.header}>
           {(!collapsed || isMobile) && (
             <div className={styles.logoSection}>
@@ -227,11 +231,16 @@ const Sidebar = () => {
           <button
             onClick={toggleSidebar}
             className={styles.toggleBtn}
-            aria-label={isMobile ? (isOpen ? 'Tutup menu' : 'Buka menu') : (collapsed ? 'Perluas sidebar' : 'Perkecil sidebar')}
+            aria-label={
+              isMobile
+                ? (isOpen ? 'Tutup menu' : 'Buka menu')
+                : (collapsed ? 'Perluas sidebar' : 'Perkecil sidebar')
+            }
             type="button"
           >
-            {isMobile ? (isOpen ? <X size={24} /> : <Menu size={24} />)
-                      : (collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)}
+            {isMobile
+              ? (isOpen ? <X size={24} /> : <Menu size={24} />)
+              : (collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)}
           </button>
         </div>
 
@@ -250,6 +259,24 @@ const Sidebar = () => {
             />
           ))}
         </nav>
+
+        {/* 🔽 Ringkasan singkat supaya sidebar tidak kosong, tetap kebaca orang tua */}
+        {(!collapsed || isMobile) && (
+          <section className={styles.summaryBox}>
+            <p className={styles.summaryTitle}>Ringkasan</p>
+            <p className={styles.summaryItem}>
+              <span className={styles.summaryNumber}>4.842</span>
+              <span className={styles.summaryLabel}>sekolah terdata</span>
+            </p>
+            <p className={styles.summaryItem}>
+              <span className={styles.summaryNumber}>42</span>
+              <span className={styles.summaryLabel}>kecamatan terpantau</span>
+            </p>
+            <p className={styles.summaryNote}>
+              Data bersumber dari Sistem Hulu Dinas Pendidikan Kabupaten Garut.
+            </p>
+          </section>
+        )}
 
         {!collapsed && !isMobile && (
           <div className={styles.footer}>

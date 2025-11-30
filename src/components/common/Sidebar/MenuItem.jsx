@@ -12,7 +12,13 @@ const preloads = {
 };
 
 export default function MenuItem({
-  icon, label, to, collapsed = false, description, active, ...props
+  icon,
+  label,
+  to,
+  collapsed = false,
+  description,
+  active,
+  ...props
 }) {
   const onHover = useCallback(() => {
     const loader = preloads[to];
@@ -36,7 +42,9 @@ export default function MenuItem({
         styles.menuItem,
         active ? styles.active : "",
         collapsed ? styles.collapsed : "",
-      ].filter(Boolean).join(" ")}
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onMouseEnter={onHover}
       title={collapsed ? label : description}
       aria-current={active ? "page" : undefined}
