@@ -1,4 +1,4 @@
-// src/utils/useWorkerJSON.js
+
 import { useEffect, useRef, useState } from "react";
 
 export function useWorkerJSON({ url, transform } = {}) {
@@ -7,7 +7,7 @@ export function useWorkerJSON({ url, transform } = {}) {
 
   useEffect(() => {
     if (!url) return;
-    const worker = new Worker(new URL("../workers/json.worker.js", import.meta.url), { type: "module" });
+    const worker = new Worker(new URL("../../workers/json.worker.js", import.meta.url), { type: "module" });
     workerRef.current = worker;
     worker.onmessage = (e) => {
       const { ok, data, error } = e.data || {};
