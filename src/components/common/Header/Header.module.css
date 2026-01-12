@@ -1,207 +1,347 @@
-:root {
-  --color-bg-primary: #ffffff;
-  --color-bg-tertiary: #f3f4f6;
-  --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
-  --color-danger: #f44336;
-  --spacing-sm: 0.5rem;
-  --spacing-md: 1rem;
-  --spacing-lg: 1.5rem;
-  --radius: 0.5rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.5rem;
-  --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
-  --z-dropdown: 1000;
+/* src/components/common/Header/Header.module.css - TEMA DINAS PENDIDIKAN GARUT (Hijau–Kuning) */
+/* Hanya tampilan & responsif — tidak menyentuh logic JS */
+
+:root{
+  /* Palet tema */
+  --primary-100:#E8F4EE;
+  --primary-500:#1E7F4F;
+  --primary-600:#176241;
+  --primary-700:#145C3C;
+  --accent-500:#F2B705;
+  --accent-600:#C79404;
+
+  --text-900:#0F172A;
+  --text-700:#334155;
+  --muted-500:#64748B;
+
+  --surface:#FFFFFF;
+  --surface-weak:#F8FAFC;
+  --border:#E2E8F0;
+
+  --shadow-soft: 0 4px 20px rgba(0,0,0,.06);
+  --shadow-header: 0 2px 10px rgba(0,0,0,.06);
+
+  --header-h: 80px; /* turun jadi 70/64 di breakpoint */
 }
 
-/* Header */
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(30, 127, 79, 0.28); }
+  50% { box-shadow: 0 0 25px rgba(30, 127, 79, 0.40); }
+}
+
+/* ===== Header Wrapper (fixed, sticky look) ===== */
 .header {
-  background-color: var(--color-bg-primary);
-  border-bottom: 1px solid #e5e7eb;
-  height: 64px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  height: var(--header-h);
+  width: 100%;
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-weak) 100%);
+  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  padding: 0 24px;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-header);
+  animation: fadeInDown .22s ease;
 }
 
 .container {
   width: 100%;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-/* Left */
 .left {
   display: flex;
   align-items: center;
+  margin: 0;
+  padding: 0;
 }
 
-.brand {
+/* ===== Logo & Brand ===== */
+.logoSection {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  cursor: pointer;
+  gap: 14px;
 }
 
-.logo {
-  width: 40px;
-  height: 40px;
+.logoIcon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--primary-500) 0%, #56B789 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(30, 127, 79, 0.25);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
 }
 
-.brandText h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
+.logoIcon::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  transition: left 0.5s ease;
+}
+
+.logoIcon:hover {
+  transform: translateY(-1px);
+  animation: pulseGlow 1.6s infinite;
+}
+
+.logoIcon:hover::before { left: 100%; }
+
+.logoImage {
+  width: 40px; height: 40px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  z-index: 2; position: relative;
+}
+
+.logoText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mainTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-900);
   margin: 0;
+  line-height: 1.2;
+  background: linear-gradient(135deg, var(--text-900) 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.brandText span {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+.subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-500);
+  margin: 0;
+  line-height: 1.2;
 }
 
-/* Right */
+/* ===== User Section ===== */
 .right {
   display: flex;
   align-items: center;
 }
 
-.userMenu {
-  position: relative;
-}
+.userMenu { position: relative; }
 
 .userButton {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm);
-  border-radius: var(--radius);
-  background: none;
-  border: none;
+  gap:12px;
+  background-color: transparent;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color .2s ease, transform .2s ease, border-color .2s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 
 .userButton:hover {
-  background-color: var(--color-bg-tertiary);
-}
-
-.userAvatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: var(--color-primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background-color: rgba(30, 127, 79, 0.06);
+  border-color: #dfe7e3;
+  transform: translateY(-1px);
 }
 
 .userInfo {
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
 }
 
 .userName {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-900);
+  line-height: 1.2;
 }
 
 .userRole {
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  font-size: 12px;
+  color: var(--primary-600);
+  line-height: 1.2;
+  font-weight: 600;
 }
 
-/* Dropdown */
+.userAvatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--primary-600) 0%, #56B789 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-weight: 700;
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 12px rgba(30,127,79,0.24);
+  flex-shrink: 0;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.userAvatar:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(30,127,79,0.36);
+}
+
+.avatarImage { width: 100%; height: 100%; object-fit: cover; }
+.avatarInitials { font-size: 14px; }
+
+/* ===== Dropdown ===== */
 .dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 12px);
   right: 0;
-  min-width: 240px;
-  background-color: var(--color-bg-primary);
-  border: 1px solid #e5e7eb;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  z-index: var(--z-dropdown);
-  animation: fadeIn 0.2s ease;
+  width: 260px;
+  background: linear-gradient(135deg, #ffffff 0%, var(--surface-weak) 100%);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  box-shadow: 0 20px 25px -5px rgba(0,0,0,0.08), 0 10px 10px -5px rgba(0,0,0,0.04);
+  z-index: 101;
+  padding: 12px;
+  animation: fadeInDown 0.18s ease-out;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
-.dropdownBody {
-  display: flex;
-  flex-direction: column;
+.dropdownHeader {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, rgba(30,127,79,0.06) 0%, rgba(86,183,137,0.06) 100%);
+  border-radius: 12px;
+  margin-bottom: 12px;
 }
 
-/* Items */
-.dropdownItem {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--color-text-primary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
+.dropdownAvatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  overflow: hidden; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--primary-600) 0%, #56B789 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 700;
+}
+
+.dropdownInitials { font-size: 16px; }
+.dropdownUserInfo { overflow: hidden; }
+
+.dropdownUserName {
+  font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  color: var(--text-900);
+  font-size: 14px;
+  display: block; margin-bottom: 2px;
+}
+
+.dropdownUserEmail {
+  font-size: 12px; color: var(--muted-500);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.dropdownDivider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 12px 0;
+}
+
+.dropdownItem, .logoutButton {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; padding: 12px;
+  background: transparent; border: none;
+  border-radius: 10px; cursor: pointer;
+  transition: background-color .18s ease, transform .18s ease;
+  font-size: 14px; color: #374151; text-align: left;
+  font-family: inherit; font-weight: 500;
 }
 
 .dropdownItem:hover {
-  background-color: var(--color-bg-tertiary);
+  background: linear-gradient(135deg, rgba(30,127,79,0.10) 0%, rgba(86,183,137,0.10) 100%);
   transform: translateX(4px);
 }
 
-/* Logout */
-.logoutButton {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--color-danger);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: left;
-}
-
+.logoutButton { color: #b91c1c; }
 .logoutButton:hover {
-  background-color: rgba(244, 67, 54, 0.1);
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.10) 0%, rgba(239, 68, 68, 0.10) 100%);
   transform: translateX(4px);
 }
 
 /* Overlay */
 .overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 900;
-  background: transparent;
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(15,23,42,0.06);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+/* ===== Tombol Hamburger (muncul hanya di mobile) ===== */
+.burgerBtn {
+  display: none;                 /* default hidden (desktop) */
+  border: 1px solid var(--border);
+  background: #ffffff;
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  align-items: center; justify-content: center;
+  margin-right: 10px;
+  cursor: pointer;
+  transition: background-color .18s ease, transform .18s ease;
+}
+.burgerBtn:hover { background: #f1f5f9; transform: translateY(-1px); }
+
+/* ===== Global layout fix (hanya style, tak sentuh JS) ===== */
+* { box-sizing: border-box; }
+
+body { margin: 0; padding: 0; }
+
+/* Spacer opsional kalau layout utama belum mengompensasi header fixed */
+.headerSpacer { height: var(--header-h); width: 100%; flex-shrink: 0; }
+.mainLayout { padding-top: var(--header-h); }
+
+/* ===== Responsif ===== */
+@media (max-width: 1024px){
+  :root { --header-h: 72px; }
+  .header { padding: 0 20px; }
+  .logoIcon { width: 52px; height: 52px; }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .brandText span {
-    display: none;
-  }
-  .userInfo {
-    display: none;
-  }
-  .dropdown {
-    min-width: 200px;
-  }
+@media (max-width: 768px){
+  :root { --header-h: 68px; }
+  .logoSection { gap: 10px; }
+  .logoIcon { width: 46px; height: 46px; border-radius: 12px; }
+  .logoImage { width: 30px; height: 30px; }
+  .mainTitle { font-size: 18px; }
+  .subtitle { font-size: 12px; }
+  .userInfo { display: none; }
+  .dropdown { width: 240px; }
+
+  /* ⬇️ tombol hamburger aktif di mobile */
+  .burgerBtn { display: inline-flex; }
+}
+
+@media (max-width: 480px){
+  :root { --header-h: 64px; }
+  .header { padding: 0 16px; }
+  .logoText { display: none; }
+  .logoIcon { width: 40px; height: 40px; border-radius: 11px; }
+  .logoImage { width: 26px; height: 26px; }
 }

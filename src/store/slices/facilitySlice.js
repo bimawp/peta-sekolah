@@ -1,6 +1,6 @@
 // src/store/slices/facilitySlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
-import facilityApi from '../../services/api/facilityApi'
+import facilityApi from '../../services/api/facilityApi.js';
 
 const initialState = {
   facilities: [],

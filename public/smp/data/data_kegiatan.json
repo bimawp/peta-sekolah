@@ -1,0 +1,338 @@
+[
+  {
+    "npsn": "20209285",
+    "name": "SMPN 1 Banjarwangi",
+    "kegiatan": "Rehab",
+    "lokal": 1
+  },
+  {
+    "npsn": "20262015",
+    "name": "SMPN 3 Banjarwangi",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "69896048",
+    "name": "SMP IT TALAGAJAYA BANJARWANGI",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20209362",
+    "name": "SMPN 3 Banyuresmi",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209283",
+    "name": "SMPN 1 Bayongbong",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "69830372",
+    "name": "SMPN 4 Bayongbong",
+    "kegiatan": "Pembangunan",
+    "lokal": 1
+  },
+  {
+    "npsn": "20209282",
+    "name": "SMPN 1 Bungbulang",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20227424",
+    "name": "SMPN 2 Bungbulang",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20262020",
+    "name": "SMPN 4 Bungbulang",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20227402",
+    "name": "SMP ISLAM MARGALAKSANA",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "69894141",
+    "name": "SMP PLUS HIDAYATUL MUTTAQIN GARUT",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209296",
+    "name": "SMPN 1 Caringin",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20268956",
+    "name": "SMPN Satu Atap 2 Caringin",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "69969735",
+    "name": "SMPN Satu Atap 3 Caringin",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20227406",
+    "name": "SMP MUHAMMADIYAH CARINGIN",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20227417",
+    "name": "SMP PLUS INDRALAYANG CARINGIN",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20269732",
+    "name": "SMPN Satu Atap 2 Cibalong",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209312",
+    "name": "SMPN 1 Cibiuk",
+    "kegiatan": "Rehab",
+    "lokal": 1
+  },
+  {
+    "npsn": "20209401",
+    "name": "SMPN 2 Cibiuk",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20262016",
+    "name": "SMPN 3 Cikajang",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "69971127",
+    "name": "SMP IT MIFTAHUL HUDA CIKAJANG",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20209309",
+    "name": "SMPN 1 Cikelet",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "69909556",
+    "name": "SMPN 4 Cikelet",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209308",
+    "name": "SMPN 1 Cilawu",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20209361",
+    "name": "SMPN 3 Cilawu",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20262021",
+    "name": "SMPN 4 Cilawu",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20262024",
+    "name": "SMPN 5 Cilawu",
+    "kegiatan": "Rehab",
+    "lokal": 4
+  },
+  {
+    "npsn": "20272104",
+    "name": "SMP MAARIF NU AL MUTTAQIEN",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20276002",
+    "name": "SMP PERSADA CILAWU",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209307",
+    "name": "SMPN 1 Cisewu",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20262017",
+    "name": "SMPN 3 Cisewu",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20268874",
+    "name": "SMPN 5 Cisompet",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20271626",
+    "name": "SMPIT AL-FURQON",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20209304",
+    "name": "SMPN 1 Garut",
+    "kegiatan": "Rehab",
+    "lokal": 7
+  },
+  {
+    "npsn": "20209355",
+    "name": "SMPN 4 Garut",
+    "kegiatan": "Rehab",
+    "lokal": 4
+  },
+  {
+    "npsn": "20209410",
+    "name": "SMPN 2 Kadungora",
+    "kegiatan": "Rehab",
+    "lokal": 1
+  },
+  {
+    "npsn": "20276001",
+    "name": "SMPN 3 Kadungora",
+    "kegiatan": "Rehab",
+    "lokal": 1
+  },
+  {
+    "npsn": "20209274",
+    "name": "SMP PGRI KARANGPAWITAN",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209301",
+    "name": "SMPN 1 Karangtengah",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "70009385",
+    "name": "SMP AL MUKHLISIYAH BOARDING SCHOOL",
+    "kegiatan": "Pembangunan",
+    "lokal": 1
+  },
+  {
+    "npsn": "20209299",
+    "name": "SMPN 1 Leuwigoong",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209358",
+    "name": "SMPN 3 Limbangan",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20268981",
+    "name": "SMPN 4 Limbangan",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20254356",
+    "name": "SMPN 4 Malangbong",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20261996",
+    "name": "SMP TUNAS PERSADA",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209356",
+    "name": "SMPN 3 Pakenjeng",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20269731",
+    "name": "SMPN 6 Pakenjeng",
+    "kegiatan": "Rehab",
+    "lokal": 4
+  },
+  {
+    "npsn": "20209397",
+    "name": "SMPN 1 Pamulihan",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "69957193",
+    "name": "SMP BHAKTI MANDIRI GARUT",
+    "kegiatan": "Pembangunan",
+    "lokal": 1
+  },
+  {
+    "npsn": "20209394",
+    "name": "SMPN 1 Peundeuy",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209247",
+    "name": "SMPN 1 Samarang",
+    "kegiatan": "Pembangunan",
+    "lokal": 1
+  },
+  {
+    "npsn": "20209247",
+    "name": "SMPN 1 Samarang",
+    "kegiatan": "Rehab",
+    "lokal": 4
+  },
+  {
+    "npsn": "69953894",
+    "name": "SMP PGRI 2 TALEGONG",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  },
+  {
+    "npsn": "20209160",
+    "name": "SMP AL HIKMAH TAROGONG KALER",
+    "kegiatan": "Pembangunan",
+    "lokal": 1
+  },
+  {
+    "npsn": "20209160",
+    "name": "SMP AL HIKMAH TAROGONG KALER",
+    "kegiatan": "Rehab",
+    "lokal": 3
+  },
+  {
+    "npsn": "20209158",
+    "name": "SMPN 4 Tarogong Kidul",
+    "kegiatan": "Rehab",
+    "lokal": 2
+  }
+]

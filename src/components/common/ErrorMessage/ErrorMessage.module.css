@@ -1,0 +1,52 @@
+/* src/components/common/ErrorMessage/ErrorMessage.module.css - FILE BARU */
+
+.errorContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  height: 100%;
+}
+
+.errorContent {
+  text-align: center;
+  background-color: #fff1f2; /* Latar belakang merah muda */
+  border: 1px solid #fecaca;   /* Border merah muda */
+  border-radius: 8px;
+  padding: 32px;
+  max-width: 500px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.errorIcon {
+  color: #f87171; /* Ikon merah */
+  margin-bottom: 16px;
+}
+
+.errorTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #b91c1c; /* Teks judul merah tua */
+  margin: 0 0 8px;
+}
+
+.errorMessage {
+  font-size: 1rem;
+  color: #dc2626; /* Teks pesan merah */
+  margin-bottom: 24px;
+}
+
+.retryButton {
+  background-color: #ef4444; /* Tombol merah */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retryButton:hover {
+  background-color: #dc2626;
+}

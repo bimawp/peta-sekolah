@@ -1,0 +1,59 @@
+# supabase/config.toml — versi valid utk CLI v2 (schema resmi)
+project_id = "peta-sekolah"
+
+# ==== AUTH (local dev) ====
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+# penting: kunci yg valid adalah enable_confirmations (bukan "enabled")
+enable_confirmations = false
+
+# ==== DATABASE (opsional: port default local) ====
+[db]
+# biarin default local; ubah kalau kamu custom
+# port = 54322
+
+# ==== STORAGE (kunci yg valid) ====
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+# Kalau mau nentuin folder objek per bucket lokal, gunakan objects_path per-bucket:
+# [storage.buckets.public]
+# public = true
+# objects_path = "./.local/storage/public"
+
+# ==== EDGE RUNTIME & FUNCTIONS ====
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+# Atur function "ingest" (kalau kamu pakai)
+[functions.ingest]
+enabled = true
+verify_jwt = true
+# sesuaikan kalau file import map kamu berbeda
+# contoh kalau entrypoint custom (opsional):
+# entrypoint = "supabase/functions/ingest/index.ts"
+
+# ==== EMAIL TEST SERVER (Inbucket) untuk local dev ====
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+admin_email = "admin@email.com"
+sender_name = "Admin"
+
+# ==== BRANCH REMOTES (opsional; bisa dipakai nanti kalau pakai branching) ====
+# [remotes.prod]
+# project_id = "zpdxdwzervdhlpodrmep"

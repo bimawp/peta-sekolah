@@ -1,59 +1,53 @@
-// Import CSS eksternal
-import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+// src/App.jsx
+import React, { useEffect } from "react";
+import { BrowserRouter } from "react-router-dom";
+import { SWRConfig } from "swr";
+import AppRoutes from "./routes/AppRoutes.jsx";
+// HAPUS AuthProvider (auth context sementara tidak dipakai)
+// import { AuthProvider } from "./contexts/AuthContext.jsx";
+import SuspenseLoader from "./components/common/SuspenseLoader/SuspenseLoader";
+import { purgeSessionPrefix } from "@/utils/http";
 
-import React from 'react';
-import { BrowserRouter, useLocation } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import store from './store/store';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { FilterProvider } from './contexts/FilterContext';
-import AppRoutes from './routes/AppRoutes';
-import Layout from './components/common/Layout/Layout';
-
-import './App.css';
-import './styles/globals.css';
-
-// Wrapper agar bisa akses location
-function AppContent() {
-  const location = useLocation();
-  const { isAuthenticated } = useAuth();
-  const isLoginPage = location.pathname === '/login';
-
-  // Jika di halaman login, tampilkan AppRoutes tanpa Layout
-  if (isLoginPage) {
-    return <AppRoutes />;
+// Fetcher global untuk SWR (dipakai kalau nanti ada komponen yang pakai useSWR)
+const fetcher = async (key) => {
+  const res = await fetch(key, { cache: "default", keepalive: true });
+  if (!res.ok) {
+    throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
   }
+  return res.json();
+};
 
-  // Jika sudah login, tampilkan Layout + AppRoutes
-  if (isAuthenticated) {
-    return (
-      <Layout>
-        <AppRoutes />
-      </Layout>
-    );
-  }
+export default function App() {
+  useEffect(() => {
+    // Housekeeping: bersihkan cache detail sekolah yang terlalu lama
+    // Prefix-nya mengikuti yang dipakai di SchoolDetailPage (sch-detail:...)
+    // maxAgeMs = 14 hari
+    const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+    purgeSessionPrefix("sch-detail:", FOURTEEN_DAYS_MS);
+  }, []);
 
-  // Jika belum login dan bukan di /login, redirect ke /login
-  return <AppRoutes />;
-}
-
-function App() {
   return (
-    <Provider store={store}>
-      <BrowserRouter>
-        <AuthProvider>
-          <ThemeProvider>
-            <FilterProvider>
-              <AppContent />
-            </FilterProvider>
-          </ThemeProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </Provider>
+    <BrowserRouter>
+      {/* AuthProvider sengaja tidak diaktifkan dulu */}
+      {/* <AuthProvider> */}
+      <SWRConfig
+        value={{
+          fetcher,
+          suspense: true,
+          revalidateOnFocus: false,
+          revalidateOnReconnect: true,
+          dedupingInterval: 60_000,
+          focusThrottleInterval: 60_000,
+          keepPreviousData: true,
+          errorRetryCount: 2,
+          errorRetryInterval: 3000,
+        }}
+      >
+        <React.Suspense fallback={<SuspenseLoader />}>
+          <AppRoutes />
+        </React.Suspense>
+      </SWRConfig>
+      {/* </AuthProvider> */}
+    </BrowserRouter>
   );
 }
-
-export default App;

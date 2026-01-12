@@ -1,46 +1,58 @@
-import React, { useState } from 'react';
+// src/pages/Auth/Login.jsx - VERSI FINAL
+
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Login.module.css';
-import { useAuth } from '../../contexts/AuthContext'; // pastikan path sesuai
+import { useAuth } from '../../contexts/AuthContext'; 
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, error, clearError, loading } = useAuth();
+  const { login, error, clearError, loading, isAuthenticated } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // PERBAIKAN UTAMA: Arahkan ke dashboard JIKA SUDAH LOGIN
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, loading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    clearError();
+    if (isSubmitting) return;
 
-    const result = await login({ email, password });
-    if (result.success) {
-      navigate('/'); // redirect tetap di halaman root
-    } else {
-      alert(result.error);
-    }
+    setIsSubmitting(true);
+    if (error) clearError();
+    
+    await login({ email, password });
+    
+    // Biarkan listener di AuthContext yang menangani redirect setelah state terupdate
+    // Di sini kita hanya menghentikan loading di form
+    setIsSubmitting(false);
   };
+  
+  // Jangan render apapun selagi context auth loading
+  // Ini mencegah "kedipan" singkat halaman login jika user sudah login
+  if (loading) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <div>Loading...</div>
+        </div>
+    );
+  }
 
   return (
     <div className={styles.loginContainer}>
-      {/* Kiri */}
       <div className={styles.loginLeft}>
-        <img
-          src="/assets/logo-disdik.png"
-          alt="Logo DISDIK"
-          className={styles.bgLogo}
-        />
+        <img src="/assets/logo-disdik.png" alt="Logo DISDIK" className={styles.bgLogo} />
         <div className={styles.loginContent}>
           <h1 className={styles.mainTitle}>e-PlanDISDIK</h1>
           <p className={styles.subtitle}>Electronic Planning Dinas Pendidikan</p>
           <p className={styles.subtitle}>Kabupaten - Garut</p>
-          <br /> {/* 1 baris jarak sebelum tombol */}
-          <a
-            href="https://disdikkabgarut.org/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.selengkapnyaBtn}
-          >
+          <br />
+          <a href="https://disdikkabgarut.org/" target="_blank" rel="noopener noreferrer" className={styles.selengkapnyaBtn}>
             Selengkapnya
           </a>
         </div>
@@ -48,24 +60,16 @@ const Login = () => {
           DINAS PENDIDIKAN KABUPATEN GARUT
         </div>
       </div>
-
-      {/* Kanan */}
       <div className={styles.loginRight}>
         <div className={styles.loginFormContainer}>
           <div className={styles.topLogoWrapper}>
-            <img
-              src="/assets/icon-disdik.png"
-              alt="Icon DISDIK"
-              className={styles.topLogo}
-            />
+            <img src="/assets/icon-disdik.png" alt="Icon DISDIK" className={styles.topLogo} />
           </div>
-
           <div className={styles.formHeader}>
             <h2>Selamat Datang di</h2>
             <h3>e-PlanDISDIK</h3>
             <p>Silahkan Login untuk mengelola data</p>
           </div>
-
           <form onSubmit={handleSubmit} className={styles.loginForm}>
             <div className={styles.inputGroup}>
               <div className={styles.inputWrapper}>
@@ -77,10 +81,10 @@ const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className={styles.formInput}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
-
             <div className={styles.inputGroup}>
               <div className={styles.inputWrapper}>
                 <span className={styles.inputIcon}>🔒</span>
@@ -91,16 +95,15 @@ const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className={styles.formInput}
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
-
-            <button type="submit" className={styles.loginBtn} disabled={loading}>
-              {loading ? 'Memproses...' : 'Masuk'}
+            <button type="submit" className={styles.loginBtn} disabled={isSubmitting}>
+              {isSubmitting ? 'Memproses...' : 'Masuk'}
             </button>
           </form>
-
-          {error && <p style={{ color: 'red', marginTop: '10px' }}>{error}</p>}
+          {error && <p style={{ color: 'red', marginTop: '10px', textAlign: 'center' }}>{error}</p>}
         </div>
       </div>
     </div>

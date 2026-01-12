@@ -1,20 +1,18 @@
-import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './slices/authSlice';
-import budgetReducer from './slices/budgetSlice';
-import counterReducer from './slices/counterSlice';
-import facilityReducer from './slices/facilitySlice';
-import schoolReducer from './slices/schoolSlice';
-import uiReducer from './slices/uiSlice';
+// src/store/store.js
 
-const store = configureStore({
+import { configureStore } from '@reduxjs/toolkit';
+import schoolReducer from './slices/schoolSlice.js';
+import filterReducer from './slices/filterSlice.js';
+import uiReducer from './slices/uiSlice.js';
+import selectedSchoolReducer from './slices/selectedSchoolSlice.js'; // <- Pastikan ini diimpor
+import dashboardReducer from './slices/dashboardSlice.js';
+
+export const store = configureStore({
   reducer: {
-    auth: authReducer,
-    budget: budgetReducer,
-    counter: counterReducer,
-    facility: facilityReducer,
-    school: schoolReducer,
+    schools: schoolReducer,
+    filter: filterReducer,
     ui: uiReducer,
+    selectedSchool: selectedSchoolReducer, // <- Pastikan ini terdaftar
+    dashboard: dashboardReducer,
   },
 });
-
-export default store;

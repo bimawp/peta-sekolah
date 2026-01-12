@@ -1,42 +1,38 @@
+// src/routes/ProtectedRoute.jsx
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
-const ProtectedRoute = ({ children, requiredRole = null }) => {
-  const { isAuthenticated, user, loading } = useAuth();
+const ProtectedRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
+
+  // DEBUGGING LOG
+  console.log("[ProtectedRoute] Rendering with state:", {
+    isAuthenticated,
+    loading,
+    path: location.pathname
+  });
 
   if (loading) {
     return (
       <div style={{
         display: 'flex',
-        alignItems: 'center',
         justifyContent: 'center',
-        minHeight: '50vh'
+        alignItems: 'center',
+        height: '100vh',
       }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          border: '2px solid var(--color-bg-tertiary)',
-          borderTop: '2px solid var(--color-primary)',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }} />
+        <div>Checking authentication...</div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    // Redirect to login page with return url
+    console.log("[ProtectedRoute] Not authenticated. Redirecting to /login.");
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Check if user has required role
-  if (requiredRole && user?.role !== requiredRole) {
-    // Redirect to dashboard if user doesn't have required role
-    return <Navigate to="/" replace />;
-  }
-
+  console.log("[ProtectedRoute] Authenticated. Rendering children.");
   return children;
 };
 

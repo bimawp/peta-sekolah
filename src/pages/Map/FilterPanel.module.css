@@ -1,0 +1,19 @@
+/* src/pages/Map/FilterPanel.module.css */
+.filterPanel {
+  width: 300px;
+  padding: 16px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  z-index: 1000;
+  height: calc(100vh - 80px);
+  overflow: auto;
+}
+.header { display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:12px; margin-bottom:12px; }
+.header h4 { margin:0; font-size:1.1rem; font-weight:600; color:#1e293b; }
+.backButton { background:none; border:1px solid #cbd5e1; color:#334155; border-radius:6px; padding:6px 10px; font-size:.8rem; cursor:pointer; }
+.backButton:hover { background:#f1f5f9; }
+.filterGroup { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; }
+.filterGroup label { font-size:.875rem; font-weight:500; color:#475569; }
+.filterGroup select { width:100%; padding:8px 12px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; font-size:.9rem; }

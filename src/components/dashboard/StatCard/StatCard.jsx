@@ -1,23 +1,17 @@
-// src/components/DashboardCards/StatCard.jsx
-import React from 'react';
+import Card from '../../ui/Card/Card'; // <-- Impor komponen Card baru
+import styles from './StatCard.module.css';
 
-export default function StatCard({ title, value, icon, color }) {
+const StatCard = ({ icon, label, value }) => {
+  // Kita menggunakan komponen Card sebagai pembungkus utama
   return (
-    <div style={{
-      backgroundColor: color || '#fff',
-      borderRadius: '8px',
-      padding: '20px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '15px',
-      color: '#fff',
-    }}>
-      <div>{icon}</div>
-      <div>
-        <h4 style={{ margin: 0 }}>{title}</h4>
-        <p style={{ fontSize: '1.5rem', margin: 0 }}>{value}</p>
+    <Card className={styles.statCard}>
+      <div className={styles.iconWrapper}>{icon}</div>
+      <div className={styles.textWrapper}>
+        <p className={styles.label}>{label}</p>
+        <p className={styles.value}>{value}</p>
       </div>
-    </div>
+    </Card>
   );
-}
+};
+
+export default StatCard;

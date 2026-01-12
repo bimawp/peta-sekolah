@@ -1,0 +1,30 @@
+/* src/components/common/SuspenseLoader/SuspenseLoader.module.css */
+.wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  padding:16px;
+  min-height:56px;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+}
+.spinner{
+  width:18px;
+  height:18px;
+  border-radius:9999px;
+  border:3px solid rgba(0,0,0,.08);
+  border-top-color: rgba(0,0,0,.55);
+  animation: spin .8s linear infinite;
+}
+.text{
+  font-size:14px;
+  color:#444;
+  letter-spacing:.2px;
+}
+@keyframes spin{
+  to{ transform: rotate(360deg); }
+}
+@media (prefers-color-scheme: dark){
+  .spinner{ border-color: rgba(255,255,255,.12); border-top-color: rgba(255,255,255,.8); }
+  .text{ color:#e5e5e5; }
+}

@@ -1,39 +1,54 @@
-/* MenuItem.module.css */
+/* src/components/common/Sidebar/MenuItem.module.css */
+
 .menuItem {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1.5rem;
-  color: #374151;
-  font-weight: 500;
+  gap: 14px;
+  padding: 11px 13px;
+  border-radius: 12px;
   text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease;
-  white-space: nowrap;
-  -webkit-user-select: none; /* Safari 3+, iOS Safari 3+ */
-  user-select: none;
-  cursor: pointer;
-  border-left: 4px solid transparent;
+  color: #111827;
+  background: transparent;
+  transition:
+    background 160ms ease,
+    transform 120ms ease,
+    box-shadow 160ms ease;
+  font-size: 15px;              /* dasar teks menu diperbesar */
 }
-
 .menuItem:hover {
-  background-color: #eff6ff;
-  color: #3b82f6;
+  background: #eef7ec;          /* hijau muda */
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transform: translateY(-1px);
+}
+.active {
+  background: #d4f7c5;
+  color: #14532d;
+}
+.collapsed .label {
+  display: none;
 }
 
-.menuItem.active {
-  background-color: #bfdbfe;
-  color: #1e40af;
-  border-left-color: #3b82f6;
+.iconWrapper {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
 }
 
-.icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  color: inherit;
+.activeIndicator {
+  position: absolute;
+  right: -10px;
+  width: 7px;
+  height: 7px;
+  background: #10b981;
+  border-radius: 999px;
 }
 
+/* label menu utama – ini yang paling penting biar kebaca orang tua */
 .label {
-  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: .2px;
+  font-size: 16px;              /* 👀 teks besar & tebal */
+  line-height: 1.4;
 }

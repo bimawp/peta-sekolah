@@ -1,43 +1,53 @@
-// src/store/slices/schoolSlice.js
+// src/store/slices/selectedSchoolSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import schoolApi from '../../services/api/schoolApi';
+import { getSchoolById } from '@/services/api/schoolApi';
 
-// Async thunk untuk fetch sekolah berdasarkan provinsi
-export const fetchSchoolsByProvince = createAsyncThunk(
-  'schools/fetchByProvince',
-  async (provinceId, thunkAPI) => {
+export const fetchSelectedSchool = createAsyncThunk(
+  'selectedSchool/fetch',
+  async (id, { rejectWithValue }) => {
     try {
-      const response = await schoolApi.getSchoolsByProvince(provinceId);
-      return response;
-    } catch (error) {
-      return thunkAPI.rejectWithValue(error.message);
+      const school = await getSchoolById(id, {
+        select:
+          'id, name, npsn, address, latitude, longitude, jenjang, kabupaten, kecamatan, desa',
+      });
+      if (!school) return rejectWithValue('School not found');
+      return school;
+    } catch (err) {
+      return rejectWithValue(err.message || String(err));
     }
   }
 );
 
-const schoolSlice = createSlice({
-  name: 'schools',
+const selectedSchoolSlice = createSlice({
+  name: 'selectedSchool',
   initialState: {
-    list: [],
+    data: null,
     loading: false,
     error: null,
   },
-  reducers: {},
+  reducers: {
+    clearSelectedSchool(state) {
+      state.data = null;
+      state.error = null;
+      state.loading = false;
+    },
+  },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchSchoolsByProvince.pending, (state) => {
+      .addCase(fetchSelectedSchool.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(fetchSchoolsByProvince.fulfilled, (state, action) => {
+      .addCase(fetchSelectedSchool.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = action.payload;
+        state.data = action.payload;
       })
-      .addCase(fetchSchoolsByProvince.rejected, (state, action) => {
+      .addCase(fetchSelectedSchool.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload || 'Failed to fetch schools';
+        state.error = action.payload || 'Gagal memuat data sekolah';
       });
   },
 });
 
-export default schoolSlice.reducer;
+export const { clearSelectedSchool } = selectedSchoolSlice.actions;
+export default selectedSchoolSlice.reducer;
