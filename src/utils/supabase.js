@@ -1,11 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+// src/utils/supabase.js
+// Backward-compat: re-export Supabase client utama
+// Dipakai misalnya oleh AdminProfile.jsx dan util lain di folder utils
 
-// Ganti process.env.REACT_APP_ menjadi import.meta.env.VITE_
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Variabel Supabase URL atau Anon Key tidak ditemukan di file .env");
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export { default as supabase } from '@/services/supabaseClient';
+export { default } from '@/services/supabaseClient';

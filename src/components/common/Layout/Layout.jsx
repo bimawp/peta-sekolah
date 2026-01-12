@@ -9,8 +9,8 @@ import { useIdlePrefetch } from "@/hooks/useIdlePrefetch";
 const Layout = () => {
   // === State hasil broadcast dari Sidebar ===
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop only
-  const [isMobile, setIsMobile] = useState(false);                  // <=768
-  const [mobileOpen, setMobileOpen] = useState(false);              // overlay state (informasi)
+  const [isMobile, setIsMobile] = useState(false);                 // <=768
+  const [mobileOpen, setMobileOpen] = useState(false);             // overlay state (informasi)
 
   const idlePrefetch = useIdlePrefetch();
 
@@ -41,8 +41,15 @@ const Layout = () => {
       setIsMobile(Boolean(mob));
       setMobileOpen(Boolean(isOpen));
     };
+
+    // dukung dua nama event sekaligus
     window.addEventListener("sidebar:state", onSidebarState);
-    return () => window.removeEventListener("sidebar:state", onSidebarState);
+    window.addEventListener("layout:sidebar-state", onSidebarState);
+
+    return () => {
+      window.removeEventListener("sidebar:state", onSidebarState);
+      window.removeEventListener("layout:sidebar-state", onSidebarState);
+    };
   }, []);
 
   return (
@@ -52,7 +59,9 @@ const Layout = () => {
       {/* Desktop: geser konten jika collapsed.
           Mobile: margin-left selalu 0 via CSS. */}
       <div
-        className={`${styles.mainContent} ${sidebarCollapsed ? styles.mainContentCollapsed : ""}`}
+        className={`${styles.mainContent} ${
+          sidebarCollapsed ? styles.mainContentCollapsed : ""
+        }`}
         data-scroll-stable
         data-mobile-open={mobileOpen}
         data-is-mobile={isMobile}

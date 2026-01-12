@@ -1,75 +1,142 @@
 // src/hooks/useDashboardQuery.js
-import { useQuery } from '@tanstack/react-query'; // Pastikan sudah install: npm install @tanstack/react-query
-import { supabase } from '@/services/supabaseClient'; // Sesuaikan path jika perlu
+import useSWR from "swr";
+import supabase from "@/services/supabaseClient";
 
-// --- Fungsi Fetcher Terpisah ---
-const fetchDashboardData = async () => {
-    // 1. Ambil Statistik Utama (misal dari RPC atau view)
-    //    Gantilah 'get_dashboard_stats' dengan nama RPC/view Anda.
-    const { data: statsData, error: statsError } = await supabase
-        .rpc('get_dashboard_stats'); // Asumsi RPC ini mengembalikan { total_paud, total_sd, total_smp, total_pkbm, total_guru, dll }
-    if (statsError) {
-        console.error("Error fetching dashboard stats:", statsError);
-        throw new Error("Gagal mengambil statistik dashboard.");
+/**
+ * RPC yang ADA di Supabase Anda
+ */
+const RPC_STATS = "get_dashboard_stats";
+const RPC_KEGIATAN = "rpc_kegiatan_summary_by_jenjang";
+const RPC_KONDISI = "rpc_kelas_kondisi_summary_by_jenjang";
+const RPC_KECAMATAN = "get_unique_kecamatan";
+
+/**
+ * Helpers
+ */
+function asObject(v) {
+  if (!v) return {};
+  if (Array.isArray(v)) {
+    const first = v[0];
+    return first && typeof first === "object" && !Array.isArray(first) ? first : {};
+  }
+  return typeof v === "object" ? v : {};
+}
+function asArray(v) {
+  return Array.isArray(v) ? v : v != null ? [v] : [];
+}
+function asKecamatanStrings(v) {
+  const arr = asArray(v);
+  if (arr.length === 0) return [];
+  if (arr.every((x) => typeof x === "string")) return arr;
+  return arr
+    .map((x) =>
+      x && typeof x === "object"
+        ? x.kecamatan ?? x.kecamatan_name ?? x.name ?? null
+        : null
+    )
+    .filter(Boolean);
+}
+
+async function rpcSafe(fn, args = {}) {
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) throw error;
+  return data;
+}
+
+async function fetchSchoolTypesMap() {
+  const { data, error } = await supabase.from("school_types").select("id,code");
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach((r) => {
+    map[String(r.id)] = String(r.code || "").toUpperCase();
+  });
+  return map;
+}
+
+async function fetchSchoolsLite() {
+  // minimal fields untuk top kecamatan/desa + fallback agregasi
+  const { data, error } = await supabase
+    .from("schools")
+    .select(
+      "id,npsn,school_type_id,kecamatan,kecamatan_name,village_name,class_condition"
+    );
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * Fetch dashboard bundle (Supabase-first)
+ */
+async function fetchDashboardData() {
+  const [statsRaw, kegiatanRaw, kondisiRaw, kecRaw, typeMap, schoolsLite] =
+    await Promise.allSettled([
+      rpcSafe(RPC_STATS),
+      rpcSafe(RPC_KEGIATAN),
+      rpcSafe(RPC_KONDISI),
+      rpcSafe(RPC_KECAMATAN),
+      fetchSchoolTypesMap(),
+      fetchSchoolsLite(),
+    ]);
+
+  const stats = statsRaw.status === "fulfilled" ? asObject(statsRaw.value) : {};
+  const kegiatanSummary =
+    kegiatanRaw.status === "fulfilled" ? asArray(kegiatanRaw.value) : [];
+  const kondisiSummary =
+    kondisiRaw.status === "fulfilled" ? asArray(kondisiRaw.value) : [];
+  const allKecamatan =
+    kecRaw.status === "fulfilled" ? asKecamatanStrings(kecRaw.value) : [];
+  const schoolTypesMap =
+    typeMap.status === "fulfilled" ? typeMap.value : {};
+  const schools =
+    schoolsLite.status === "fulfilled" ? schoolsLite.value : [];
+
+  return {
+    stats,
+    kegiatanSummary,
+    kondisiSummary,
+    allKecamatan,
+    schoolTypesMap,
+    schools,
+    _debug: {
+      stats_ok: statsRaw.status === "fulfilled",
+      kegiatan_ok: kegiatanRaw.status === "fulfilled",
+      kondisi_ok: kondisiRaw.status === "fulfilled",
+      kec_ok: kecRaw.status === "fulfilled",
+      schools_count: schools.length,
+    },
+  };
+}
+
+/**
+ * Default export: kompatibel dengan pemakaian lama {data, loading, error}
+ */
+export default function useDashboardData() {
+  const { data, error, isLoading } = useSWR(
+    "dashboardDataSupabase",
+    fetchDashboardData,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 1000 * 60 * 5,
+      keepPreviousData: true,
+      errorRetryCount: 1,
     }
+  );
 
-    // 2. Ambil Rekap Kegiatan (misal dari view)
-    //    Gantilah 'kegiatan_summary_by_jenjang' dengan nama view Anda.
-    const { data: kegiatanSummaryData, error: kegiatanError } = await supabase
-        .from('kegiatan_summary_by_jenjang') // Asumsi view ini punya kolom: jenjang, kegiatan, total_lokal
-        .select('jenjang, kegiatan, total_lokal');
-    if (kegiatanError) {
-        console.error("Error fetching kegiatan summary:", kegiatanError);
-        throw new Error("Gagal mengambil rekap kegiatan.");
-    }
+  return {
+    data,
+    loading: isLoading,
+    error: error ? error.message || String(error) : null,
+  };
+}
 
-    // 3. Ambil Rekap Kondisi Kelas (misal dari view)
-    //    Gantilah 'kelas_kondisi_summary_by_jenjang' dengan nama view Anda.
-    const { data: kondisiSummaryData, error: kondisiError } = await supabase
-        .from('kelas_kondisi_summary_by_jenjang') // Asumsi view: jenjang, baik, sedang, berat, kurang_rkb, total_kelas
-        .select('jenjang, baik, sedang, berat, kurang_rkb, total_kelas');
-    if (kondisiError) {
-        console.error("Error fetching kondisi summary:", kondisiError);
-        throw new Error("Gagal mengambil rekap kondisi kelas.");
-    }
-
-    // 4. Ambil Data Sekolah (HANYA jika diperlukan untuk top kecamatan/desa)
-    //    Lebih baik jika Top Kecamatan/Desa juga dihitung di view Supabase.
-    //    Jika tetap perlu fetch semua:
-    const { data: schoolsData, error: schoolsError } = await supabase
-        .from('schools') // Pilih kolom yang *benar-benar* dibutuhkan
-        .select('npsn, name, village, kecamatan, jenjang, level, class_conditions(classrooms_heavy_damage, classrooms_moderate_damage, lacking_rkb)'); // Contoh join
-    if (schoolsError) {
-        console.error("Error fetching schools data for ranking:", schoolsError);
-        throw new Error("Gagal mengambil data sekolah untuk ranking.");
-    }
-
-    // 5. Ambil Daftar Kecamatan Unik (jika belum ada di stats)
-    const { data: kecamatanList, error: kecError } = await supabase
-        .rpc('get_unique_kecamatan'); // Asumsi ada RPC ini
-     if (kecError) {
-        console.error("Error fetching kecamatan list:", kecError);
-        // Fallback atau throw error
-     }
-
-
-    // Kembalikan objek data terstruktur
-    return {
-        stats: statsData || {},
-        kegiatanSummary: kegiatanSummaryData || [],
-        kondisiSummary: kondisiSummaryData || [],
-        schoolsForRanking: schoolsData || [], // Hanya jika benar-benar perlu
-        allKecamatan: kecamatanList || [], // Dari RPC atau stats
-    };
-};
-
-// --- Custom Hook ---
+/**
+ * Optional named export (kalau Anda butuh bentuk SWR asli)
+ */
 export function useDashboardQuery() {
-    return useQuery({
-        queryKey: ['dashboardData'], // Kunci unik cache
-        queryFn: fetchDashboardData,
-        staleTime: 1000 * 60 * 5, // Data fresh selama 5 menit
-        cacheTime: 1000 * 60 * 30, // Disimpan di cache selama 30 menit
-        refetchOnWindowFocus: false,
-    });
+  return useSWR("dashboardDataSupabase", fetchDashboardData, {
+    revalidateOnFocus: false,
+    dedupingInterval: 1000 * 60 * 5,
+    keepPreviousData: true,
+    errorRetryCount: 1,
+  });
 }

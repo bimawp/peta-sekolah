@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useLocation } from "react-router-dom";
 
 import {
   LayoutDashboard,
@@ -9,210 +9,226 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  X
-} from 'lucide-react';
-import MenuItem from './MenuItem';
-import styles from './Sidebar.module.css';
+  X,
+} from "lucide-react";
 
-// MENU: Dashboard, Detail Sekolah, Anggaran, Lainnya (TANPA "Fasilitas")
+import MenuItem from "./MenuItem";
+import styles from "./Sidebar.module.css";
+
+// MENU UTAMA
 const menuItems = [
   {
-    id: 'dashboard',
-    label: 'Dashboard',
+    id: "dashboard",
+    label: "Dashboard",
     icon: <LayoutDashboard size={22} />,
-    path: '/',
-    description: 'Lihat statistik umum'
+    path: "/",
+    description: "Lihat statistik umum",
   },
   {
-    id: 'detail',
-    label: 'Detail Sekolah',
+    id: "detail",
+    label: "Detail Sekolah",
     icon: <Building size={22} />,
-    path: '/detail-sekolah',
-    description: 'Informasi lengkap sekolah'
+    path: "/detail-sekolah",
+    description: "Informasi lengkap sekolah",
   },
   {
-    id: 'anggaran',
-    label: 'Anggaran',
+    id: "anggaran",
+    label: "Anggaran",
     icon: <Wallet size={22} />,
-    path: '/anggaran',
-    description: 'Rekap & monitoring anggaran'
+    path: "/anggaran",
+    description: "Rekap & monitoring anggaran",
   },
   {
-    id: 'lainnya',
-    label: 'Lainnya',
+    id: "lainnya",
+    label: "Lainnya",
     icon: <MoreHorizontal size={22} />,
-    path: '/lainnya',
-    description: 'Menu tambahan'
-  }
+    path: "/lainnya",
+    description: "Menu tambahan",
+  },
 ];
 
-// helper untuk menentukan menu aktif
+// MATCH MENU AKTIF
 function useActiveMatcher() {
   const { pathname } = useLocation();
 
-  // Rute yang dianggap "Detail Sekolah" agar highlight konsisten
   const detailPaths = [
-    '/detail-sekolah',
-    '/sd/school_detail',
-    '/smp/school_detail',
-    '/paud/school_detail',
-    '/pkbm/school_detail',
+    "/detail-sekolah",
+    "/sd/school_detail",
+    "/smp/school_detail",
+    "/paud/school_detail",
+    "/pkbm/school_detail",
+    "/detail-sekolah/map",
   ];
 
-  const isActive = useCallback((itemPath) => {
-    if (itemPath === '/') return pathname === '/';
-    if (itemPath === '/detail-sekolah') {
-      return detailPaths.some(p => pathname.startsWith(p));
-    }
-    if (itemPath === '/anggaran') return pathname.startsWith('/anggaran');
-    if (itemPath === '/lainnya')  return pathname.startsWith('/lainnya');
+  const isActive = useCallback(
+    (itemPath) => {
+      if (itemPath === "/") return pathname === "/";
+      if (itemPath === "/detail-sekolah") {
+        return detailPaths.some((p) => pathname.startsWith(p));
+      }
+      if (itemPath === "/anggaran") return pathname.startsWith("/anggaran");
+      if (itemPath === "/lainnya") return pathname.startsWith("/lainnya");
+      return pathname.startsWith(itemPath);
+    },
+    [pathname]
+  );
 
-    return pathname.startsWith(itemPath);
-  }, [pathname]);
-
-  // Khusus: saat berada di /facilities, JANGAN sorot menu apa pun
-  const suppressActive = pathname.startsWith('/facilities');
+  // Di /facilities sidebar tidak highlight apa pun
+  const suppressActive = pathname.startsWith("/facilities");
 
   return { isActive, suppressActive };
 }
 
 const Sidebar = () => {
   const { isActive, suppressActive } = useActiveMatcher();
+
   const [collapsed, setCollapsed] = useState(false); // desktop
   const [isMobile, setIsMobile] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);       // mobile overlay
+  const [isOpen, setIsOpen] = useState(false); // overlay mobile
+
   const debounceRef = useRef(null);
   const animRef = useRef(null);
 
-  // Broadcast helper → kirim state ke Layout
-  const broadcast = useCallback((next = {}) => {
-    const payload = {
-      collapsed: next.collapsed ?? (collapsed && !isMobile),
-      isMobile:  next.isMobile  ?? isMobile,
-      isOpen:    next.isOpen    ?? isOpen,
-    };
-    const ev = new CustomEvent('sidebar:state', { detail: payload });
-    window.dispatchEvent(ev);
-  }, [collapsed, isMobile, isOpen]);
+  // Broadcast state ke Layout lewat CustomEvent
+  const broadcast = useCallback(
+    (next = {}) => {
+      const payload = {
+        collapsed: next.collapsed ?? (collapsed && !isMobile),
+        isMobile: next.isMobile ?? isMobile,
+        isOpen: next.isOpen ?? isOpen,
+      };
 
-  // cek mobile
-  const checkMobile = useCallback(() => {
-    const mobile = window.innerWidth <= 768;
-    setIsMobile(mobile);
-    if (!mobile && isOpen) setIsOpen(false);
-  }, [isOpen]);
+      // kirim dua jenis event supaya kompatibel
+      window.dispatchEvent(
+        new CustomEvent("layout:sidebar-state", { detail: payload })
+      );
+      window.dispatchEvent(
+        new CustomEvent("sidebar:state", { detail: payload })
+      );
+    },
+    [collapsed, isMobile, isOpen]
+  );
 
-  // init
+  // Deteksi mobile/desktop
   useEffect(() => {
-    checkMobile();
-    try {
-      const saved = localStorage.getItem('sidebar-collapsed');
-      if (saved) setCollapsed(JSON.parse(saved));
-    } catch {}
     const handleResize = () => {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(checkMobile, 100);
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setIsOpen(false); // pastikan overlay tertutup kalau kembali ke desktop
+      }
     };
-    window.addEventListener('resize', handleResize, { passive: true });
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(debounceRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // simpan state collapsed (desktop)
+  // Restore state collapsed dari localStorage (desktop)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sidebar-collapsed");
+      if (saved !== null) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed === "boolean") {
+          setCollapsed(parsed);
+        }
+      }
+    } catch {
+      // abaikan
+    }
+  }, []);
+
+  // Simpan state collapsed (desktop)
   useEffect(() => {
     if (isMobile) return;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       try {
-        localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
-      } catch {}
+        localStorage.setItem("sidebar-collapsed", JSON.stringify(collapsed));
+      } catch {
+        // abaikan
+      }
     }, 300);
   }, [collapsed, isMobile]);
 
-  // broadcast setiap ada perubahan penting
+  // Broadcast setiap kali state penting berubah
   useEffect(() => {
     broadcast();
   }, [collapsed, isMobile, isOpen, broadcast]);
 
-  // broadcast awal setelah mount
+  // Broadcast awal
   useEffect(() => {
     broadcast();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // toggle
+  // Toggle sidebar
   const toggleSidebar = useCallback(() => {
     if (animRef.current) return;
+
     animRef.current = requestAnimationFrame(() => {
       if (isMobile) {
         const nextOpen = !isOpen;
         setIsOpen(nextOpen);
         broadcast({ isOpen: nextOpen });
       } else {
-        setCollapsed(v => {
-          const next = !v;
-          broadcast({ collapsed: next });
-          return next;
-        });
+        const nextCollapsed = !collapsed;
+        setCollapsed(nextCollapsed);
+        broadcast({ collapsed: nextCollapsed });
       }
-      setTimeout(() => { animRef.current = null; }, 250);
+      animRef.current = null;
     });
-  }, [isMobile, isOpen, broadcast]);
+  }, [collapsed, isMobile, isOpen, broadcast]);
+
+  const openMobileSidebar = useCallback(() => {
+    setIsOpen(true);
+    broadcast({ isOpen: true });
+  }, [broadcast]);
 
   const closeSidebar = useCallback(() => {
-    if (isMobile && isOpen) {
-      setIsOpen(false);
-      broadcast({ isOpen: false });
-    }
-  }, [isMobile, isOpen, broadcast]);
+    if (!isMobile) return;
+    setIsOpen(false);
+    broadcast({ isOpen: false });
+  }, [isMobile, broadcast]);
 
-  // esc to close (mobile)
-  useEffect(() => {
-    if (!isMobile || !isOpen) return;
-    const onKey = (e) => { if (e.key === 'Escape') closeSidebar(); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [isMobile, isOpen, closeSidebar]);
-
-  // ⬇️ Dengarkan perintah toggle dari Header (khusus mobile)
+  // Listener global dari Header / Layout: 'sidebar:toggle'
   useEffect(() => {
     const handler = (e) => {
-      const { forceOpen, forceClose, toggle } = e.detail || {};
-      if (!isMobile) return;
+      const detail = e.detail || {};
 
-      if (forceOpen) {
-        setIsOpen(true);
-        broadcast({ isOpen: true });
-        return;
-      }
-      if (forceClose) {
-        setIsOpen(false);
-        broadcast({ isOpen: false });
-        return;
-      }
-      if (toggle) {
-        const next = !isOpen;
-        setIsOpen(next);
-        broadcast({ isOpen: next });
+      if (isMobile) {
+        const { forceClose, toggle } = detail;
+        if (forceClose) {
+          setIsOpen(false);
+          broadcast({ isOpen: false });
+          return;
+        }
+        if (toggle) {
+          const next = !isOpen;
+          setIsOpen(next);
+          broadcast({ isOpen: next });
+        }
+      } else {
+        const { collapsed: nextCollapsed } = detail;
+        if (typeof nextCollapsed === "boolean") {
+          setCollapsed(nextCollapsed);
+          broadcast({ collapsed: nextCollapsed });
+        }
       }
     };
 
-    window.addEventListener('sidebar:toggle', handler);
-    return () => window.removeEventListener('sidebar:toggle', handler);
+    window.addEventListener("sidebar:toggle", handler);
+    return () => window.removeEventListener("sidebar:toggle", handler);
   }, [isMobile, isOpen, broadcast]);
 
   const sidebarClasses = [
     styles.sidebar,
     collapsed && !isMobile && styles.collapsed,
-    isMobile && isOpen && styles.open
-  ].filter(Boolean).join(' ');
+    isMobile && isOpen && styles.open,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <>
@@ -221,31 +237,51 @@ const Sidebar = () => {
         role="navigation"
         aria-label="Menu navigasi utama"
       >
-        <div className={styles.header}>
-          {(!collapsed || isMobile) && (
-            <div className={styles.logoSection}>
-              <h1 className={styles.logo}>Disdik Garut</h1>
-              <div className={styles.tagline}>Pendidikan Berkualitas</div>
-            </div>
-          )}
-          <button
-            onClick={toggleSidebar}
-            className={styles.toggleBtn}
-            aria-label={
-              isMobile
-                ? (isOpen ? 'Tutup menu' : 'Buka menu')
-                : (collapsed ? 'Perluas sidebar' : 'Perkecil sidebar')
-            }
-            type="button"
-          >
-            {isMobile
-              ? (isOpen ? <X size={24} /> : <Menu size={24} />)
-              : (collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />)}
-          </button>
-        </div>
+        {/* HEADER SIDEBAR */}
+        <header className={styles.header}>
+          <div className={styles.logoSection}>
+            <p className={styles.logo}>PS</p>
+            {!collapsed && !isMobile && (
+              <p className={styles.tagline}>
+                Peta Sekolah
+                <br />
+                Kabupaten Garut
+              </p>
+            )}
+          </div>
 
-        <nav className={styles.menu} role="menubar">
-          {menuItems.map(({ id, label, icon, path, description }) => (
+          {/* Desktop: tombol collapse */}
+          {!isMobile && (
+            <button
+              type="button"
+              className={styles.toggleBtn}
+              onClick={toggleSidebar}
+              aria-label={collapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
+            >
+              {collapsed ? (
+                <ChevronRight size={18} />
+              ) : (
+                <ChevronLeft size={18} />
+              )}
+            </button>
+          )}
+
+          {/* Mobile: tombol close */}
+          {isMobile && (
+            <button
+              type="button"
+              className={styles.toggleBtn}
+              onClick={closeSidebar}
+              aria-label="Tutup menu"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </header>
+
+        {/* MENU UTAMA */}
+        <nav className={styles.menu} aria-label="Daftar menu utama">
+          {menuItems.map(({ id, icon, label, path, description }) => (
             <MenuItem
               key={id}
               icon={icon}
@@ -260,31 +296,52 @@ const Sidebar = () => {
           ))}
         </nav>
 
-        {/* 🔽 Ringkasan singkat supaya sidebar tidak kosong, tetap kebaca orang tua */}
+        {/* LEGEND SUPER SIMPEL (DOT SAJA, TANPA TEKS) */}
         {(!collapsed || isMobile) && (
-          <section className={styles.summaryBox}>
-            <p className={styles.summaryTitle}>Ringkasan</p>
-            <p className={styles.summaryItem}>
-              <span className={styles.summaryNumber}>4.842</span>
-              <span className={styles.summaryLabel}>sekolah terdata</span>
-            </p>
-            <p className={styles.summaryItem}>
-              <span className={styles.summaryNumber}>42</span>
-              <span className={styles.summaryLabel}>kecamatan terpantau</span>
-            </p>
-            <p className={styles.summaryNote}>
-              Data bersumber dari Sistem Hulu Dinas Pendidikan Kabupaten Garut.
-            </p>
+          <section className={styles.legendBox} aria-label="Legenda titik peta">
+            <span
+              className={`${styles.legendDot} ${styles.legendDotPaud}`}
+              title="PAUD"
+            />
+            <span
+              className={`${styles.legendDot} ${styles.legendDotSd}`}
+              title="SD"
+            />
+            <span
+              className={`${styles.legendDot} ${styles.legendDotSmp}`}
+              title="SMP"
+            />
+            <span
+              className={`${styles.legendDot} ${styles.legendDotPkbm}`}
+              title="PKBM"
+            />
           </section>
         )}
 
+        {/* FOOTER (desktop, saat tidak collapsed) */}
         {!collapsed && !isMobile && (
           <div className={styles.footer}>
             <div className={styles.version}>v2.0.0</div>
+            <div className={styles.footerText}>
+              Dinas Pendidikan Kab. Garut
+            </div>
           </div>
         )}
       </aside>
 
+      {/* Tombol hamburger (mobile) */}
+      {isMobile && !isOpen && (
+        <button
+          type="button"
+          className={styles.mobileToggle}
+          onClick={openMobileSidebar}
+          aria-label="Buka menu"
+        >
+          <Menu size={22} />
+        </button>
+      )}
+
+      {/* Overlay (mobile) */}
       {isMobile && isOpen && (
         <div
           className={styles.sidebarOverlay}
@@ -292,7 +349,7 @@ const Sidebar = () => {
           role="button"
           tabIndex={0}
           aria-label="Tutup menu"
-          onKeyDown={(e) => e.key === 'Enter' && closeSidebar()}
+          onKeyDown={(e) => e.key === "Enter" && closeSidebar()}
         />
       )}
     </>

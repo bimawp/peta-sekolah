@@ -1,7 +1,7 @@
-import React from 'react';
-import styles from './SchoolDetailSd.module.css';
+import React from "react";
+import styles from "./SchoolDetailSd.module.css";
 
-const getData = (data, path, def = 'N/A') => {
+const getData = (data, path, def = "N/A") => {
   const v = path.reduce((o, k) => (o && o[k] != null ? o[k] : undefined), data);
   if (v === 0 || v === 0.0) return 0;
   return v !== undefined ? v : def;
@@ -11,7 +11,7 @@ const num = (v, d = 0) => (v == null || Number.isNaN(Number(v)) ? d : Number(v))
 
 const SchoolDetailSd = ({ schoolData }) => {
   const handleLocationClick = () => {
-    const coords = getData(schoolData, ['coordinates'], null);
+    const coords = getData(schoolData, ["coordinates"], null);
     if (Array.isArray(coords) && coords.length === 2) {
       let lng = Number(coords[0]);
       let lat = Number(coords[1]);
@@ -21,11 +21,15 @@ const SchoolDetailSd = ({ schoolData }) => {
       }
 
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+        window.open(
+          `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+          "_blank",
+          "noopener,noreferrer"
+        );
         return;
       }
     }
-    alert('Data koordinat lokasi untuk sekolah ini tidak tersedia.');
+    alert("Data koordinat lokasi untuk sekolah ini tidak tersedia.");
   };
 
   if (!schoolData) {
@@ -36,138 +40,170 @@ const SchoolDetailSd = ({ schoolData }) => {
     );
   }
 
-  // --- Ambil semua data dari schoolData ---
-  
-  // Kondisi Kelas
-  const classCondition = getData(schoolData, ['class_condition'], {}) || {};
-  const kelasBaik = num(classCondition.classrooms_good, 0);
-  const rusakSedang = num(classCondition.classrooms_moderate_damage, 0);
-  const rusakBerat = num(classCondition.classrooms_heavy_damage, 0);
-  const kurangRkb = num(classCondition.lacking_rkb, 0);
-  const rehabKegiatan = num(getData(schoolData, ['rehabRKB'], getData(schoolData, ['rehabRuangKelas'], 0)), 0);
-  const pembangunanKegiatan = num(getData(schoolData, ['pembangunanRKB'], 0), 0);
-  const maxRoomValue = Math.max(kelasBaik, rusakSedang, rusakBerat, kurangRkb, rehabKegiatan, pembangunanKegiatan, 1);
+  // ===================== SOURCE UTAMA: META =====================
+  const META = schoolData?.meta || {};
+  const PR = META?.prasarana || {};
+  const KL = META?.kelembagaan || {};
+
+  // ===================== IDENTITAS =====================
+  const nama = getData(schoolData, ["name"], "Nama Sekolah Tidak Tersedia");
+  const npsn = getData(schoolData, ["npsn"], "-");
+  const alamat = getData(schoolData, ["address"], "-");
+  const desa = schoolData?.desa || schoolData?.village || META?.desa || "-";
+  const kecamatan = schoolData?.kecamatan || META?.kecamatan || "—";
+
+  const totalSiswa = num(getData(schoolData, ["student_count"], 0), 0);
+
+  // ===================== KONDISI KELAS =====================
+  const classrooms = PR?.classrooms || {};
+  const kelasBaik = num(classrooms?.good ?? classrooms?.classrooms_good, 0);
+  const rusakSedang = num(classrooms?.moderate_damage ?? classrooms?.classrooms_moderate_damage, 0);
+  const rusakBerat = num(classrooms?.heavy_damage ?? classrooms?.classrooms_heavy_damage, 0);
+  const kurangRkb = num(classrooms?.lacking_rkb ?? classrooms?.kurangRkb, 0);
+
+  const rehabKegiatan = num(getData(META, ["kegiatanFisik", "rehabRuangKelas"], 0), 0);
+  const pembangunanKegiatan = num(getData(META, ["kegiatanFisik", "pembangunanRKB"], 0), 0);
+
+  const maxRoomValue = Math.max(
+    kelasBaik,
+    rusakSedang,
+    rusakBerat,
+    kurangRkb,
+    rehabKegiatan,
+    pembangunanKegiatan,
+    1
+  );
+
   const h = (val) => {
-    if (val <= 0) return 'calc(0% + 20px)';
+    if (val <= 0) return "calc(0% + 20px)";
     return `calc(${(val / maxRoomValue) * 100}% + 20px)`;
   };
 
-  // Fasilitas Fisik
-  const facilities = getData(schoolData, ['facilities'], {}) || {};
-  const landArea = getData(facilities, ['land_area'], 'N/A');
-  const buildingArea = getData(facilities, ['building_area'], 'N/A');
-  const yardArea = getData(facilities, ['yard_area'], 'N/A');
+  // ===================== UKURAN (sudah masuk di meta.prasarana.ukuran) =====================
+  const ukuran = PR?.ukuran || {};
+  const landArea = num(ukuran?.tanah, 0);
+  const buildingArea = num(ukuran?.bangunan, 0);
+  const yardArea = num(ukuran?.halaman, 0);
 
-  // Data Kelas
-  const classes = getData(schoolData, ['classes'], {}) || {};
-  const g = (k) => num(classes[k], 0);
+  // ===================== DATA KELAS (dari schoolData.classes hasil query school_classes) =====================
+  const classes = schoolData?.classes || {};
+  const g = (k) => num(classes?.[k], 0);
 
-  // Rombel
-  const rombel = getData(schoolData, ['rombel'], {}) || {};
-  const r = (k) => num(rombel[k], 0);
+  // ===================== GURU (meta.guru) =====================
+  const guru = META?.guru || {};
+  const jumlahGuru = num(guru?.jumlahGuru ?? guru?.jumlah_guru, 0);
+  const pns = num(guru?.pns, 0);
+  const pppk = num(guru?.pppk, 0);
+  const nonAsnDapodik = num(guru?.non_asn_dapodik, 0);
+  const nonAsnNonDapodik = num(guru?.non_asn_non_dapodik, 0);
+  const kekuranganGuru = num(guru?.kekuranganGuru ?? guru?.kekurangan_guru, 0);
 
-  // Library
-  const library = getData(schoolData, ['library'], {}) || {};
-  const libTotal = num(library.total_all ?? library.total, (num(library.good, 0) + num(library.moderate_damage, 0) + num(library.heavy_damage, 0)));
-  const libGood = num(library.good, 0);
-  const libMod = num(library.moderate_damage, 0);
-  const libHeavy = num(library.heavy_damage, 0);
+  // ===================== ROMBEL (opsional: kalau Anda isi di table school_classes dengan grade rombel1/rombel2/...) =====================
+  const rombel = schoolData?.rombel || {};
+  const r = (k) => num(rombel?.[k], 0);
 
-  // Ruang Guru
-  const teacherRoom = getData(schoolData, ['teacher_room'], {}) || {};
-  const trTotal = num(teacherRoom.total_all ?? teacherRoom.total, (num(teacherRoom.good, 0) + num(teacherRoom.moderate_damage, 0) + num(teacherRoom.heavy_damage, 0)));
-  const trGood = num(teacherRoom.good, 0);
-  const trMod = num(teacherRoom.moderate_damage, 0);
-  const trHeavy = num(teacherRoom.heavy_damage, 0);
+  // ===================== PERPUS / RUANG GURU / UKS =====================
+  const room = (x) => {
+    const o = x && typeof x === "object" ? x : {};
+    const good = num(o.good, 0);
+    const mod = num(o.moderate_damage, 0);
+    const heavy = num(o.heavy_damage, 0);
+    const total = num(o.total_all ?? o.total, good + mod + heavy);
+    return { total, good, mod, heavy };
+  };
 
-  // UKS
-  const uks = getData(schoolData, ['uks_room'], {}) || {};
-  const uksTotal = num(uks.total_all ?? uks.total, (num(uks.good, 0) + num(uks.moderate_damage, 0) + num(uks.heavy_damage, 0)));
-  const uksGood = num(uks.good, 0);
-  const uksMod = num(uks.moderate_damage, 0);
-  const uksHeavy = num(uks.heavy_damage, 0);
+  const library = room(PR?.library);
+  const teacherRoom = room(PR?.teacher_room);
+  const uks = room(PR?.uks_room);
 
-  // Toilet
-  const tOverall = getData(schoolData, ['toilets_overall'], null);
-  let toiletTotal, toiletGood, toiletMod, toiletHeavy;
+  // ===================== TOILET OVERALL (kalau Anda punya) =====================
+  const toiletOverall = PR?.toilets_overall || {};
+  const toiletTotal = num(toiletOverall?.total, 0);
+  const toiletGood = num(toiletOverall?.good, 0);
+  const toiletMod = num(toiletOverall?.moderate_damage, 0);
+  const toiletHeavy = num(toiletOverall?.heavy_damage, 0);
 
-  if (tOverall && typeof tOverall === 'object') {
-    toiletTotal = num(tOverall.total, 0);
-    toiletGood = num(tOverall.good, 0);
-    toiletMod = num(tOverall.moderate_damage, 0);
-    toiletHeavy = num(tOverall.heavy_damage, 0);
-  } else {
-    const st = getData(schoolData, ['students_toilet', '_overall'], {}) || {};
-    const tt = getData(schoolData, ['teachers_toilet', '_overall'], {}) || {};
-    const stT = num(st.total, (num(st.good, 0) + num(st.moderate_damage, 0) + num(st.heavy_damage, 0)));
-    const ttT = num(tt.total, (num(tt.good, 0) + num(tt.moderate_damage, 0) + num(tt.heavy_damage, 0)));
-    toiletTotal = stT + ttT;
-    toiletGood = num(st.good, 0) + num(tt.good, 0);
-    toiletMod = num(st.moderate_damage, 0) + num(tt.moderate_damage, 0);
-    toiletHeavy = num(st.heavy_damage, 0) + num(tt.heavy_damage, 0);
-  }
+  // ===================== FURNITURE (mebeulair) =====================
+  const meb = PR?.mebeulair || {};
+  const mejaTotal = num(getData(meb, ["tables", "total"], 0), 0);
+  const mejaGood = num(getData(meb, ["tables", "good"], 0), 0);
+  const mejaMod = num(getData(meb, ["tables", "moderate_damage"], 0), 0);
+  const mejaHeavy = num(getData(meb, ["tables", "heavy_damage"], 0), 0);
 
-  // Furniture
-  const fc = getData(schoolData, ['furniture_computer'], {}) || {};
-  const mejaTotal = num(fc.tables, 0);
-  const kursiTotal = num(fc.chairs, 0);
-  const papanTotal = num(fc.boards, 0);
-  const komputerTotal = num(fc.computer, 0);
-  const mejaGood = num(fc.tables_good ?? fc.good_tables, mejaTotal);
-  const mejaMod = num(fc.tables_moderate ?? fc.moderate_tables, 0);
-  const mejaHeavy = num(fc.tables_heavy ?? fc.heavy_tables, 0);
-  const kursiGood = num(fc.chairs_good ?? fc.good_chairs, kursiTotal);
-  const kursiMod = num(fc.chairs_moderate ?? fc.moderate_chairs, 0);
-  const kursiHeavy = num(fc.chairs_heavy ?? fc.heavy_chairs, 0);
-  
-  // --- TAMBAHAN WADAH BARU ---
-  // (Data ini diambil oleh detailApi.js yang sudah Anda setujui)
-  const teacher = getData(schoolData, ['teacher'], {}) || {};
-  const sanitasi = getData(schoolData, ['sanitasi'], {}) || {};
-  const listrik = getData(schoolData, ['listrik'], {}) || {};
-  const internet = getData(schoolData, ['internet'], {}) || {};
-  const lab = getData(schoolData, ['laboratorium'], {}) || {};
-  const rumahDinas = getData(schoolData, ['official_residences'], {}) || {};
-  const siswaLanjutan = getData(schoolData, ['siswa_lanjutan'], {}) || {};
-  // --- AKHIR TAMBAHAN WADAH BARU ---
+  const kursiTotal = num(getData(meb, ["chairs", "total"], 0), 0);
+  const kursiGood = num(getData(meb, ["chairs", "good"], 0), 0);
+  const kursiMod = num(getData(meb, ["chairs", "moderate_damage"], 0), 0);
+  const kursiHeavy = num(getData(meb, ["chairs", "heavy_damage"], 0), 0);
 
+  const papanTotal = num(getData(PR, ["papan_tulis"], 0), 0);
+  const komputerTotal = num(getData(meb, ["computer"], 0), 0);
+
+  // ===================== KELEMBAGAAN (sama kaya SMP) =====================
+  const mapYesNo = (v) => (v === "YA" ? "Ya" : v === "TIDAK" ? "Tidak" : v || "-");
+  const mapSudahBelum = (v) => (v === "SUDAH" ? "Sudah" : v === "BELUM" ? "Belum" : v || "-");
+  const mapPeralatan = (v) => {
+    if (v === "TIDAK_MEMILIKI") return "Tidak Memiliki";
+    if (v === "HARUS_DIGANTI") return "Harus Diganti";
+    if (v === "BAIK") return "Baik";
+    if (v === "PERLU_REHABILITASI") return "Perlu Rehabilitasi";
+    return v || "-";
+  };
+
+  const kelembagaan = {
+    peralatanRumahTangga: mapPeralatan(getData(KL, ["peralatanRumahTangga"], "-")),
+    pembinaan: mapSudahBelum(getData(KL, ["pembinaan"], "-")),
+    asesmen: mapSudahBelum(getData(KL, ["asesmen"], "-")),
+    menyelenggarakanBelajar: mapYesNo(getData(KL, ["menyelenggarakanBelajar"], "-")),
+    melaksanakanRekomendasi: mapYesNo(getData(KL, ["melaksanakanRekomendasi"], "-")),
+    siapDievaluasi: mapYesNo(getData(KL, ["siapDievaluasi"], "-")),
+    bopPengelola: mapYesNo(getData(KL, ["bop", "pengelola"], "-")),
+    bopTenagaPeningkatan: mapYesNo(getData(KL, ["bop", "tenagaPeningkatan"], "-")),
+    izinPengendalian: mapYesNo(getData(KL, ["perizinan", "pengendalian"], "-")),
+    izinKelayakan: mapYesNo(getData(KL, ["perizinan", "kelayakan"], "-")),
+    silabus: mapYesNo(getData(KL, ["kurikulum", "silabus"], "-")),
+    kompetensiDasar: mapYesNo(getData(KL, ["kurikulum", "kompetensiDasar"], "-")),
+  };
 
   return (
     <div className={styles.container}>
+      {/* HEADER */}
       <div className={styles.header}>
-        <h1 className={styles.schoolName}>{getData(schoolData, ['name'])}</h1>
+        <h1 className={styles.schoolName}>{nama}</h1>
+
         <div className={styles.schoolInfo}>
           <div className={styles.infoRow}>
             <span className={styles.label}>NPSN</span>
             <span className={styles.colon}>:</span>
-            <span className={styles.value}>{getData(schoolData, ['npsn'])}</span>
+            <span className={styles.value}>{npsn}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Alamat</span>
             <span className={styles.colon}>:</span>
-            <span className={styles.value}>{getData(schoolData, ['address'])}</span>
+            <span className={styles.value}>{alamat}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Desa</span>
             <span className={styles.colon}>:</span>
-            <span className={styles.value}>{getData(schoolData, ['village'])}</span>
+            <span className={styles.value}>{desa}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Kecamatan</span>
             <span className={styles.colon}>:</span>
-            <span className={styles.value}>{getData(schoolData, ['kecamatan'], '—')}</span>
+            <span className={styles.value}>{kecamatan}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.label}>Jumlah Siswa</span>
             <span className={styles.colon}>:</span>
-            <span className={styles.value}>{getData(schoolData, ['student_count'])}</span>
+            <span className={styles.value}>{totalSiswa}</span>
           </div>
         </div>
+
         <button onClick={handleLocationClick} className={styles.locationButton}>
           📍 Lihat Lokasi di Google Maps
         </button>
       </div>
 
+      {/* KONDISI KELAS */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Kondisi Kelas (Need & Intervensi)</h2>
         <div className={styles.card}>
@@ -214,6 +250,7 @@ const SchoolDetailSd = ({ schoolData }) => {
         </div>
       </div>
 
+      {/* DATA FISIK */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Fisik Bangunan Sekolah</h2>
         <div className={styles.card}>
@@ -223,142 +260,85 @@ const SchoolDetailSd = ({ schoolData }) => {
         </div>
       </div>
 
+      {/* DATA KELAS */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Kelas</h2>
         <div className={styles.card}>
           <div className={styles.gradeGrid}>
-            <div className={styles.gradeItem}>
-              <div className={styles.dataRow}><span>Kelas 1 Laki-laki: {g('1_L')}</span></div>
-              <div className={styles.dataRow}><span>Kelas 1 Perempuan: {g('1_P')}</span></div>
-              {/* TAMBAHAN WADAH BARU */}
-              <div className={styles.dataRow}><span>Kelas 1 Kebutuhan Khusus: {g('khusus_1_L') + g('khusus_1_P')}</span></div>
-            </div>
-            <div className={styles.gradeItem}>
-              <div className={styles.dataRow}><span>Kelas 2 Laki-laki: {g('2_L')}</span></div>
-              <div className={styles.dataRow}><span>Kelas 2 Perempuan: {g('2_P')}</span></div>
-              {/* TAMBAHAN WADAH BARU */}
-              <div className={styles.dataRow}><span>Kelas 2 Kebutuhan Khusus: {g('khusus_2_L') + g('khusus_2_P')}</span></div>
-            </div>
-            <div className={styles.gradeItem}>
-              <div className={styles.dataRow}><span>Kelas 3 Laki-laki: {g('3_L')}</span></div>
-              <div className={styles.dataRow}><span>Kelas 3 Perempuan: {g('3_P')}</span></div>
-              {/* TAMBAHAN WADAH BARU */}
-              <div className={styles.dataRow}><span>Kelas 3 Kebutuhan Khusus: {g('khusus_3_L') + g('khusus_3_P')}</span></div>
-            </div>
-            <div className={styles.gradeItem}>
-              <div className={styles.dataRow}><span>Kelas 4 Laki-laki: {g('4_L')}</span></div>
-              <div className={styles.dataRow}><span>Kelas 4 Perempuan: {g('4_P')}</span></div>
-              {/* TAMBAHAN WADAH BARU */}
-              <div className={styles.dataRow}><span>Kelas 4 Kebutuhan Khusus: {g('khusus_4_L') + g('khusus_4_P')}</span></div>
-            </div>
-            <div className={styles.gradeItem}>
-              <div className={styles.dataRow}><span>Kelas 5 Laki-laki: {g('5_L')}</span></div>
-              <div className={styles.dataRow}><span>Kelas 5 Perempuan: {g('5_P')}</span></div>
-              {/* TAMBAHAN WADAH BARU */}
-              <div className={styles.dataRow}><span>Kelas 5 Kebutuhan Khusus: {g('khusus_5_L') + g('khusus_5_P')}</span></div>
-            </div>
-            <div className={styles.gradeItem}>
-              <div className={styles.dataRow}><span>Kelas 6 Laki-laki: {g('6_L')}</span></div>
-              <div className={styles.dataRow}><span>Kelas 6 Perempuan: {g('6_P')}</span></div>
-              {/* TAMBAHAN WADAH BARU */}
-              <div className={styles.dataRow}><span>Kelas 6 Kebutuhan Khusus: {g('khusus_6_L') + g('khusus_6_P')}</span></div>
-            </div>
+            {[1, 2, 3, 4, 5, 6].map((k) => (
+              <div key={k} className={styles.gradeItem}>
+                <div className={styles.dataRow}><span>Kelas {k} Laki-laki: {g(`${k}_L`)}</span></div>
+                <div className={styles.dataRow}><span>Kelas {k} Perempuan: {g(`${k}_P`)}</span></div>
+                <div className={styles.dataRow}><span>Kelas {k} Kebutuhan Khusus: {g(`khusus_${k}_L`) + g(`khusus_${k}_P`)}</span></div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* TAMBAHAN WADAH BARU: Data Siswa Lanjutan */}
-      <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Data Lulusan/Siswa Lanjutan</h2>
-        <div className={styles.card}>
-          <div className={styles.dataRow}><span>Melanjutkan ke SMP: {getData(siswaLanjutan, ['lanjut_smp'], 0)}</span></div>
-          <div className={styles.dataRow}><span>Melanjutkan ke MTs: {getData(siswaLanjutan, ['lanjut_mts'], 0)}</span></div>
-          <div className={styles.dataRow}><span>Melanjutkan ke Pontren: {getData(siswaLanjutan, ['lanjut_pontren'], 0)}</span></div>
-          <div className={styles.dataRow}><span>Melanjutkan ke PKBM: {getData(siswaLanjutan, ['lanjut_pkbm'], 0)}</span></div>
-          <div className={styles.dataRow}><span>Tidak Melanjutkan: {getData(siswaLanjutan, ['tidak_lanjut'], 0)}</span></div>
-        </div>
-      </div>
-
-      {/* TAMBAHAN WADAH BARU: Data Guru */}
+      {/* GURU */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Guru & Tenaga Kerja</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}><span>Jumlah Guru: {getData(teacher, ['jumlah_guru'], 0)}</span></div>
+          <div className={styles.dataRow}><span>Jumlah Guru: {jumlahGuru}</span></div>
           <div className={styles.subsection}>
             <h3 className={styles.subsectionTitle}>Status Kepegawaian</h3>
-            <div className={styles.dataRow}><span>PNS: {getData(teacher, ['pns'], 0)}</span></div>
-            <div className={styles.dataRow}><span>PPPK: {getData(teacher, ['pppk'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Non ASN (Dapodik): {getData(teacher, ['non_asn_dapodik'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Non ASN (Non Dapodik): {getData(teacher, ['non_asn_non_dapodik'], 0)}</span></div>
+            <div className={styles.dataRow}><span>PNS: {pns}</span></div>
+            <div className={styles.dataRow}><span>PPPK: {pppk}</span></div>
+            <div className={styles.dataRow}><span>Non ASN (Dapodik): {nonAsnDapodik}</span></div>
+            <div className={styles.dataRow}><span>Non ASN (Non Dapodik): {nonAsnNonDapodik}</span></div>
           </div>
-          <div className={styles.dataRow}><span>Kekurangan Guru: {getData(teacher, ['kekurangan_guru'], 0)}</span></div>
+          <div className={styles.dataRow}><span>Kekurangan Guru: {kekuranganGuru}</span></div>
         </div>
       </div>
 
+      {/* ROMBEL */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Rombel</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}><span>Jumlah Rombel Kelas 1: {r('1')}</span></div>
-          <div className={styles.dataRow}><span>Jumlah Rombel Kelas 2: {r('2')}</span></div>
-          <div className={styles.dataRow}><span>Jumlah Rombel Kelas 3: {r('3')}</span></div>
-          <div className={styles.dataRow}><span>Jumlah Rombel Kelas 4: {r('4')}</span></div>
-          <div className={styles.dataRow}><span>Jumlah Rombel Kelas 5: {r('5')}</span></div>
-          <div className={styles.dataRow}><span>Jumlah Rombel Kelas 6: {r('6')}</span></div>
-          <div className={styles.dataRow}><span>Jumlah Keseluruhan Rombel: {r('total')}</span></div>
+          {[1, 2, 3, 4, 5, 6].map((k) => (
+            <div key={k} className={styles.dataRow}>
+              <span>Jumlah Rombel Kelas {k}: {r(String(k))}</span>
+            </div>
+          ))}
+          <div className={styles.dataRow}><span>Jumlah Keseluruhan Rombel: {r("total")}</span></div>
         </div>
       </div>
 
+      {/* PERPUS */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Perpustakaan</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}><span>Jumlah Ruang Perpustakaan: {libTotal}</span></div>
-          <div className={styles.dataRow}><span>Kondisi Baik: {libGood}</span></div>
-          <div className={styles.dataRow}><span>Rusak Sedang: {libMod}</span></div>
-          <div className={styles.dataRow}><span>Rusak Berat: {libHeavy}</span></div>
+          <div className={styles.dataRow}><span>Jumlah Ruang Perpustakaan: {library.total}</span></div>
+          <div className={styles.dataRow}><span>Kondisi Baik: {library.good}</span></div>
+          <div className={styles.dataRow}><span>Rusak Sedang: {library.mod}</span></div>
+          <div className={styles.dataRow}><span>Rusak Berat: {library.heavy}</span></div>
         </div>
       </div>
 
+      {/* RUANG GURU */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Ruang Guru</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}><span>Jumlah Ruang Guru: {trTotal}</span></div>
-          <div className={styles.dataRow}><span>Kondisi Baik: {trGood}</span></div>
-          <div className={styles.dataRow}><span>Rusak Sedang: {trMod}</span></div>
-          <div className={styles.dataRow}><span>Rusak Berat: {trHeavy}</span></div>
-        </div>
-      </div>
-      
-      {/* TAMBAHAN WADAH BARU: Ruang Lainnya (Lab & Rumah Dinas) */}
-      <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Data Ruang Lainnya</h2>
-        <div className={styles.card}>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Laboratorium</h3>
-            <div className={styles.dataRow}><span>Jumlah Lab: {getData(lab, ['total'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Kondisi Baik: {getData(lab, ['good'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Rusak Sedang: {getData(lab, ['moderate_damage'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Rusak Berat: {getData(lab, ['heavy_damage'], 0)}</span></div>
-          </div>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Rumah Dinas</h3>
-            <div className={styles.dataRow}><span>Jumlah Rumah Dinas: {getData(rumahDinas, ['total'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Kondisi Baik: {getData(rumahDinas, ['good'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Rusak Sedang: {getData(rumahDinas, ['moderate_damage'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Rusak Berat: {getData(rumahDinas, ['heavy_damage'], 0)}</span></div>
-          </div>
+          <div className={styles.dataRow}><span>Jumlah Ruang Guru: {teacherRoom.total}</span></div>
+          <div className={styles.dataRow}><span>Kondisi Baik: {teacherRoom.good}</span></div>
+          <div className={styles.dataRow}><span>Rusak Sedang: {teacherRoom.mod}</span></div>
+          <div className={styles.dataRow}><span>Rusak Berat: {teacherRoom.heavy}</span></div>
         </div>
       </div>
 
+      {/* UKS */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>UKS</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}><span>Jumlah Ruang UKS: {uksTotal}</span></div>
-          <div className={styles.dataRow}><span>Kondisi Baik: {uksGood}</span></div>
-          <div className={styles.dataRow}><span>Rusak Sedang: {uksMod}</span></div>
-          <div className={styles.dataRow}><span>Rusak Berat: {uksHeavy}</span></div>
+          <div className={styles.dataRow}><span>Jumlah Ruang UKS: {uks.total}</span></div>
+          <div className={styles.dataRow}><span>Kondisi Baik: {uks.good}</span></div>
+          <div className={styles.dataRow}><span>Rusak Sedang: {uks.mod}</span></div>
+          <div className={styles.dataRow}><span>Rusak Berat: {uks.heavy}</span></div>
         </div>
       </div>
 
+      {/* TOILET */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Toilet (Ringkasan)</h2>
         <div className={styles.card}>
@@ -369,42 +349,7 @@ const SchoolDetailSd = ({ schoolData }) => {
         </div>
       </div>
 
-      {/* TAMBAHAN WADAH BARU: Sanitasi Rinci */}
-      <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Data Sanitasi (Rinci)</h2>
-        <div className={styles.card}>
-          <div className={styles.dataRow}><span>Sumber Air: {getData(sanitasi, ['sumber_air'], '-')}</span></div>
-          <div className={styles.dataRow}><span>Sumber Air Minum: {getData(sanitasi, ['sumber_air_minum'], '-')}</span></div>
-          <div className={styles.dataRow}><span>Kecukupan Air Bersih: {getData(sanitasi, ['kecukupan_air'], '-')}</span></div>
-          
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Rincian Jamban/WC</h3>
-            <div className={styles.dataRow}><span>Jamban Siswa Laki-laki: {getData(sanitasi, ['jamban_siswa_laki'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Jamban Siswa Perempuan: {getData(sanitasi, ['jamban_siswa_perempuan'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Jamban Guru Laki-laki: {getData(sanitasi, ['jamban_guru_laki'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Jamban Guru Perempuan: {getData(sanitasi, ['jamban_guru_perempuan'], 0)}</span></div>
-            <div className={styles.dataRow}><span>Jamban Disabilitas: {getData(sanitasi, ['jamban_disabilitas'], 0)}</span></div>
-          </div>
-        </div>
-      </div>
-
-      {/* TAMBAHAN WADAH BARU: Listrik & Internet */}
-      <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Data Listrik & Internet</h2>
-        <div className={styles.card}>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Listrik</h3>
-            <div className={styles.dataRow}><span>Sumber Listrik: {getData(listrik, ['sumber'], '-')}</span></div>
-            <div className={styles.dataRow}><span>Daya Listrik: {getData(listrik, ['daya'], '0 VA')}</span></div>
-          </div>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Internet</h3>
-            <div className={styles.dataRow}><span>Akses Internet Utama: {getData(internet, ['akses'], '-')}</span></div>
-            <div className={styles.dataRow}><span>Akses Internet Alternatif: {getData(internet, ['alternatif'], '-')}</span></div>
-          </div>
-        </div>
-      </div>
-
+      {/* FURNITURE */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Data Furniture dan Komputer</h2>
         <div className={styles.card}>
@@ -415,6 +360,7 @@ const SchoolDetailSd = ({ schoolData }) => {
             <div className={styles.dataRow}><span>Meja Rusak Sedang: {mejaMod}</span></div>
             <div className={styles.dataRow}><span>Meja Rusak Berat: {mejaHeavy}</span></div>
           </div>
+
           <div className={styles.subsection}>
             <h3 className={styles.subsectionTitle}>Kursi</h3>
             <div className={styles.dataRow}><span>Jumlah Kursi: {kursiTotal}</span></div>
@@ -422,8 +368,36 @@ const SchoolDetailSd = ({ schoolData }) => {
             <div className={styles.dataRow}><span>Kursi Rusak Sedang: {kursiMod}</span></div>
             <div className={styles.dataRow}><span>Kursi Rusak Berat: {kursiHeavy}</span></div>
           </div>
+
           <div className={styles.dataRow}><span>Jumlah Papan Tulis: {papanTotal}</span></div>
           <div className={styles.dataRow}><span>Jumlah Komputer: {komputerTotal}</span></div>
+        </div>
+      </div>
+
+      {/* XII KELEMBAGAAN */}
+      <div className={styles.section}>
+        <h2 className={styles.sectionTitle}>XII. Kelembagaan</h2>
+        <div className={styles.card}>
+          <div className={styles.dataRow}><span>Alat Rumah Tangga: {kelembagaan.peralatanRumahTangga}</span></div>
+          <div className={styles.dataRow}><span>Pembinaan: {kelembagaan.pembinaan}</span></div>
+          <div className={styles.dataRow}><span>Asesmen: {kelembagaan.asesmen}</span></div>
+          <div className={styles.dataRow}><span>Menyelenggarakan Belajar: {kelembagaan.menyelenggarakanBelajar}</span></div>
+          <div className={styles.dataRow}><span>Melaksanakan Rekomendasi: {kelembagaan.melaksanakanRekomendasi}</span></div>
+          <div className={styles.dataRow}><span>Siap Dievaluasi: {kelembagaan.siapDievaluasi}</span></div>
+
+          <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>BOP</h3>
+            <div className={styles.dataRow}><span>Pengelola: {kelembagaan.bopPengelola}</span></div>
+            <div className={styles.dataRow}><span>Tenaga Peningkatan: {kelembagaan.bopTenagaPeningkatan}</span></div>
+          </div>
+
+          <div className={styles.subsection}>
+            <h3 className={styles.subsectionTitle}>Perizinan & Kurikulum</h3>
+            <div className={styles.dataRow}><span>Izin Pengendalian: {kelembagaan.izinPengendalian}</span></div>
+            <div className={styles.dataRow}><span>Izin Kelayakan: {kelembagaan.izinKelayakan}</span></div>
+            <div className={styles.dataRow}><span>Silabus: {kelembagaan.silabus}</span></div>
+            <div className={styles.dataRow}><span>Kompetensi Dasar: {kelembagaan.kompetensiDasar}</span></div>
+          </div>
         </div>
       </div>
     </div>

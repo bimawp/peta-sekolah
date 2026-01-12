@@ -1,2 +1,5 @@
-// src/utils/supabase.js
-export { supabase as default, supabase } from '@/services/supabaseClient';
+// src/services/supabase.js
+// Alias untuk client Supabase utama
+
+export { default as supabase } from '@/services/supabaseClient';
+export { default } from '@/services/supabaseClient';

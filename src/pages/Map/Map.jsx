@@ -1,11 +1,11 @@
 // src/pages/Map/Map.jsx
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import SimpleMap from "@/components/common/Map/SimpleMap.jsx";
 import styles from "./Map.module.css";
-import { kecKey, getLatLngSafe, uniqueBy } from "@/components/common/Map/mapUtils";
-import { httpJSON } from "@/utils/http";
+import { kecKey, uniqueBy, getLatLngSafe } from "@/components/common/Map/mapUtils";
 import { onIdle } from "@/services/utils/idle";
 import { useWorkerJSON } from "@/services/utils/useWorkerJSON";
+import supabase from "@/services/supabaseClient";
 
 const DEFAULT_CENTER = [-7.214, 107.903];
 const DEFAULT_ZOOM = 11;
@@ -16,342 +16,503 @@ const norm = (x) =>
     .replace(/\s+/g, " ")
     .trim();
 
-const keyify = (x) => norm(x).toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-function extractKecamatanNames(geojson) {
-  const gj = geojson && geojson.type ? geojson : null;
-  if (!gj || !Array.isArray(gj.features)) return [];
-  const props = ["district", "District", "kecamatan", "Kecamatan", "NAMKEC", "NAMKec", "name", "Name", "NAMOBJ"];
-  const set = new Set();
-  for (const f of gj.features) {
-    const p = f?.properties || {};
-    let v = "";
-    for (const k of props) if (p[k]) { v = p[k]; break; }
-    if (v) set.add(norm(v));
-  }
-  return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
-}
-
-function buildDesaKecMasters(geojson) {
-  const gj = geojson && geojson.type ? geojson : null;
-  const desaToKec = new Map();
-  const kecToDesa = new Map();
-  if (!gj || !Array.isArray(gj.features)) return { desaToKec, kecToDesa };
-
-  const desaKeys = ["village", "Village", "DESA", "desa", "NAMA_DESA", "NAMOBJ", "name", "Name", "KELURAHAN", "kelurahan"];
-  const kecKeys  = ["district", "District", "kecamatan", "Kecamatan", "NAMA_KEC", "NAMKEC", "NAMKec", "KECAMATAN"];
-
-  for (const f of gj.features) {
-    const p = f?.properties || {};
-    let desa = "";
-    let kec  = "";
-    for (const k of desaKeys) if (p[k]) { desa = p[k]; break; }
-    for (const k of kecKeys)  if (p[k]) { kec  = p[k]; break; }
-    if (!desa || !kec) continue;
-
-    const desaKey = keyify(desa);
-    const kecName = norm(kec);
-    desaToKec.set(desaKey, kecName);
-
-    if (!kecToDesa.has(kecName)) kecToDesa.set(kecName, new Set());
-    kecToDesa.get(kecName).add(norm(desa));
-  }
-  return { desaToKec, kecToDesa };
-}
-
-// ===== helper untuk flatten detail jenjang (array atau object terkelompok) =====
-const toEntries = (v) => {
-  if (Array.isArray(v)) return [["__ARRAY__", v]];
-  if (v && typeof v === "object") return Object.entries(v);
-  return [];
-};
-function flattenJenjang(raw, jenjang, d2k) {
-  const out = [];
-  for (const [maybeKey, arr] of toEntries(raw)) {
-    const rows = Array.isArray(arr) ? arr : [];
-    for (const s of rows) {
-      const villageRaw =
-        s?.village ?? s?.desa ?? s?.kelurahan ?? (maybeKey !== "__ARRAY__" ? maybeKey : "");
-      const kecRaw =
-        s?.kecamatan || s?.district || s?.Kecamatan || s?.DISTRICT || "";
-
-      let kecamatan = norm(kecRaw);
-      if (!kecamatan && villageRaw) {
-        const key = keyify(villageRaw);
-        kecamatan = d2k?.get(key) || "";
-      }
-
-      out.push({
-        ...s,
-        jenjang,
-        npsn: String(s?.npsn || s?.NPSN || "").trim(),
-        namaSekolah: s?.namaSekolah || s?.name || "",
-        desa: norm(villageRaw),
-        kecamatan,
-        lat: Number.isFinite(Number(s?.lat ?? s?.Latitude ?? s?.latitude)) ? Number(s?.lat ?? s?.Latitude ?? s?.latitude) : null,
-        lng: Number.isFinite(Number(s?.lng ?? s?.Longitude ?? s?.longitude)) ? Number(s?.lng ?? s?.Longitude ?? s?.longitude) : null,
-      });
-    }
-  }
-  return out;
-}
-
 export default function MapPage() {
-  // Ringkasan (awal cepat)
-  const [summarySchools, setSummarySchools] = useState([]);
+  const [supabaseSchools, setSupabaseSchools] = useState([]);
+  const [kecRekap, setKecRekap] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
 
-  // GeoJSON via worker
-  const { loading: kecLoading, data: kecamatanGeo, error: kecErr } =
-    useWorkerJSON({ url: "/data/kecamatan.geojson" });
-  const { loading: desaLoading, data: desaGeo, error: desaErr } =
-    useWorkerJSON({ url: "/data/desa.geojson" });
+  const firstLoadedRef = useRef(false);
 
-  // Master dari geojson
+  // cache supaya ganti filter tidak selalu “loading”
+  const cacheRef = useRef({
+    rekap: new Map(),
+    schools: new Map(),
+  });
+
+  const { loading: kecLoading, data: kecamatanGeo, error: kecErr } = useWorkerJSON({
+    url: "/data/kecamatan.geojson",
+  });
+
+  const { loading: desaLoading, data: desaGeo, error: desaErr } = useWorkerJSON({
+    url: "/data/desa.geojson",
+  });
+
   const [kecamatanMaster, setKecamatanMaster] = useState([]);
-  const [desaToKec, setDesaToKec] = useState(new Map());
   const [kecToDesa, setKecToDesa] = useState(new Map());
 
-  // Filter
   const [selectedJenjang, setSelectedJenjang] = useState("Semua Jenjang");
   const [selectedKecamatan, setSelectedKecamatan] = useState("Semua Kecamatan");
   const [selectedDesa, setSelectedDesa] = useState("Semua Desa");
+  const [selectedKondisi, setSelectedKondisi] = useState("Semua Kondisi");
 
-  // Zoom state (dari SimpleMap)
-  const [isZoomHigh, setIsZoomHigh] = useState(false);
-
-  // Detail per-jenjang on-demand
-  const [detailPAUD, setDetailPAUD] = useState(null);
-  const [detailSD,   setDetailSD]   = useState(null);
-  const [detailSMP,  setDetailSMP]  = useState(null);
-  const [detailPKBM, setDetailPKBM] = useState(null);
-
-  // Load ringkasan
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setErr(null);
-        const res = await httpJSON("/data/merged/schools.json", { ttl: 60 * 60 * 24 * 14 });
-        const data = res?.data || res;
-        if (!alive) return;
-        const out = Array.isArray(data) ? data.map((s) => ({
-          ...s,
-          npsn: String(s?.npsn || s?.NPSN || "").trim(),
-          namaSekolah: s?.namaSekolah || s?.name || "",
-          kecamatan: norm(s?.kecamatan || s?.district || s?.Kecamatan || ""),
-          desa: norm(s?.desa || s?.village || s?.kelurahan || ""),
-          lat: Number.isFinite(Number(s?.lat ?? s?.latitude)) ? Number(s?.lat ?? s?.latitude) : null,
-          lng: Number.isFinite(Number(s?.lng ?? s?.longitude)) ? Number(s?.lng ?? s?.longitude) : null,
-          jenjang: String(s?.jenjang || s?.level || "").toUpperCase() || "LAINNYA",
-        })) : [];
-        setSummarySchools(out);
-      } catch (e) {
-        if (!alive) return;
-        setErr(e?.message || String(e));
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
-
-  // Master dari geojson
+  // build master kecamatan + mapping desa
   useEffect(() => {
     if (!kecamatanGeo || !desaGeo) return;
-    const masterList = extractKecamatanNames(kecamatanGeo);
-    const { desaToKec: d2k, kecToDesa: k2d } = buildDesaKecMasters(desaGeo);
-    setKecamatanMaster(masterList);
-    setDesaToKec(d2k);
-    setKecToDesa(k2d);
+
+    const propsKec = [
+      "district",
+      "District",
+      "kecamatan",
+      "Kecamatan",
+      "NAMKEC",
+      "NAMKec",
+      "name",
+      "Name",
+      "NAMOBJ",
+      "WADMKC",
+    ];
+
+    const extractKecamatanNames = (geojson) => {
+      const gj = geojson && geojson.type ? geojson : null;
+      if (!gj || !Array.isArray(gj.features)) return [];
+      const set = new Set();
+      for (const f of gj.features) {
+        const p = f?.properties || {};
+        let v = "";
+        for (const k of propsKec) {
+          if (p[k]) {
+            v = p[k];
+            break;
+          }
+        }
+        if (v) set.add(norm(v));
+      }
+      return Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+    };
+
+    const buildDesaKecMasters = (geojson) => {
+      const gj = geojson && geojson.type ? geojson : null;
+      const kecToDesa = new Map();
+      if (!gj || !Array.isArray(gj.features)) return { kecToDesa };
+
+      const desaKeys = [
+        "village",
+        "Village",
+        "DESA",
+        "desa",
+        "NAMA_DESA",
+        "NAMOBJ",
+        "name",
+        "Name",
+        "KELURAHAN",
+        "kelurahan",
+      ];
+      const kecKeys = [
+        "district",
+        "District",
+        "kecamatan",
+        "Kecamatan",
+        "NAMA_KEC",
+        "NAMKEC",
+        "NAMKec",
+        "KECAMATAN",
+        "WADMKC",
+      ];
+
+      for (const f of gj.features) {
+        const p = f?.properties || {};
+        let desa = "";
+        let kec = "";
+        for (const k of desaKeys) if (p[k]) { desa = p[k]; break; }
+        for (const k of kecKeys) if (p[k]) { kec = p[k]; break; }
+        if (!desa || !kec) continue;
+
+        const kecName = norm(kec);
+        if (!kecToDesa.has(kecName)) kecToDesa.set(kecName, new Set());
+        kecToDesa.get(kecName).add(norm(desa));
+      }
+      return { kecToDesa };
+    };
+
+    setKecamatanMaster(extractKecamatanNames(kecamatanGeo));
+    setKecToDesa(buildDesaKecMasters(desaGeo).kecToDesa);
   }, [kecamatanGeo, desaGeo]);
 
-  // Idle prefetch file besar
+  // Prefetch geojson di idle
   useEffect(() => {
     onIdle(() => {
-      httpJSON("/data/kecamatan.geojson", { ttl: 60 * 60 * 24 * 30, timeout: 0 }).catch(() => {});
-      httpJSON("/data/desa.geojson",      { ttl: 60 * 60 * 24 * 30, timeout: 0 }).catch(() => {});
+      fetch("/data/kecamatan.geojson").catch(() => {});
+      fetch("/data/desa.geojson").catch(() => {});
     });
   }, []);
 
-  // Kapan perlu detail? jika zoom tinggi ATAU jenjang spesifik
-  const needDetailPAUD = isZoomHigh || selectedJenjang === "PAUD";
-  const needDetailSD   = isZoomHigh || selectedJenjang === "SD";
-  const needDetailSMP  = isZoomHigh || selectedJenjang === "SMP";
-  const needDetailPKBM = isZoomHigh || selectedJenjang === "PKBM";
+  const isAll = (v) => {
+    const s = String(v ?? "").trim().toLowerCase();
+    if (!s) return true;
+    if (s.startsWith("semua")) return true;
+    if (s.startsWith("(semua")) return true;
+    if (s.includes("pilih")) return true;
+    return false;
+  };
 
-  // Fetch detail on-demand (sekali, cache via httpJSON TTL)
-  useEffect(() => { if (!needDetailPAUD || detailPAUD || !desaToKec) return;
-    (async () => { const r = await httpJSON("/data/paud.json"); const v = r?.data || r;
-      setDetailPAUD(flattenJenjang(v, "PAUD", desaToKec)); })().catch(()=>{});
-  }, [needDetailPAUD, detailPAUD, desaToKec]);
+  const jenjangFiltered = !isAll(selectedJenjang);
+  const kecamatanFiltered = !isAll(selectedKecamatan);
+  const desaFiltered = !isAll(selectedDesa);
+  const kondisiFiltered = !isAll(selectedKondisi);
 
-  useEffect(() => { if (!needDetailSD || detailSD || !desaToKec) return;
-    (async () => { const r = await httpJSON("/data/sd_new.json"); const v = r?.data || r;
-      setDetailSD(flattenJenjang(v, "SD", desaToKec)); })().catch(()=>{});
-  }, [needDetailSD, detailSD, desaToKec]);
+  // Full filter HANYA: jenjang + kecamatan + desa
+  const hasFullFilter = jenjangFiltered && kecamatanFiltered && desaFiltered;
 
-  useEffect(() => { if (!needDetailSMP || detailSMP || !desaToKec) return;
-    (async () => { const r = await httpJSON("/data/smp.json"); const v = r?.data || r;
-      setDetailSMP(flattenJenjang(v, "SMP", desaToKec)); })().catch(()=>{});
-  }, [needDetailSMP, detailSMP, desaToKec]);
+  const makeKey = (mode, p) =>
+    `${mode}|j=${p.j ?? ""}|k=${p.k ?? ""}|d=${p.d ?? ""}|c=${p.c ?? ""}`;
 
-  useEffect(() => { if (!needDetailPKBM || detailPKBM || !desaToKec) return;
-    (async () => { const r = await httpJSON("/data/pkbm.json"); const v = r?.data || r;
-      setDetailPKBM(flattenJenjang(v, "PKBM", desaToKec)); })().catch(()=>{});
-  }, [needDetailPKBM, detailPKBM, desaToKec]);
+  useEffect(() => {
+    let alive = true;
 
-  // Compose data efektif: summary + (replace jenjang dengan detail jika tersedia & diperlukan)
-  const effectiveSchools = useMemo(() => {
-    let base = summarySchools;
-    const replace = (jenjang, detail) => {
-      if (!detail) return;
-      // buang yang jenjang itu dari ringkasan, lalu gabung detail
-      base = base.filter((s) => String(s?.jenjang).toUpperCase() !== jenjang).concat(detail);
+    async function fetchData() {
+      try {
+        if (!firstLoadedRef.current) setLoading(true);
+        setErr(null);
+
+        const pJenjang = jenjangFiltered ? selectedJenjang : null;
+        const pKecamatan = kecamatanFiltered ? selectedKecamatan : null;
+        const pDesa = desaFiltered ? selectedDesa : null;
+        const pKondisi = kondisiFiltered ? selectedKondisi : null;
+
+        if (!hasFullFilter) {
+          // MODE REKAP KECAMATAN
+          const cacheKey = makeKey("rekap", { j: pJenjang, k: pKecamatan, d: null, c: pKondisi });
+          const cached = cacheRef.current.rekap.get(cacheKey);
+          if (cached && alive) {
+            setSupabaseSchools([]);
+            setKecRekap(cached);
+            if (!firstLoadedRef.current) firstLoadedRef.current = true;
+            return;
+          }
+
+          const { data, error } = await supabase.rpc("rpc_map_kecamatan_rekap", {
+            p_jenjang: pJenjang,
+            p_kecamatan: pKecamatan,
+            p_kondisi: pKondisi,
+          });
+
+          if (!alive) return;
+          if (error) throw error;
+
+          const rows = Array.isArray(data) ? data : [];
+          cacheRef.current.rekap.set(cacheKey, rows);
+
+          setSupabaseSchools([]);
+          setKecRekap(rows);
+
+          if (!firstLoadedRef.current) firstLoadedRef.current = true;
+        } else {
+          // MODE SEKOLAH (FULL FILTER)
+          const cacheKey = makeKey("schools", { j: pJenjang, k: pKecamatan, d: pDesa, c: pKondisi });
+          const cached = cacheRef.current.schools.get(cacheKey);
+          if (cached && alive) {
+            setKecRekap([]);
+            setSupabaseSchools(cached);
+            if (!firstLoadedRef.current) firstLoadedRef.current = true;
+            return;
+          }
+
+          const { data, error } = await supabase.rpc("rpc_map_schools", {
+            p_jenjang: pJenjang,
+            p_kecamatan: pKecamatan,
+            p_desa: pDesa,
+            p_kondisi: pKondisi,
+            p_only_with_coords: false,
+          });
+
+          if (!alive) return;
+          if (error) throw error;
+
+          setKecRekap([]);
+
+          const mapped = Array.isArray(data)
+            ? data.map((s) => ({
+                ...s,
+                id: s?.id ?? null,
+                npsn: String(s?.npsn || "").trim(),
+                namaSekolah: s?.nama_sekolah || s?.name || "",
+                kecamatan: s?.kecamatan || s?.subdistrict || s?.district || "",
+                desa: s?.desa || s?.village || s?.village_name || "",
+                lat: s?.lat != null ? Number(s.lat) : null,
+                lng: s?.lng != null ? Number(s.lng) : null,
+                jenjang:
+                  String(s?.jenjang || s?.level || "")
+                    .toUpperCase()
+                    .trim() || "LAINNYA",
+              }))
+            : [];
+
+          cacheRef.current.schools.set(cacheKey, mapped);
+          setSupabaseSchools(mapped);
+
+          if (!firstLoadedRef.current) firstLoadedRef.current = true;
+        }
+      } catch (error) {
+        console.error("Gagal memuat data peta:", error);
+        if (alive) setErr(error);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    fetchData();
+    return () => {
+      alive = false;
     };
-    if (needDetailPAUD && detailPAUD) replace("PAUD", detailPAUD);
-    if (needDetailSD   && detailSD)   replace("SD",   detailSD);
-    if (needDetailSMP  && detailSMP)  replace("SMP",  detailSMP);
-    if (needDetailPKBM && detailPKBM) replace("PKBM", detailPKBM);
-
-    // dedup by NPSN (atau fallback key)
-    return uniqueBy(base, (s) => s?.npsn || `${s?.namaSekolah}::${s?.desa}::${kecKey(s?.kecamatan)}`);
   }, [
-    summarySchools,
-    needDetailPAUD, needDetailSD, needDetailSMP, needDetailPKBM,
-    detailPAUD, detailSD, detailSMP, detailPKBM
+    selectedJenjang,
+    selectedKecamatan,
+    selectedDesa,
+    selectedKondisi,
+    jenjangFiltered,
+    kecamatanFiltered,
+    desaFiltered,
+    kondisiFiltered,
+    hasFullFilter,
   ]);
 
-  // Filter untuk peta dari effectiveSchools
-  const filteredSchools = useMemo(() => {
-    let arr = effectiveSchools;
-    if (selectedJenjang !== "Semua Jenjang") {
-      arr = arr.filter((s) => String(s?.jenjang).toUpperCase() === selectedJenjang);
+  const schoolsForMap = useMemo(
+    () => uniqueBy(supabaseSchools, (s) => `${kecKey(s.kecamatan)}__${s.npsn}`),
+    [supabaseSchools]
+  );
+
+  const coordCounts = useMemo(() => {
+    let total = 0;
+    let withCoords = 0;
+    let noCoords = 0;
+    for (const s of schoolsForMap) {
+      total += 1;
+      const ll = getLatLngSafe(s);
+      if (ll) withCoords += 1;
+      else noCoords += 1;
     }
-    if (selectedKecamatan !== "Semua Kecamatan") {
-      arr = arr.filter((s) => norm(s?.kecamatan) === norm(selectedKecamatan));
-    }
-    if (selectedDesa !== "Semua Desa") {
-      arr = arr.filter((s) => norm(s?.desa) === norm(selectedDesa));
-    }
-    const valid = arr.filter((s) => !!getLatLngSafe(s));
-    return uniqueBy(valid, (s) => s?.npsn || `${s?.namaSekolah}::${s?.desa}::${kecKey(s?.kecamatan)}`);
-  }, [effectiveSchools, selectedJenjang, selectedKecamatan, selectedDesa]);
+    return { total, withCoords, noCoords };
+  }, [schoolsForMap]);
 
   const kecamatanOptions = useMemo(() => {
-    const list = Array.from(new Set(kecamatanMaster.map(norm))).sort((a, b) => a.localeCompare(b, "id"));
+    const list = kecamatanMaster.map((k) => norm(k));
     return ["Semua Kecamatan", ...list];
   }, [kecamatanMaster]);
 
   const desaOptions = useMemo(() => {
-    if (selectedKecamatan === "Semua Kecamatan") return ["Semua Desa"];
-    const set = kecToDesa.get(norm(selectedKecamatan)) || new Set();
-    const list = Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+    if (!kecamatanFiltered) return ["Semua Desa"];
+    const normKec = norm(selectedKecamatan);
+    const desaSet = kecToDesa.get(normKec);
+    if (!desaSet) return ["Semua Desa"];
+    const list = Array.from(desaSet).sort((a, b) => a.localeCompare(b, "id"));
     return ["Semua Desa", ...list];
-  }, [selectedKecamatan, kecToDesa]);
+  }, [selectedKecamatan, kecToDesa, kecamatanFiltered]);
 
   useEffect(() => {
     if (!desaOptions.includes(selectedDesa)) setSelectedDesa("Semua Desa");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedKecamatan, desaOptions]);
+  }, [selectedDesa, desaOptions]);
 
   const handleReset = useCallback(() => {
     setSelectedJenjang("Semua Jenjang");
     setSelectedKecamatan("Semua Kecamatan");
     setSelectedDesa("Semua Desa");
+    setSelectedKondisi("Semua Kondisi");
   }, []);
 
   const geoError = kecErr || desaErr;
 
-  if (loading || kecLoading || desaLoading) {
+  const mapFilters = useMemo(
+    () => ({
+      jenjang: selectedJenjang,
+      kecamatan: selectedKecamatan,
+      desa: selectedDesa,
+      kondisi: selectedKondisi,
+    }),
+    [selectedJenjang, selectedKecamatan, selectedDesa, selectedKondisi]
+  );
+
+  const statsOverride = useMemo(() => {
+    if (!hasFullFilter) {
+      const totalSekolah = (kecRekap || []).reduce(
+        (sum, r) => sum + Number(r?.total ?? r?.count ?? 0),
+        0
+      );
+      const noCoords = (kecRekap || []).reduce(
+        (sum, r) => sum + Number(r?.tanpa_koordinat ?? r?.tanpaKoordinat ?? r?.no_coords ?? 0),
+        0
+      );
+      return {
+        kecamatanCount: kecamatanFiltered ? 1 : (kecRekap?.length || kecamatanMaster.length),
+        sekolahCount: totalSekolah,
+        sekolahNoCoords: noCoords,
+      };
+    }
+    return {
+      kecamatanCount: 1,
+      sekolahCount: coordCounts.total,
+      sekolahWithCoords: coordCounts.withCoords,
+      sekolahNoCoords: coordCounts.noCoords,
+    };
+  }, [hasFullFilter, kecRekap, kecamatanFiltered, kecamatanMaster.length, coordCounts]);
+
+  if ((loading && !firstLoadedRef.current) || kecLoading || desaLoading) {
     return (
-      <div className={styles.pageContainer}>
-        <div className={styles.card}>
-          <div className={styles.loading}>
-            <div className={styles.spinner} /> Memuat peta & data…
+      <div className={styles.wrapper}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Peta Sekolah Kabupaten Garut</h1>
+          <p className={styles.subtitle}>Memuat data peta, harap tunggu sebentar...</p>
+        </div>
+        <div className={styles.content}>
+          <div className={styles.sidebar}>
+            <div className={styles.filterGroup}>
+              <div className={styles.skeletonFilter} />
+              <div className={styles.skeletonFilter} />
+              <div className={styles.skeletonFilter} />
+            </div>
+            <div className={styles.skeletonStats} />
+          </div>
+          <div className={styles.mapContainer}>
+            <div className={styles.mapSkeleton} />
           </div>
         </div>
       </div>
     );
   }
 
-  if (err || geoError) {
+  if (err) {
     return (
-      <div className={styles.pageContainer}>
-        <div className={styles.card}>
-          <div className={styles.error}>
-            ⚠️ {(err || geoError)}{" "}
-            <button className={styles.resetBtn} onClick={() => window.location.reload()}>
-              Muat ulang
-            </button>
-          </div>
+      <div className={styles.wrapper}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Peta Sekolah Kabupaten Garut</h1>
+          <p className={styles.subtitle}>Terjadi kesalahan saat memuat data peta.</p>
+        </div>
+        <div className={styles.errorBox}>
+          <p>Detail error: {String(err.message || err)}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (geoError) {
+    return (
+      <div className={styles.wrapper}>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Peta Sekolah Kabupaten Garut</h1>
+          <p className={styles.subtitle}>Terjadi kesalahan saat memuat data batas wilayah.</p>
+        </div>
+        <div className={styles.errorBox}>
+          <p>Detail error: {String(geoError.message || geoError)}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.pageContainer}>
-      <header className={styles.pageHeader}>
-        <h1>Peta Sekolah</h1>
-        <p className={styles.sub}>
-          Tampilan awal cepat (ringkasan). Saat zoom masuk / pilih jenjang, data detail per-jenjang dimuat otomatis.
-        </p>
-        <div className={styles.meta}>
-          Master kecamatan terbaca: <b>{kecamatanMaster.length}</b> (target 42)
+    <div className={styles.wrapper}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Peta Sekolah Kabupaten Garut</h1>
+        <p className={styles.subtitle}>Visualisasi persebaran sekolah berdasarkan jenjang dan wilayah.</p>
+      </div>
+
+      <div className={styles.content}>
+        <div className={styles.sidebar}>
+          <div className={styles.filterGroup}>
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>Jenjang</label>
+              <select
+                className={styles.filterSelect}
+                value={selectedJenjang}
+                onChange={(e) => setSelectedJenjang(e.target.value)}
+              >
+                <option value="Semua Jenjang">Semua Jenjang</option>
+                <option value="PAUD">PAUD</option>
+                <option value="SD">SD</option>
+                <option value="SMP">SMP</option>
+                <option value="PKBM">PKBM</option>
+              </select>
+            </div>
+
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>Kecamatan</label>
+              <select
+                className={styles.filterSelect}
+                value={selectedKecamatan}
+                onChange={(e) => setSelectedKecamatan(e.target.value)}
+              >
+                {kecamatanOptions.map((kec) => (
+                  <option key={kec} value={kec}>
+                    {kec}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>Desa</label>
+              <select
+                className={styles.filterSelect}
+                value={selectedDesa}
+                onChange={(e) => setSelectedDesa(e.target.value)}
+                disabled={!kecamatanFiltered}
+              >
+                {desaOptions.map((desa) => (
+                  <option key={desa} value={desa}>
+                    {desa}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.filterItem}>
+              <label className={styles.filterLabel}>Kondisi</label>
+              <select
+                className={styles.filterSelect}
+                value={selectedKondisi}
+                onChange={(e) => setSelectedKondisi(e.target.value)}
+              >
+                <option value="Semua Kondisi">Semua Kondisi</option>
+                <option value="Baik">Baik</option>
+                <option value="Rusak Sedang">Rusak Sedang</option>
+                <option value="Rusak Berat">Rusak Berat</option>
+                <option value="Kurang RKB">Kurang RKB</option>
+              </select>
+            </div>
+
+            <button className={styles.resetButton} onClick={handleReset}>
+              Reset Filter
+            </button>
+          </div>
+
+          <div className={styles.statsCard}>
+            <h2 className={styles.statsTitle}>Ringkasan</h2>
+            <div className={styles.statsRow}>
+              <span className={styles.statsLabel}>Kecamatan</span>
+              <span className={styles.statsValue}>{statsOverride.kecamatanCount ?? "-"}</span>
+            </div>
+            <div className={styles.statsRow}>
+              <span className={styles.statsLabel}>Sekolah</span>
+              <span className={styles.statsValue}>{statsOverride.sekolahCount ?? "-"}</span>
+            </div>
+            {statsOverride.sekolahWithCoords != null && (
+              <div className={styles.statsRow}>
+                <span className={styles.statsLabel}>Tersedia Koordinat</span>
+                <span className={styles.statsValue}>{statsOverride.sekolahWithCoords}</span>
+              </div>
+            )}
+            {statsOverride.sekolahNoCoords != null && (
+              <div className={styles.statsRow}>
+                <span className={styles.statsLabel}>Belum Ada Koordinat</span>
+                <span className={styles.statsValue}>{statsOverride.sekolahNoCoords}</span>
+              </div>
+            )}
+          </div>
         </div>
-      </header>
 
-      <section className={styles.card}>
-        <div className={styles.filtersRow}>
-          <div className={styles.filterGroup}>
-            <label>Jenjang</label>
-            <select value={selectedJenjang} onChange={(e) => setSelectedJenjang(e.target.value)}>
-              <option>Semua Jenjang</option>
-              <option value="PAUD">PAUD</option>
-              <option value="SD">SD</option>
-              <option value="SMP">SMP</option>
-              <option value="PKBM">PKBM</option>
-            </select>
-          </div>
-
-          <div className={styles.filterGroup}>
-            <label>Kecamatan</label>
-            <select value={selectedKecamatan} onChange={(e) => setSelectedKecamatan(e.target.value)}>
-              {kecamatanOptions.map((k) => <option key={k} value={k}>{k}</option>)}
-            </select>
-          </div>
-
-          <div className={styles.filterGroup}>
-            <label>Desa/Kelurahan</label>
-            <select value={selectedDesa} onChange={(e) => setSelectedDesa(e.target.value)}>
-              {desaOptions.map((d) => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-
-          <button className={styles.resetBtn} onClick={handleReset}>Reset</button>
-        </div>
-      </section>
-
-      <section className={styles.card}>
-        <div className={styles.mapWrap}>
+        <div className={styles.mapContainer}>
           <SimpleMap
-            schools={filteredSchools}
+            schools={hasFullFilter ? schoolsForMap : []}
             initialCenter={DEFAULT_CENTER}
             initialZoom={DEFAULT_ZOOM}
-            statsOverride={{
-              kecamatanCount: selectedKecamatan === "Semua Kecamatan" ? kecamatanMaster.length : 1,
-              sekolahCount: filteredSchools.length,
-            }}
+            statsOverride={statsOverride}
             kecamatanGeo={kecamatanGeo}
             desaGeo={desaGeo}
-            filters={{ jenjang: selectedJenjang, kecamatan: selectedKecamatan, desa: selectedDesa }}
-            onZoomChange={(z) => setIsZoomHigh(z >= 12)} // [NEW]
+            filters={mapFilters}
+            hasFullFilter={hasFullFilter}
+            kecamatanRekapOverride={hasFullFilter ? null : kecRekap}
           />
         </div>
-      </section>
+      </div>
     </div>
   );
 }

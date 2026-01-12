@@ -1,713 +1,388 @@
 // src/services/api/detailApi.js
-// --- Detail API dengan caching & inflight de-dup ---
-// kompatibel dengan API lama: getSdDetailByNpsn, getSmpDetailByNpsn, getPaudDetailByNpsn, getPkbmDetailByNpsn
+import supabase from "@/services/supabaseClient";
 
-import supabase from '../supabaseClient';
+/**
+ * RPC yang tersedia (sesuai output Anda):
+ * - get_school_detail_by_npsn(input_npsn text)
+ * - get_school_full_details_by_npsn(npsn_val text)
+ * - rpc_school_detail_by_npsn(p_npsn text)
+ * - rpc_school_detail_by_npsn_meta(p_npsn text)
+ */
+const RPC_CHAIN = [
+  { name: "get_school_full_details_by_npsn", arg: "npsn_val" }, // paling kaya
+  { name: "get_school_detail_by_npsn", arg: "input_npsn" },
+  { name: "rpc_school_detail_by_npsn", arg: "p_npsn" },
+  { name: "rpc_school_detail_by_npsn_meta", arg: "p_npsn" },
+];
 
-// ======================= UTIL UMUM =======================
-const int = (v, d = 0) => {
-  if (v === null || v === undefined) return d;
+function pickRow(data) {
+  if (!data) return null;
+  if (Array.isArray(data)) return data[0] || null;
+  return data;
+}
+
+const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
+
+const deepMerge = (base, patch) => {
+  if (!isObj(base)) base = {};
+  if (!isObj(patch)) return base;
+  const out = { ...base };
+  for (const k of Object.keys(patch)) {
+    const bv = out[k];
+    const pv = patch[k];
+    if (isObj(bv) && isObj(pv)) out[k] = deepMerge(bv, pv);
+    else out[k] = pv;
+  }
+  return out;
+};
+
+const toNum = (v, d = 0) => {
   const n = Number(v);
-  return Number.isNaN(n) ? d : n;
+  return Number.isFinite(n) ? n : d;
 };
-const one = (arr) => (Array.isArray(arr) && arr.length ? arr[0] : null);
-const truthy = (v) => v !== null && v !== undefined && v !== '';
 
-const pickNum = (obj, keys = [], d = 0) => {
-  for (const k of keys) {
-    if (obj && Object.prototype.hasOwnProperty.call(obj, k) && truthy(obj[k])) return int(obj[k], d);
+function normalizeJenjang(v) {
+  const s = String(v ?? "").trim().toUpperCase();
+  if (!s) return "";
+  if (s === "TK") return "PAUD";
+  if (s.includes("PAUD")) return "PAUD";
+  if (s.includes("SD")) return "SD";
+  if (s.includes("SMP")) return "SMP";
+  if (s.includes("PKBM")) return "PKBM";
+  return s;
+}
+
+function extractJenjang(row) {
+  const meta = row?.meta || {};
+  const details = row?.details || {};
+  const raw =
+    row?.jenjang ||
+    row?.level ||
+    row?.school_type_code ||
+    row?.school_type?.code ||
+    details?.jenjang ||
+    details?.level ||
+    meta?.jenjang ||
+    meta?.level ||
+    "";
+  return normalizeJenjang(raw) || "SMP";
+}
+
+function extractRegion(row) {
+  const meta = row?.meta || {};
+  const details = row?.details || {};
+
+  const desa =
+    row?.desa ||
+    row?.village_name ||
+    row?.village ||
+    details?.desa ||
+    details?.village ||
+    meta?.desa ||
+    meta?.village ||
+    row?.locations?.village ||
+    row?._raw?.locations?.village ||
+    "-";
+
+  const kecamatan =
+    row?.kecamatan ||
+    row?.kecamatan_name ||
+    details?.kecamatan ||
+    meta?.kecamatan ||
+    row?.locations?.subdistrict ||
+    row?.locations?.district ||
+    row?._raw?.locations?.subdistrict ||
+    row?._raw?.locations?.district ||
+    "-";
+
+  return { desa, kecamatan };
+}
+
+function attachCoordinates(row) {
+  const lat = toNum(row?.lat ?? row?.latitude ?? row?._raw?.lat, NaN);
+  const lng = toNum(row?.lng ?? row?.longitude ?? row?._raw?.lng, NaN);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { coordinates: [lng, lat] }; // [lng, lat]
   }
-  return d;
-};
+  return {};
+}
 
-const EMPTY_BLOCK = { good:0, moderate_damage:0, heavy_damage:0, total_mh:0, total_all:0 };
-const emptyLabPack = () => ({
-  laboratory_comp:   { ...EMPTY_BLOCK },
-  laboratory_langua: { ...EMPTY_BLOCK },
-  laboratory_ipa:    { ...EMPTY_BLOCK },
-  laboratory_fisika: { ...EMPTY_BLOCK },
-  laboratory_biologi:{ ...EMPTY_BLOCK },
-});
+/**
+ * Pastikan meta shape konsisten (menggabungkan meta dari row & details)
+ * + memaksa prasarana.classrooms & prasarana.ukuran minimal ada
+ */
+function ensureMetaShape(row) {
+  const meta = isObj(row?.meta) ? row.meta : {};
+  const details = isObj(row?.details) ? row.details : {};
 
-const EMPTY_TOILET_GENDER = { good:0, moderate_damage:0, heavy_damage:0, total_mh:0, total_all:0 };
-const emptyToilets = () => ({
-  teachers_toilet: { male: { ...EMPTY_TOILET_GENDER }, female: { ...EMPTY_TOILET_GENDER }, _overall: { good:0, moderate_damage:0, heavy_damage:0, total:0 } },
-  students_toilet: { male: { ...EMPTY_TOILET_GENDER }, female: { ...EMPTY_TOILET_GENDER }, _overall: { good:0, moderate_damage:0, heavy_damage:0, total:0 } },
-});
+  const mergedMeta = deepMerge(meta, isObj(details?.meta) ? details.meta : {});
 
-const mapLabKey = (lab_type) => {
-  if (!lab_type) return null;
-  const s = String(lab_type).toLowerCase();
-  if (s.includes('komputer')) return 'laboratory_comp';
-  if (s.includes('bahasa'))   return 'laboratory_langua';
-  if (s.includes('ipa'))      return 'laboratory_ipa';
-  if (s.includes('fisika'))   return 'laboratory_fisika';
-  if (s.includes('biologi'))  return 'laboratory_biologi';
-  return null;
-};
+  const pr = isObj(mergedMeta.prasarana) ? mergedMeta.prasarana : {};
+  const kl = isObj(mergedMeta.kelembagaan) ? mergedMeta.kelembagaan : {};
 
-const mapRoomKey = (room_type) => {
-  if (!room_type) return null;
-  const s = String(room_type).toLowerCase();
-  if (s.includes('kepala')) return 'kepsek_room';
-  if (s.includes('guru'))   return 'teacher_room';
-  if (s.includes('tata') || s.includes('administrasi') || s.includes('administration'))
-    return 'administration_room';
-  return null;
-};
+  // ukuran (sesuai inputan DataInputForm)
+  const ukuranExisting = isObj(pr.ukuran) ? pr.ukuran : {};
+  const ukuran = deepMerge(ukuranExisting, {
+    tanah: toNum(ukuranExisting?.tanah, toNum(pr?.ukuran?.tanah, 0)),
+    bangunan: toNum(ukuranExisting?.bangunan, toNum(pr?.ukuran?.bangunan, 0)),
+    halaman: toNum(ukuranExisting?.halaman, toNum(pr?.ukuran?.halaman, 0)),
+  });
 
-const normalizeToilets = (rows) => {
-  const toilets = emptyToilets();
-  let tGood = 0, tMod = 0, tHeavy = 0, tTotalSeen = 0;
+  // classrooms (sesuai inputan DataInputForm)
+  const classroomsExisting = isObj(pr.classrooms) ? pr.classrooms : {};
+  const classrooms = deepMerge(classroomsExisting, {
+    total_room: toNum(classroomsExisting?.total_room, toNum(pr?.classrooms?.total_room, 0)),
+    classrooms_good: toNum(classroomsExisting?.classrooms_good, toNum(pr?.classrooms?.classrooms_good, 0)),
+    classrooms_moderate_damage: toNum(
+      classroomsExisting?.classrooms_moderate_damage,
+      toNum(pr?.classrooms?.classrooms_moderate_damage, 0)
+    ),
+    heavy_damage: toNum(classroomsExisting?.heavy_damage, toNum(pr?.classrooms?.heavy_damage, 0)),
+    kurangRkb: toNum(classroomsExisting?.kurangRkb, toNum(pr?.classrooms?.kurangRkb, 0)),
+    lahan: classroomsExisting?.lahan ?? pr?.classrooms?.lahan ?? "",
+  });
 
-  (rows || []).forEach((r) => {
-    const typ = String(r.type || '').toLowerCase();
-    const good = int(r.good, 0);
-    const mod  = int(r.moderate_damage, 0);
-    const heavy= int(r.heavy_damage, 0);
-    const total = r.total != null ? int(r.total, 0) : (good + mod + heavy);
+  const prFixed = deepMerge(pr, { ukuran, classrooms });
 
-    tGood += good; tMod += mod; tHeavy += heavy; tTotalSeen += total;
+  return deepMerge(mergedMeta, {
+    prasarana: prFixed,
+    kelembagaan: kl,
+  });
+}
 
-    const key = typ.includes('guru') ? 'teachers_toilet' : typ.includes('siswa') ? 'students_toilet' : null;
-    if (key) {
-      toilets[key] = {
-        male:   { ...EMPTY_TOILET_GENDER, total_all: int(r.male, 0) },
-        female: { ...EMPTY_TOILET_GENDER, total_all: int(r.female, 0) },
-        _overall: { good, moderate_damage: mod, heavy_damage: heavy, total },
-      };
+/**
+ * Normalisasi rombel dari meta sesuai DataInputForm:
+ * - SD/SMP: meta.rombel.kelas1, kelas2, ...
+ * - PAUD: meta.rombel.kb, tk, sps_tpa, ...
+ * - PKBM: meta.rombel.paketA.kelas1, ...
+ */
+function normalizeRombelMeta(meta) {
+  const m = isObj(meta) ? meta : {};
+  const src = isObj(m.rombel) ? m.rombel : null;
+  if (!src) return {};
+
+  // PKBM: paketA/paketB/paketC (nested object)
+  const paketKeys = Object.keys(src).filter((k) => /^paket[a-z0-9]+$/i.test(k) && isObj(src[k]));
+  if (paketKeys.length) {
+    const out = {};
+    let grandTotal = 0;
+    for (const pk of paketKeys) {
+      const pkt = src[pk];
+      const pktOut = {};
+      let pktTotal = 0;
+
+      for (const [k, v] of Object.entries(pkt)) {
+        const n = toNum(v, NaN);
+        if (!Number.isFinite(n)) continue;
+        pktOut[k] = n;
+        if (/^kelas[0-9]+$/i.test(k)) pktTotal += n;
+      }
+
+      pktOut.total = toNum(pktOut.total, pktTotal);
+      grandTotal += pktOut.total || 0;
+      out[pk] = pktOut;
     }
-  });
-
-  const toilets_overall = { good: tGood, moderate_damage: tMod, heavy_damage: tHeavy, total: tTotalSeen };
-  return { toilets, toilets_overall };
-};
-
-const normalizeFurnitureComputer = (row) => {
-  const r = row || {};
-  const tables   = pickNum(r, ['tables','meja','jumlah_meja','tbl','table'], 0);
-  const chairs   = pickNum(r, ['chairs','kursi','jumlah_kursi','chr','chair'], 0);
-  const boards   = pickNum(r, ['boards','papan','whiteboards','papan_tulis','board'], 0);
-  const computer = pickNum(r, ['computer','komputer','jumlah_komputer','pc','compute'], 0);
-
-  const n_tables = pickNum(r, ['n_tables','tables_need','kekurangan_meja'], 0);
-  const n_chairs = pickNum(r, ['n_chairs','chairs_need','kekurangan_kursi'], 0);
-
-  const tables_good   = pickNum(r, ['tables_good','good_tables'], tables);
-  const tables_mod    = pickNum(r, ['tables_moderate','moderate_tables'], 0);
-  const tables_heavy  = pickNum(r, ['tables_heavy','heavy_tables'], 0);
-
-  const chairs_good   = pickNum(r, ['chairs_good','good_chairs'], chairs);
-  const chairs_mod    = pickNum(r, ['chairs_moderate','moderate_chairs'], 0);
-  const chairs_heavy  = pickNum(r, ['chairs_heavy','heavy_chairs'], 0);
-
-  return {
-    tables, chairs, boards, computer,
-    n_tables, n_chairs,
-    tables_good, tables_moderate: tables_mod, tables_heavy,
-    chairs_good, chairs_moderate: chairs_mod, chairs_heavy,
-  };
-};
-
-const normalizeBuildingStatus = (row) => {
-  const b = row || {};
-  const tanah = b.tanah || b.land || {};
-  const gedung = b.gedung || b.building || {};
-  const tanahOut = { ...tanah };
-  const gedungOut = { ...gedung };
-  if (!('land_available' in tanahOut)) {
-    tanahOut.land_available = pickNum(b, ['land_area', 'luas_tanah'], 0);
+    out.total = toNum(src.total, grandTotal);
+    return out;
   }
-  return { tanah: tanahOut, gedung: gedungOut };
-};
 
-// ======================= CACHING & DEDUPE =======================
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 menit (ubah sesuai kebutuhan)
-const SS_PREFIX = 'sch-detail:v2:'; // bump versi kalau struktur berubah
-const inflight = new Map(); // key -> Promise
+  // SD/SMP/PAUD: flat object
+  const out = {};
+  let total = 0;
 
-const cacheKey = (jenjang, npsn) => `${SS_PREFIX}${jenjang}:${String(npsn).trim()}`;
+  for (const [k, v] of Object.entries(src)) {
+    const n = toNum(v, NaN);
+    if (!Number.isFinite(n)) continue;
 
-const readCache = (jenjang, npsn) => {
-  try {
-    const raw = sessionStorage.getItem(cacheKey(jenjang, npsn));
-    if (!raw) return null;
-    const { ts, data } = JSON.parse(raw);
-    if (!ts || !data) return null;
-    if (Date.now() - ts > CACHE_TTL_MS) return null;
-    return data;
-  } catch {
-    return null;
+    // simpan angka
+    out[k] = n;
+
+    // hitung total otomatis kalau bukan key "total"
+    const kl = String(k).toLowerCase();
+    if (kl !== "total") total += n;
   }
-};
-const writeCache = (jenjang, npsn, data) => {
-  try {
-    sessionStorage.setItem(cacheKey(jenjang, npsn), JSON.stringify({ ts: Date.now(), data }));
-  } catch { /* ignore quota */ }
-};
 
-// helper umum: ambil BASE sekolah by NPSN (field konsisten)
-async function fetchSchoolBaseByNpsn(npsn, extraFields = '') {
-  const baseFields = 'id,name,npsn,address,village,kecamatan,student_count,st_male,st_female,lat,lng,latitude,longitude,jenjang,level,type,updated_at';
-  const fields = extraFields ? `${baseFields},${extraFields}` : baseFields;
-  const { data: school, error } = await supabase
-    .from('schools')
-    .select(fields)
-    .eq('npsn', npsn)
-    .maybeSingle();
-
-  if (error) throw error;
-  if (!school) return null;
-
-  const lat = school.lat != null ? Number(school.lat) : (school.latitude != null ? Number(school.latitude) : null);
-  const lng = school.lng != null ? Number(school.lng) : (school.longitude != null ? Number(school.longitude) : null);
-
-  return {
-    id: school.id,
-    name: school.name || '-',
-    npsn: school.npsn || '-',
-    address: school.address || '-',
-    village: school.village || '-',
-    kecamatan: school.kecamatan || '-',
-    type: school.type || null,
-    student_count: int(school.student_count, (int(school.st_male,0)+int(school.st_female,0))),
-    st_male: int(school.st_male, 0),
-    st_female: int(school.st_female, 0),
-    coordinates: (typeof lat === 'number' && typeof lng === 'number') ? [lat, lng] : null,
-  };
+  out.total = toNum(src.total, total);
+  return out;
 }
 
-// ======================= CORE PER-JENJANG =======================
-// SMP
-async function _getSmpDetail(npsn) {
-  const base = await fetchSchoolBaseByNpsn(npsn);
-  if (!base) return null;
+async function fetchSchoolClassesBySchoolId(schoolId) {
+  if (!schoolId) return { classes: {}, rows: [] };
 
-  const schoolId = base.id;
+  const { data, error } = await supabase
+    .from("school_classes")
+    .select("grade,count")
+    .eq("school_id", schoolId);
 
-  const [
-    { data: ccRows },
-    { data: libRows },
-    { data: labRows },
-    { data: roomRows },
-    { data: toiletRows },
-    { data: fcompRows },
-    { data: officRows },
-    { data: kegRows },
-    { data: bstatRows },
-  ] = await Promise.all([
-    supabase.from('class_conditions').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('library').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('laboratory').select('*').eq('school_id', schoolId),
-    supabase.from('teacher_room').select('*').eq('school_id', schoolId),
-    supabase.from('toilets').select('*').eq('school_id', schoolId),
-    supabase.from('furniture_computer').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('official_residences').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('kegiatan').select('kegiatan,lokal').eq('school_id', schoolId),
-    supabase.from('building_status').select('*').eq('school_id', schoolId).limit(1),
-  ]);
+  if (error) {
+    console.warn("[detailApi] school_classes fetch error:", error);
+    return { classes: {}, rows: [] };
+  }
 
-  const cc = one(ccRows) || {};
-  const class_condition = {
-    classrooms_good: int(cc.classrooms_good, 0),
-    classrooms_moderate_damage: int(cc.classrooms_moderate_damage, 0),
-    classrooms_heavy_damage: int(cc.classrooms_heavy_damage, 0),
-    total_room: int(cc.total_room, 0),
-    lacking_rkb: int(cc.lacking_rkb, 0),
-    total_mh: int(cc.classrooms_moderate_damage, 0) + int(cc.classrooms_heavy_damage, 0),
-  };
+  const rows = Array.isArray(data) ? data : [];
+  const classes = {};
 
-  const lib = one(libRows) || {};
-  const library = {
-    good: int(lib.good, 0),
-    moderate_damage: int(lib.moderate_damage, 0),
-    heavy_damage: int(lib.heavy_damage, 0),
-    total_mh: int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-    total_all: lib.total != null
-      ? int(lib.total, 0)
-      : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-  };
+  for (const r of rows) {
+    const g = String(r?.grade ?? "").trim();
+    if (!g) continue;
+    classes[g] = (classes[g] || 0) + toNum(r?.count, 0);
+  }
 
-  const labs = emptyLabPack();
-  (labRows || []).forEach((r) => {
-    const k = mapLabKey(r.lab_type);
-    if (!k) return;
-    const good = int(r.good, 0);
-    const mod  = int(r.moderate_damage, 0);
-    const heavy= int(r.heavy_damage, 0);
-    labs[k] = {
-      good,
-      moderate_damage: mod,
-      heavy_damage: heavy,
-      total_mh: r.total_mh != null ? int(r.total_mh) : (mod + heavy),
-      total_all: r.total_all != null ? int(r.total_all) : (good + mod + heavy),
-    };
-  });
-
-  const rooms = {
-    kepsek_room:         { ...EMPTY_BLOCK },
-    teacher_room:        { ...EMPTY_BLOCK },
-    administration_room: { ...EMPTY_BLOCK },
-  };
-  (roomRows || []).forEach((r) => {
-    const k = mapRoomKey(r.room_type);
-    if (!k) return;
-    const good = int(r.good, 0);
-    const mod  = int(r.moderate_damage, 0);
-    const heavy= int(r.heavy_damage, 0);
-    rooms[k] = {
-      good,
-      moderate_damage: mod,
-      heavy_damage: heavy,
-      total_mh: r.total_mh != null ? int(r.total_mh) : (mod + heavy),
-      total_all: r.total_all != null ? int(r.total_all) : (good + mod + heavy),
-    };
-  });
-
-  const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-  const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
-  const offic = one(officRows) || {};
-  const official_residences = {
-    total: int(offic.total, 0),
-    good: int(offic.good, 0),
-    moderate_damage: int(offic.moderate_damage, 0),
-    heavy_damage: int(offic.heavy_damage, 0),
-  };
-
-  const pembangunanRKB = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-  const rehabRKB = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-
-  const bstat = normalizeBuildingStatus(one(bstatRows) || {});
-  const facilities = {
-    land_area: pickNum(one(bstatRows) || {}, ['land_area','luas_tanah'], null),
-    building_area: pickNum(one(bstatRows) || {}, ['building_area','luas_bangunan'], null),
-    yard_area: pickNum(one(bstatRows) || {}, ['yard_area','luas_halaman'], null),
-  };
-
-  return {
-    ...base,
-    class_condition,
-    library,
-    ...labs,
-    ...rooms,
-    ...toilets,
-    toilets_overall,
-    furniture_computer: fcomp,
-    official_residences,
-    pembangunanRKB,
-    rehabRKB,
-    facilities,
-    building_status: bstat,
-  };
+  return { classes, rows };
 }
 
-// SD
-async function _getSdDetail(npsn) {
-  const base = await fetchSchoolBaseByNpsn(npsn);
-  if (!base) return null;
+async function fetchStaffSummaryBySchoolId(schoolId) {
+  if (!schoolId) return { roles: {}, rows: [] };
 
-  const schoolId = base.id;
+  const { data, error } = await supabase
+    .from("staff_summary")
+    .select("role,count")
+    .eq("school_id", schoolId);
 
-  const [
-    { data: ccRows },
-    { data: libRows },
-    { data: roomRows },
-    { data: toiletRows },
-    { data: fcompRows },
-    { data: officRows },
-    { data: kegRows },
-    { data: bstatRows },
-    { data: classesRows },
-    { data: rombelRows },
-    { data: uksRows },
-  ] = await Promise.all([
-    supabase.from('class_conditions').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('library').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('teacher_room').select('*').eq('school_id', schoolId),
-    supabase.from('toilets').select('*').eq('school_id', schoolId),
-    supabase.from('furniture_computer').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('official_residences').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('kegiatan').select('kegiatan,lokal').eq('school_id', schoolId),
-    supabase.from('building_status').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('classes_sd').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('rombel').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('uks').select('*').eq('school_id', schoolId).limit(1),
-  ]);
+  if (error) {
+    console.warn("[detailApi] staff_summary fetch error:", error);
+    return { roles: {}, rows: [] };
+  }
 
-  const cc = one(ccRows) || {};
-  const class_condition = {
-    classrooms_good: int(cc.classrooms_good, 0),
-    classrooms_moderate_damage: int(cc.classrooms_moderate_damage, 0),
-    classrooms_heavy_damage: int(cc.classrooms_heavy_damage, 0),
-    total_room: int(cc.total_room, 0),
-    lacking_rkb: int(cc.lacking_rkb, 0),
-    total_mh: int(cc.classrooms_moderate_damage, 0) + int(cc.classrooms_heavy_damage, 0),
-  };
-
-  const lib = one(libRows) || {};
-  const library = {
-    good: int(lib.good, 0),
-    moderate_damage: int(lib.moderate_damage, 0),
-    heavy_damage: int(lib.heavy_damage, 0),
-    total_mh: int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-    total_all: lib.total != null
-      ? int(lib.total, 0)
-      : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-  };
-
-  const rooms = {
-    kepsek_room:         { ...EMPTY_BLOCK },
-    teacher_room:        { ...EMPTY_BLOCK },
-    administration_room: { ...EMPTY_BLOCK },
-  };
-  (roomRows || []).forEach((r) => {
-    const k = mapRoomKey(r.room_type);
-    if (!k) return;
-    const good = int(r.good, 0);
-    const mod  = int(r.moderate_damage, 0);
-    const heavy= int(r.heavy_damage, 0);
-    rooms[k] = {
-      good,
-      moderate_damage: mod,
-      heavy_damage: heavy,
-      total_mh: r.total_mh != null ? int(r.total_mh) : (mod + heavy),
-      total_all: r.total_all != null ? int(r.total_all) : (good + mod + heavy),
-    };
-  });
-
-  const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-  const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
-  const offic = one(officRows) || {};
-  const official_residences = {
-    total: int(offic.total, 0),
-    good: int(offic.good, 0),
-    moderate_damage: int(offic.moderate_damage, 0),
-    heavy_damage: int(offic.heavy_damage, 0),
-  };
-
-  const pembangunanRKB = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-  const rehabRKB = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-
-  const bstatRaw = one(bstatRows) || {};
-  const bstat = normalizeBuildingStatus(bstatRaw);
-  const facilities = {
-    land_area: pickNum(bstatRaw, ['land_area','luas_tanah'], null),
-    building_area: pickNum(bstatRaw, ['building_area','luas_bangunan'], null),
-    yard_area: pickNum(bstatRaw, ['yard_area','luas_halaman'], null),
-  };
-
-  const cls = one(classesRows) || {};
-  const classes = {
-    '1_L': int(cls.g1_male, 0), '1_P': int(cls.g1_female, 0),
-    '2_L': int(cls.g2_male, 0), '2_P': int(cls.g2_female, 0),
-    '3_L': int(cls.g3_male, 0), '3_P': int(cls.g3_female, 0),
-    '4_L': int(cls.g4_male, 0), '4_P': int(cls.g4_female, 0),
-    '5_L': int(cls.g5_male, 0), '5_P': int(cls.g5_female, 0),
-    '6_L': int(cls.g6_male, 0), '6_P': int(cls.g6_female, 0),
-  };
-
-  const rb = one(rombelRows) || {};
-  const rombel = {
-    '1': int(rb.r1, 0), '2': int(rb.r2, 0), '3': int(rb.r3, 0),
-    '4': int(rb.r4, 0), '5': int(rb.r5, 0), '6': int(rb.r6, 0),
-    total: int(rb.total, 0),
-  };
-
-  const u = one(uksRows) || {};
-  const uks_room = {
-    total: int(u.total_all ?? u.total, 0),
-    good: int(u.good, 0),
-    moderate_damage: int(u.moderate_damage, 0),
-    heavy_damage: int(u.heavy_damage, 0),
-  };
-
-  return {
-    ...base,
-    class_condition,
-    library,
-    ...rooms,
-    ...toilets,
-    toilets_overall,
-    furniture_computer: fcomp,
-    official_residences,
-    pembangunanRKB,
-    rehabRKB,
-    facilities,
-    classes,
-    rombel,
-    uks_room,
-    building_status: bstat,
-  };
+  const rows = Array.isArray(data) ? data : [];
+  const roles = {};
+  for (const r of rows) {
+    const role = String(r?.role ?? "").trim();
+    if (!role) continue;
+    roles[role] = (roles[role] || 0) + toNum(r?.count, 0);
+  }
+  return { roles, rows };
 }
 
-// PAUD
-async function _getPaudDetail(npsn) {
-  const base = await fetchSchoolBaseByNpsn(npsn);
-  if (!base) return null;
-  const schoolId = base.id;
-
-  const [
-    { data: ccRows },
-    { data: libRows },
-    { data: toiletRows },
-    { data: fcompRows },
-    { data: teacherRows },
-    { data: rgksRows },
-    { data: officRows },
-    { data: kegRows },
-    { data: bstatRows },
-    { data: apeRows },
-    { data: uksRows },
-    { data: playgroundRows },
-    { data: rombelRows },
-  ] = await Promise.all([
-    supabase.from('class_conditions').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('library').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('toilets').select('*').eq('school_id', schoolId),
-    supabase.from('furniture_computer').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('teacher').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('rgks').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('official_residences').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('kegiatan').select('kegiatan,lokal').eq('school_id', schoolId),
-    supabase.from('building_status').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('ape').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('uks').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('playground_area').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('rombel').select('*').eq('school_id', schoolId).limit(1),
-  ]);
-
-  const cc = one(ccRows) || {};
-  const class_condition = {
-    heavy_damage: int(cc.classrooms_heavy_damage ?? cc.heavy_damage, 0),
-    moderate_damage: int(cc.classrooms_moderate_damage ?? cc.moderate_damage, 0),
-    lacking_rkb: int(cc.lacking_rkb, 0),
+function guruFromStaffRoles(roles) {
+  const r = isObj(roles) ? roles : {};
+  const out = {
+    pns: toNum(r.guru_pns, 0),
+    pppk: toNum(r.guru_pppk, 0),
+    pppkParuhWaktu: toNum(r.guru_pppk_paruh_waktu, 0),
+    nonAsnDapodik: toNum(r.guru_non_asn_dapodik, 0),
+    nonAsnTidakDapodik: toNum(r.guru_non_asn_tidak_dapodik, 0),
+    kekuranganGuru: toNum(r.guru_kekurangan, 0),
+    jumlahGuru: toNum(r.guru_total, 0),
   };
 
-  const student_data = {
-    male_students: base.st_male,
-    female_students: base.st_female,
-  };
+  // fallback total jika tidak ada role total
+  if (!out.jumlahGuru) {
+    out.jumlahGuru =
+      out.pns + out.pppk + out.pppkParuhWaktu + out.nonAsnDapodik + out.nonAsnTidakDapodik;
+  }
 
-  const lib = one(libRows) || {};
-  const library = {
-    good: int(lib.good, 0),
-    moderate_damage: int(lib.moderate_damage, 0),
-    heavy_damage: int(lib.heavy_damage, 0),
-    total_mh: int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-    total_all: lib.total != null
-      ? int(lib.total, 0)
-      : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-  };
-
-  const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-  const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
-
-  const t = one(teacherRows) || {};
-  const teacher = {
-    teachers: int(t.teachers ?? t.jumlah_guru, 0),
-    n_teachers: int(t.n_teachers ?? t.kekurangan_guru, 0),
-    tendik: int(t.tendik ?? t.tenaga_kependidikan, 0),
-  };
-
-  const rg = one(rgksRows) || {};
-  const rgks = {
-    n_available: truthy(rg.n_available) ? rg.n_available : (truthy(rg.available) ? rg.available : 'Tidak Ada'),
-    good: int(rg.good, 0),
-    moderate_damage: int(rg.moderate_damage, 0),
-    heavy_damage: int(rg.heavy_damage, 0),
-  };
-
-  const offic = one(officRows) || {};
-  const official_residences = {
-    total: int(offic.total, 0),
-    good: int(offic.good, 0),
-    moderate_damage: int(offic.moderate_damage, 0),
-    heavy_damage: int(offic.heavy_damage, 0),
-  };
-
-  const pembangunanRKB = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-  const rehabRuangKelas = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-
-  const bstatRaw = one(bstatRows) || {};
-  const bstat = normalizeBuildingStatus(bstatRaw);
-
-  const ape = one(apeRows) || {};
-  const apeOut = {
-    luar:  { available: ape.luar_available ?? ape.luar ?? '-',  condition: ape.luar_condition ?? '-' },
-    dalam: { available: ape.dalam_available ?? ape.dalam ?? '-', condition: ape.dalam_condition ?? '-' },
-  };
-
-  const u = one(uksRows) || {};
-  const uks = { n_available: truthy(u.n_available) ? u.n_available : (truthy(u.available) ? u.available : 'Tidak Ada') };
-
-  const play = one(playgroundRows) || {};
-  const playground_area = { n_available: truthy(play.n_available) ? play.n_available : (truthy(play.available) ? play.available : '-') };
-
-  const rb = one(rombelRows) || {};
-  const rombel = { kb: int(rb.kb ?? rb.total ?? 0, 0) };
-
-  return {
-    ...base,
-    class_condition,
-    student_data,
-    library,
-    toilets_overall,
-    ...toilets,
-    furniture_computer: fcomp,
-    teacher,
-    rgks,
-    official_residences,
-    pembangunanRKB,
-    rehabRuangKelas,
-    building_status: bstat,
-    ape: apeOut,
-    uks,
-    playground_area,
-    rombel,
-  };
+  return out;
 }
 
-// PKBM
-async function _getPkbmDetail(npsn) {
-  const base = await fetchSchoolBaseByNpsn(npsn);
-  if (!base) return null;
-  const schoolId = base.id;
+async function fetchDetailRaw(npsn) {
+  const key = String(npsn ?? "").trim();
+  if (!key) return null;
 
-  const [
-    { data: ccRows },
-    { data: libRows },
-    { data: toiletRows },
-    { data: fcompRows },
-    { data: teacherRows },
-    { data: officRows },
-    { data: kegRows },
-    { data: bstatRows },
-    { data: uksRows },
-  ] = await Promise.all([
-    supabase.from('class_conditions').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('library').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('toilets').select('*').eq('school_id', schoolId),
-    supabase.from('furniture_computer').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('teacher').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('official_residences').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('kegiatan').select('kegiatan,lokal').eq('school_id', schoolId),
-    supabase.from('building_status').select('*').eq('school_id', schoolId).limit(1),
-    supabase.from('uks').select('*').eq('school_id', schoolId).limit(1),
-  ]);
+  let lastError = null;
 
-  const cc = one(ccRows) || {};
-  const class_condition = {
-    classrooms_good: int(cc.classrooms_good, 0),
-    classrooms_moderate_damage: int(cc.classrooms_moderate_damage, 0),
-    classrooms_heavy_damage: int(cc.classrooms_heavy_damage, 0),
-    total_room: int(cc.total_room, 0),
-    lacking_rkb: int(cc.lacking_rkb, 0),
-    total_mh: int(cc.classrooms_moderate_damage, 0) + int(cc.classrooms_heavy_damage, 0),
-  };
-
-  const lib = one(libRows) || {};
-  const library = {
-    good: int(lib.good, 0),
-    moderate_damage: int(lib.moderate_damage, 0),
-    heavy_damage: int(lib.heavy_damage, 0),
-    total_mh: int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-    total_all: lib.total != null
-      ? int(lib.total, 0)
-      : int(lib.good, 0) + int(lib.moderate_damage, 0) + int(lib.heavy_damage, 0),
-  };
-
-  const { toilets, toilets_overall } = normalizeToilets(toiletRows);
-  const fcomp = normalizeFurnitureComputer(one(fcompRows) || {});
-
-  const t = one(teacherRows) || {};
-  const teacher = {
-    teachers: int(t.teachers ?? t.jumlah_guru, 0),
-    n_teachers: int(t.n_teachers ?? t.kekurangan_guru, 0),
-    tendik: int(t.tendik ?? t.tenaga_kependidikan, 0),
-  };
-
-  const offic = one(officRows) || {};
-  const official_residences = {
-    total: int(offic.total, 0),
-    good: int(offic.good, 0),
-    moderate_damage: int(offic.moderate_damage, 0),
-    heavy_damage: int(offic.heavy_damage, 0),
-  };
-
-  const pembangunanRKB = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('pembangunan'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-  const rehabRuangKelas = (kegRows || [])
-    .filter((r) => String(r.kegiatan || '').toLowerCase().includes('rehab'))
-    .reduce((acc, r) => acc + int(r.lokal, 0), 0);
-
-  const bstatRaw = one(bstatRows) || {};
-  const bstat = normalizeBuildingStatus(bstatRaw);
-
-  const u = one(uksRows) || {};
-  const uks = { n_available: truthy(u.n_available) ? u.n_available : (truthy(u.available) ? u.available : 'Tidak Tersedia') };
-
-  const facilities = {
-    land_area: pickNum(bstatRaw, ['land_area','luas_tanah'], null),
-    building_area: pickNum(bstatRaw, ['building_area','luas_bangunan'], null),
-    yard_area: pickNum(bstatRaw, ['yard_area','luas_halaman'], null),
-  };
-
-  return {
-    ...base,
-    class_condition,
-    library,
-    ...toilets,
-    toilets_overall,
-    furniture_computer: fcomp,
-    teacher,
-    official_residences,
-    pembangunanRKB,
-    rehabRuangKelas,
-    building_status: bstat,
-    facilities,
-  };
-}
-
-// ======================= PUBLIC API + DEDUPE WRAPPER =======================
-async function withCacheAndDedupe(jenjang, npsn, fetcher) {
-  const key = `${jenjang}:${String(npsn).trim()}`;
-
-  // 1) sessionStorage
-  const cached = readCache(jenjang, npsn);
-  if (cached) return cached;
-
-  // 2) inflight dedupe
-  if (inflight.has(key)) return inflight.get(key);
-
-  // 3) fetch
-  const p = (async () => {
-    try {
-      const data = await fetcher(npsn);
-      if (data) writeCache(jenjang, npsn, data);
-      return data;
-    } finally {
-      inflight.delete(key);
+  for (const rpc of RPC_CHAIN) {
+    const { data, error } = await supabase.rpc(rpc.name, { [rpc.arg]: key });
+    if (error) {
+      lastError = error;
+      continue;
     }
-  })();
+    const row = pickRow(data);
+    if (!row) return null;
+    return { row, _rpc: rpc.name, _rpc_arg: rpc.arg };
+  }
 
-  inflight.set(key, p);
-  return p;
+  console.error("[detailApi] All RPC candidates failed:", lastError);
+  throw lastError || new Error("Tidak dapat memuat detail sekolah (RPC gagal).");
 }
 
-export function getSmpDetailByNpsn(npsn)  { return withCacheAndDedupe('SMP',  npsn, _getSmpDetail); }
-export function getSdDetailByNpsn(npsn)   { return withCacheAndDedupe('SD',   npsn, _getSdDetail); }
-export function getPaudDetailByNpsn(npsn) { return withCacheAndDedupe('PAUD', npsn, _getPaudDetail); }
-export function getPkbmDetailByNpsn(npsn) { return withCacheAndDedupe('PKBM', npsn, _getPkbmDetail); }
+function adaptCommon(payload) {
+  const row = payload?.row || {};
+  const metaFixed = ensureMetaShape(row);
+  const rowFixed = { ...row, meta: metaFixed };
+
+  const jenjang = extractJenjang(rowFixed);
+  const { desa, kecamatan } = extractRegion(rowFixed);
+
+  const rombel = normalizeRombelMeta(rowFixed?.meta);
+
+  return {
+    ...rowFixed,
+    jenjang,
+    desa,
+    kecamatan,
+
+    // convenience (sesuai inputan)
+    siswa: isObj(rowFixed?.meta?.siswa) ? rowFixed.meta.siswa : {},
+    siswaAbk: isObj(rowFixed?.meta?.siswaAbk) ? rowFixed.meta.siswaAbk : {},
+    rombel,
+
+    _raw: row,
+    _rpc: payload?._rpc,
+    _rpc_arg: payload?._rpc_arg,
+    ...attachCoordinates(rowFixed),
+  };
+}
+
+async function adaptWithRelations(payload) {
+  const common = adaptCommon(payload);
+
+  const schoolId =
+    common?.id ||
+    common?.school_id ||
+    common?._raw?.id ||
+    common?._raw?.school_id ||
+    null;
+
+  const [{ classes }, { roles }] = await Promise.all([
+    fetchSchoolClassesBySchoolId(schoolId),
+    fetchStaffSummaryBySchoolId(schoolId),
+  ]);
+
+  // guru: meta.guru jika ada, kalau tidak ambil dari staff_summary
+  const guruMeta = isObj(common?.meta?.guru) ? common.meta.guru : null;
+  const guru = guruMeta ? guruMeta : guruFromStaffRoles(roles);
+
+  return {
+    ...common,
+    classes: classes || {},
+    guru,
+    staff_roles: roles || {},
+  };
+}
+
+/* =======================
+   EXPORT UTAMA (per jenjang)
+   ======================= */
+export async function getSdDetailByNpsn(npsn) {
+  const payload = await fetchDetailRaw(npsn);
+  if (!payload) return null;
+  return adaptWithRelations(payload);
+}
+
+export async function getSmpDetailByNpsn(npsn) {
+  const payload = await fetchDetailRaw(npsn);
+  if (!payload) return null;
+  return adaptWithRelations(payload);
+}
+
+export async function getPaudDetailByNpsn(npsn) {
+  const payload = await fetchDetailRaw(npsn);
+  if (!payload) return null;
+  return adaptWithRelations(payload);
+}
+
+export async function getPkbmDetailByNpsn(npsn) {
+  const payload = await fetchDetailRaw(npsn);
+  if (!payload) return null;
+  return adaptWithRelations(payload);
+}
+
+/**
+ * Generic: dipakai jika route Anda hanya punya 1 handler detail.
+ */
+export async function getSchoolDetailByNpsn(npsn) {
+  const payload = await fetchDetailRaw(npsn);
+  if (!payload) return null;
+  return adaptWithRelations(payload);
+}

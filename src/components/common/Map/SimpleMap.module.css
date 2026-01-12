@@ -3,7 +3,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  z-index: 0; /* header memiliki z-index lebih tinggi → kontrol tidak “nembus” */
+  z-index: 0;
 }
 
 .filterBar {
@@ -34,7 +34,6 @@
   z-index: 0;
 }
 
-/* pastikan kontrol leaflet tidak lebih tinggi dari header */
 .map :global(.leaflet-control-container) {
   z-index: 1;
 }
@@ -44,25 +43,20 @@
   margin-bottom: 10px;
 }
 
-/* label kecamatan tebal + readable */
 .kecLabel {
-  background: transparent;
-  color: #000;
-  padding: 0;
-  border-radius: 0;
-  font-size: 13px;
-  font-weight: 700;
+  background: rgba(255, 255, 255, 0.8);
+  color: #111827;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
   text-align: center;
-  box-shadow: none;
-  border: none;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
   white-space: nowrap;
   pointer-events: none;
-  text-shadow:
-    1px 1px 3px rgba(255, 255, 255, 0.8),
-   -1px -1px 3px rgba(255, 255, 255, 0.8),
-    1px -1px 3px rgba(255, 255, 255, 0.8),
-   -1px  1px 3px rgba(255, 255, 255, 0.8);
 }
+
 
 /* badge angka per kecamatan */
 .kecamatanCircle {
@@ -80,7 +74,12 @@
   box-shadow: 0 6px 14px rgba(16, 185, 129, 0.35);
   border: 2px solid #fff;
   transform: translateZ(0);
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+
+  -webkit-backdrop-filter: saturate(1.1);
   backdrop-filter: saturate(1.1);
 }
 
@@ -90,6 +89,7 @@
   background: rgba(22, 163, 74, 0.95);
 }
 
+/* POPUP UMUM */
 .popup {
   font-size: 13px;
   line-height: 1.35;
@@ -109,12 +109,273 @@
   color: #374151;
 }
 
+/* Detail popup sekolah */
+.popupDetail {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.popupDetailRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.popupDetailLabel {
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.popupDetailValue {
+  color: #111827;
+}
+
+/* Tombol Google Maps */
+.popupGmButton {
+  margin-top: 8px;
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* POPUP REKAP KECAMATAN */
+.popupKecStats {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #333333;
+}
+
+.popupKecRow {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #eeeeee;
+  padding: 3px 0;
+}
+
+.popupKecRowLast {
+  border-bottom: none;
+}
+
+.popupKecLabelBerat {
+  color: #dc2626;
+}
+
+.popupKecValueBerat {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.popupKecLabelSedang {
+  color: #f59e0b;
+}
+
+.popupKecValueSedang {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.popupKecLabelRkb {
+  color: #0ea5e9;
+}
+
+.popupKecValueRkb {
+  color: #0ea5e9;
+  font-weight: 600;
+}
+
+.popupKecLabelBaik {
+  color: #1e7f4f;
+}
+
+.popupKecValueBaik {
+  color: #1e7f4f;
+  font-weight: 600;
+}
+
+.popupKecPercent {
+  color: #666666;
+  font-weight: 400;
+}
+
+/* ICON SEKOLAH (PIN) */
+.schoolMarkerOuter {
+  width: 28px;
+  height: 28px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schoolMarkerInner {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0.9;
+}
+
+/* warna pin berdasarkan jenjang */
+.markerPaud {
+  background-color: #f59e0b;
+}
+
+.markerSd {
+  background-color: #3b82f6;
+}
+
+.markerSmp {
+  background-color: #10b981;
+}
+
+.markerPkbm {
+  background-color: #ef4444;
+}
+
+.markerDefault {
+  background-color: #6366f1;
+}
+
+/* RESPONSIVE HEIGHT */
 @media (max-width: 1024px) {
-  .map { height: 480px; }
+  .map {
+    height: 480px;
+  }
 }
+
 @media (max-width: 768px) {
-  .map { height: 420px; }
+  .map {
+    height: 420px;
+  }
 }
+
 @media (max-width: 480px) {
-  .map { height: 360px; }
+  .map {
+    height: 360px;
+  }
+}
+/* Tooltip label kecamatan (di atas marker angka) */
+.kecMarkerTooltip {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  color: #0f172a;
+  border-radius: 10px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  pointer-events: none; /* penting: tidak menghalangi klik marker */
+  white-space: nowrap;
+}
+
+.kecPolygonTooltip {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  border-radius: 10px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Popup tambahan */
+.popupMiniGrid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  font-size: 12px;
+}
+
+.popupDetailLink {
+  display: inline-block;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.popupDetailLink:hover {
+  text-decoration: underline;
+}
+/* Rekap kecamatan: icon angka + nama (satu marker) */
+.kecSummaryWrap {
+  position: relative;
+  display: inline-block;
+  transform: translate(-50%, -50%); /* anchor = tengah circle */
+  pointer-events: auto;
+}
+
+.kecSummaryName {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none; /* tidak menghalangi klik icon */
+}
+.kecLabel {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+
+.kecLabelInner {
+  transform: translate(-50%, -160%); /* naik ke atas dari titik tengah */
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 12px;
+  color: #0f172a;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.9);
+}
+/* src/components/common/Map/SimpleMap.module.css */
+
+/* Tooltip nama kecamatan: tidak menangkap klik, dan posisinya rapi */
+.kecTooltip :global(.leaflet-tooltip) {
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.16);
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
+  white-space: nowrap;
+}
+
+.kecTooltip :global(.leaflet-tooltip-top:before) {
+  border-top-color: rgba(255, 255, 255, 0.95);
+}
+.kecamatanMarkerWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  pointer-events: none; /* klik tetap ke marker */
 }
