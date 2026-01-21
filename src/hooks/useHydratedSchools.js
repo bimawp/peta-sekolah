@@ -48,7 +48,9 @@ const schoolKey = (s) => {
 async function tryFetchJson(urls, signal) {
   for (const u of urls) {
     try {
-      const r = await fetch(u, { cache: "no-store", signal });
+      // PERF: jangan "no-store" karena aset statis besar akan selalu refetch.
+      // force-cache/default akan memanfaatkan HTTP cache (jauh lebih ringan).
+      const r = await fetch(u, { cache: "force-cache", signal });
       if (r.ok) return await r.json();
     } catch {
       // abaikan dan lanjut ke URL berikut
@@ -128,7 +130,12 @@ function buildIndexFromGroupedDataset(ds) {
       } else {
         const name = normAgg(row.nama || row.name || row.namaSekolah || row.nama_sekolah || "");
         const desa = norm(
-          row.desa || row.village || row.village_name || row.villageName || row.nama_desa || ""
+          row.desa ||
+            row.village ||
+            row.village_name ||
+            row.villageName ||
+            row.nama_desa ||
+            ""
         );
         const kec = kecKey(kecamatanName || row.kecamatan || row.kecamatan_name || "");
         key = `NKD:${name}|${desa}|${kec}`;
@@ -168,60 +175,116 @@ function buildIndexFromAllProcessed(arr) {
   return idx;
 }
 
+// PERF: cache index sekali per session/module supaya tidak fetch ulang saat hook dipakai di banyak halaman
+let _sharedCondIndex = null;
+let _sharedLoadPromise = null;
+
+function shouldLoadStaticIndex(rawSchools) {
+  // Heuristik: jika sebagian besar sekolah sudah bisa derive kondisi dari class_condition (atau sudah punya computed_condition),
+  // maka tidak perlu download JSON besar.
+  if (!Array.isArray(rawSchools) || rawSchools.length === 0) return false;
+
+  const sampleSize = Math.min(rawSchools.length, 200);
+  let missing = 0;
+
+  for (let i = 0; i < sampleSize; i += 1) {
+    const s = rawSchools[i];
+    if (!s || typeof s !== "object") {
+      missing += 1;
+      continue;
+    }
+
+    if (s.computed_condition) continue;
+
+    const derived = conditionFromClassCond(s?.class_condition || s?.classCondition || {});
+    if (!derived) missing += 1;
+  }
+
+  // Jika banyak yang tidak punya computed_condition dan tidak bisa di-derive dari class_condition, barulah butuh JSON statis.
+  const ratio = missing / sampleSize;
+  return ratio > 0.35;
+}
+
 export function useHydratedSchools(rawSchools) {
-  const [condIndex, setCondIndex] = useState({});
+  const [condIndex, setCondIndex] = useState(() => _sharedCondIndex || {});
   const mountedRef = useRef(true);
+  const startedRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
     const ac = new AbortController();
 
+    // Tunggu sampai rawSchools tersedia (agar bisa memutuskan perlu fetch index besar atau tidak)
+    if (startedRef.current) {
+      return () => {
+        mountedRef.current = false;
+        ac.abort();
+      };
+    }
+
+    if (!Array.isArray(rawSchools) || rawSchools.length === 0) {
+      return () => {
+        mountedRef.current = false;
+        ac.abort();
+      };
+    }
+
+    startedRef.current = true;
+
+    // Jika sudah ada cache module, langsung pakai
+    if (_sharedCondIndex && Object.keys(_sharedCondIndex).length > 0) {
+      if (mountedRef.current) setCondIndex(_sharedCondIndex);
+      return () => {
+        mountedRef.current = false;
+        ac.abort();
+      };
+    }
+
+    // Kalau tidak perlu, jangan download JSON besar
+    if (!shouldLoadStaticIndex(rawSchools)) {
+      return () => {
+        mountedRef.current = false;
+        ac.abort();
+      };
+    }
+
+    // Jika sedang loading di instance lain, tunggu promise yang sama
+    if (_sharedLoadPromise) {
+      _sharedLoadPromise
+        .then((idx) => {
+          if (mountedRef.current && idx) setCondIndex(idx);
+        })
+        .catch(() => {});
+      return () => {
+        mountedRef.current = false;
+        ac.abort();
+      };
+    }
+
     // support base path saat deploy (subfolder)
     const base = (import.meta?.env?.BASE_URL || "/").replace(/\/+$/, "/");
-    const p = (u) => (u.startsWith("/") ? u : `/${u}`);
+    const u = (path) => `${base}${path}`.replace(/\/{2,}/g, "/");
 
-    (async () => {
+    _sharedLoadPromise = (async () => {
       try {
         // optional agregasi kalau file ini tersedia
         const processed = await tryFetchJson(
-          [p(`${base}data/all_schools_processed.json`).replace("//data", "/data")],
+          [u("data/all_schools_processed.json")],
           ac.signal
         );
         const idxProcessed = buildIndexFromAllProcessed(processed || []);
 
         // empat dataset jenjang (dengan fallback)
         const sd = await tryFetchJson(
-          [
-            p(`${base}data/sd_new.json`).replace("//data", "/data"),
-            p(`${base}data/sd.json`).replace("//data", "/data"),
-            "/sd.json",
-          ],
+          [u("data/sd_new.json"), u("data/sd.json"), "/sd.json"],
           ac.signal
         );
 
-        const smp = await tryFetchJson(
-          [
-            p(`${base}data/smp.json`).replace("//data", "/data"),
-            "/smp.json",
-          ],
-          ac.signal
-        );
+        const smp = await tryFetchJson([u("data/smp.json"), "/smp.json"], ac.signal);
 
-        const paud = await tryFetchJson(
-          [
-            p(`${base}data/paud.json`).replace("//data", "/data"),
-            "/paud.json",
-          ],
-          ac.signal
-        );
+        const paud = await tryFetchJson([u("data/paud.json"), "/paud.json"], ac.signal);
 
-        const pkbm = await tryFetchJson(
-          [
-            p(`${base}data/pkbm.json`).replace("//data", "/data"),
-            "/pkbm.json",
-          ],
-          ac.signal
-        );
+        const pkbm = await tryFetchJson([u("data/pkbm.json"), "/pkbm.json"], ac.signal);
 
         const next = {
           ...idxProcessed,
@@ -231,21 +294,25 @@ export function useHydratedSchools(rawSchools) {
           ...buildIndexFromGroupedDataset(pkbm || {}),
         };
 
-        if (mountedRef.current) {
-          // Effect ini hanya jalan sekali; set saja agar index pasti terisi jika ada.
-          setCondIndex(next);
-        }
+        _sharedCondIndex = next;
+        return next;
       } catch {
-        // diamkan; hook tetap jalan dengan tanpa augment
+        return null;
       }
     })();
+
+    _sharedLoadPromise
+      .then((idx) => {
+        if (mountedRef.current && idx) setCondIndex(idx);
+      })
+      .catch(() => {});
 
     return () => {
       mountedRef.current = false;
       ac.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // load sekali: index bersifat global
+  }, [rawSchools]); // trigger saat rawSchools pertama kali tersedia
 
   /**
    * Gabungkan rawSchools + computed_condition:

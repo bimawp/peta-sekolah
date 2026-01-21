@@ -33,7 +33,9 @@ export default function App() {
       <SWRConfig
         value={{
           fetcher,
-          suspense: true,
+          // PERF: jangan suspend global untuk SWR.
+          // Biarkan halaman render cepat (header/sidebar/routes) lalu komponen menangani loading state masing-masing.
+          suspense: false,
           revalidateOnFocus: false,
           revalidateOnReconnect: true,
           dedupingInterval: 60_000,

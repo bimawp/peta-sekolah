@@ -1,31 +1,17 @@
 // src/routes/AppRoutes.jsx
-import React, {
-  Suspense,
-  lazy,
-  useMemo,
-  useEffect,
-  useState,
-  useCallback,
-  startTransition,
-} from "react";
+import React, { Suspense, lazy, useMemo, useEffect, useState, startTransition } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Layout from "../components/common/Layout/Layout";
-// HAPUS ProtectedRoute
-// import ProtectedRoute from "./ProtectedRoute.jsx";
 import SuspenseLoader from "../components/common/SuspenseLoader/SuspenseLoader";
 
-// === Lazy load pages (dipisah dari initial bundle) ===
-const Dashboard        = lazy(() => import("../pages/Dashboard/Dashboard.jsx"));
+const Dashboard = lazy(() => import("../pages/Dashboard/Dashboard.jsx"));
 const SchoolDetailPage = lazy(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"));
-// HAPUS LoginPage
-// const LoginPage        = lazy(() => import("../pages/Auth/Login.jsx"));
-const NotFound         = lazy(() => import("../pages/NotFound/NotFound.jsx"));
-const MapPage          = lazy(() => import("../pages/Map/Map.jsx"));
-const BudgetPage       = lazy(() => import("../pages/Budget/BudgetPage.jsx"));
-const FacilitiesPage   = lazy(() => import("../pages/Facilities/FacilitiesPage.jsx"));
+const NotFound = lazy(() => import("../pages/NotFound/NotFound.jsx"));
+const MapPage = lazy(() => import("../pages/Map/Map.jsx"));
+const BudgetPage = lazy(() => import("../pages/Budget/BudgetPage.jsx"));
+const FacilitiesPage = lazy(() => import("../pages/Facilities/FacilitiesPage.jsx"));
 
-// === API detail by NPSN (ringan) ===
 import {
   getSdDetailByNpsn,
   getSmpDetailByNpsn,
@@ -33,34 +19,68 @@ import {
   getPkbmDetailByNpsn,
 } from "@/services/api/detailApi";
 
-/* =====================================================================
-   Prefetch helper: panggil dynamic import saat hover/focus untuk nyiapin chunk
-===================================================================== */
+// ======= Scheduler low-priority (anti jank) =======
+function scheduleLowPriority(cb, timeout = 1200) {
+  try {
+    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(
+        () => {
+          try {
+            cb();
+          } catch {
+            /* ignore */
+          }
+        },
+        { timeout }
+      );
+      return () => {
+        try {
+          window.cancelIdleCallback?.(id);
+        } catch {
+          /* ignore */
+        }
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+
+  const t = setTimeout(() => {
+    try {
+      cb();
+    } catch {
+      /* ignore */
+    }
+  }, 1);
+  return () => clearTimeout(t);
+}
+
 const prefetch = (() => {
   const inFlight = new Set();
   return (loader, key) => {
     const k = key || loader.toString();
     if (inFlight.has(k)) return;
     inFlight.add(k);
-    queueMicrotask(() => {
-      loader().catch(() => {}).finally(() => {
-        setTimeout(() => inFlight.delete(k), 5000);
-      });
+
+    // Jalankan saat idle agar tidak mengganggu animasi/scroll/input user
+    scheduleLowPriority(() => {
+      loader()
+        .catch(() => {})
+        .finally(() => {
+          setTimeout(() => inFlight.delete(k), 5000);
+        });
     });
   };
 })();
 
-// Prefetch map komponen utama (dipakai sidebar/menu)
 export const prefetchPages = {
-  dashboard:   () => prefetch(() => import("../pages/Dashboard/Dashboard.jsx"), "pg:dashboard"),
-  map:         () => prefetch(() => import("../pages/Map/Map.jsx"), "pg:map"),
-  budget:      () => prefetch(() => import("../pages/Budget/BudgetPage.jsx"), "pg:budget"),
-  facilities:  () => prefetch(() => import("../pages/Facilities/FacilitiesPage.jsx"), "pg:facilities"),
-  detail:      () => prefetch(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"), "pg:detail"),
-  // HAPUS prefetch login
+  dashboard: () => prefetch(() => import("../pages/Dashboard/Dashboard.jsx"), "pg:dashboard"),
+  map: () => prefetch(() => import("../pages/Map/Map.jsx"), "pg:map"),
+  budget: () => prefetch(() => import("../pages/Budget/BudgetPage.jsx"), "pg:budget"),
+  facilities: () => prefetch(() => import("../pages/Facilities/FacilitiesPage.jsx"), "pg:facilities"),
+  detail: () => prefetch(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"), "pg:detail"),
 };
 
-// Helper: redirect yang mempertahankan query string (mis. ?npsn=…)
 function QueryPreservingRedirect({ to }) {
   const { search } = useLocation();
   return <Navigate to={`${to}${search || ""}`} replace />;
@@ -71,43 +91,75 @@ function useQuery() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
-// ===== Cache helpers (sessionStorage) =====
+// ===== Cache helpers =====
 const CACHE_PREFIX = "sch-detail:";
 const getCacheKey = (jenjang, npsn) => `${CACHE_PREFIX}${jenjang}:${npsn}`;
+
+function unwrapMaybe(x) {
+  let cur = x;
+  for (let i = 0; i < 4; i++) {
+    if (!cur || typeof cur !== "object" || Array.isArray(cur)) break;
+    if (cur.data && typeof cur.data === "object") cur = cur.data;
+    else if (cur.school && typeof cur.school === "object") cur = cur.school;
+    else if (cur.detail && typeof cur.detail === "object") cur = cur.detail;
+    else if (cur.payload && typeof cur.payload === "object") cur = cur.payload;
+    else break;
+  }
+  return cur;
+}
+
+function isValidDetailPayload(data, npsn) {
+  const base = unwrapMaybe(data);
+  if (!base || typeof base !== "object" || Array.isArray(base)) return false;
+
+  const want = String(npsn ?? "").trim();
+  const got = String(base?.npsn ?? base?.NPSN ?? base?._raw?.npsn ?? "").trim();
+  if (want && got && got === want) return true;
+
+  const id = base?.id ?? base?.school_id ?? base?._raw?.id ?? base?._raw?.school_id;
+  const name = String(base?.name ?? base?.school_name ?? base?.nama_sekolah ?? "").trim();
+  if (id || name) return true;
+
+  return false;
+}
+
 function readDetailCache(jenjang, npsn) {
   try {
     const raw = sessionStorage.getItem(getCacheKey(jenjang, npsn));
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return parsed?.data || null;
+    const data = parsed?.data || null;
+
+    if (!isValidDetailPayload(data, npsn)) {
+      sessionStorage.removeItem(getCacheKey(jenjang, npsn));
+      return null;
+    }
+    return data;
   } catch {
     return null;
   }
 }
+
 function writeDetailCache(jenjang, npsn, data) {
   try {
-    sessionStorage.setItem(
-      getCacheKey(jenjang, npsn),
-      JSON.stringify({ ts: Date.now(), data })
-    );
-  } catch { /* ignore */ }
+    if (!isValidDetailPayload(data, npsn)) return;
+    sessionStorage.setItem(getCacheKey(jenjang, npsn), JSON.stringify({ ts: Date.now(), data }));
+  } catch {
+    /* ignore */
+  }
 }
 
-/**
- * Map jenjang -> komponen detail (lazy) agar tidak ikut bundle rute lain.
- */
 const DetailLazyMap = {
-  SD:   lazy(() => import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd")),
-  SMP:  lazy(() => import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp")),
+  SD: lazy(() => import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd")),
+  SMP: lazy(() => import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp")),
   PAUD: lazy(() => import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud")),
   PKBM: lazy(() => import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm")),
 };
 
-// Prefetch modul detail by jenjang (buat link/hover)
 export function prefetchDetailModule(jenjang) {
   const map = {
-    SD:   () => import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd"),
-    SMP:  () => import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp"),
+    SD: () => import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd"),
+    SMP: () => import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp"),
     PAUD: () => import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud"),
     PKBM: () => import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm"),
   };
@@ -115,12 +167,6 @@ export function prefetchDetailModule(jenjang) {
   if (loader) prefetch(loader, `detail:${jenjang}`);
 }
 
-/**
- * Standalone detail route per jenjang:
- * - Baca ?npsn=... dari URL
- * - Fast paint dari cache (kalau ada), tetap revalidate di background
- * - Tanpa Layout (header/sidebar) & tanpa tombol kembali
- */
 function StandaloneDetailRoute({ jenjang }) {
   const query = useQuery();
   const npsn = query.get("npsn");
@@ -128,62 +174,78 @@ function StandaloneDetailRoute({ jenjang }) {
   const [err, setErr] = useState(null);
   const [detail, setDetail] = useState(null);
 
-  // Prefetch chunk sesuai jenjang secepat mungkin
   useEffect(() => {
     prefetchDetailModule(jenjang);
   }, [jenjang]);
 
   useEffect(() => {
     let alive = true;
+
+    const tSet = (fn) => {
+      startTransition(() => {
+        if (alive) fn();
+      });
+    };
+
     async function run() {
-      setErr(null);
+      tSet(() => setErr(null));
 
       if (!npsn) {
-        setLoading(false);
-        setErr("Parameter NPSN tidak ditemukan.");
+        tSet(() => {
+          setLoading(false);
+          setErr("Parameter NPSN tidak ditemukan.");
+        });
         return;
       }
 
-      // 1) coba cache untuk fast-first-paint
       const cached = readDetailCache(jenjang, npsn);
+      const hadCache = Boolean(cached);
+
       if (cached) {
-        setDetail(cached);
-        setLoading(false);
+        tSet(() => {
+          setDetail(cached);
+          setLoading(false);
+        });
       }
 
-      // 2) revalidate (atau fetch pertama kali kalau tak ada cache)
       try {
         let data = null;
-        if (jenjang === "SD")   data = await getSdDetailByNpsn(npsn);
-        if (jenjang === "SMP")  data = await getSmpDetailByNpsn(npsn);
+        if (jenjang === "SD") data = await getSdDetailByNpsn(npsn);
+        if (jenjang === "SMP") data = await getSmpDetailByNpsn(npsn);
         if (jenjang === "PAUD") data = await getPaudDetailByNpsn(npsn);
         if (jenjang === "PKBM") data = await getPkbmDetailByNpsn(npsn);
-        if (!data) throw new Error("Detail sekolah tidak ditemukan.");
+
+        if (!data) throw new Error("Detail sekolah tidak ditemukan (RPC mengembalikan kosong).");
 
         writeDetailCache(jenjang, npsn, data);
         if (!alive) return;
-        setDetail((prev) => prev || data);
-        setLoading(false);
+
+        // FIX: selalu replace (jangan prev || data)
+        tSet(() => {
+          setDetail(data);
+          setLoading(false);
+        });
       } catch (e) {
         if (!alive) return;
-        if (!cached) {
-          setErr(e?.message || String(e));
-          setLoading(false);
+        if (!hadCache) {
+          tSet(() => {
+            setErr(e?.message || String(e));
+            setLoading(false);
+          });
         }
       }
     }
-    startTransition(run);
+
+    // Jalankan fetch tanpa membuat render perpindahan jadi “nyangkut”
+    run();
+
     return () => {
       alive = false;
     };
   }, [npsn, jenjang]);
 
-  if (loading && !detail)
-    return <div style={{ padding: 16 }}>Memuat detail sekolah…</div>;
-  if (err && !detail)
-    return (
-      <div style={{ padding: 16, color: "#b91c1c" }}>⚠️ {err}</div>
-    );
+  if (loading && !detail) return <div style={{ padding: 16 }}>Memuat detail sekolah…</div>;
+  if (err && !detail) return <div style={{ padding: 16, color: "#b91c1c" }}>⚠️ {err}</div>;
   if (!detail) return <div style={{ padding: 16 }}>Detail kosong.</div>;
 
   const DetailComp = DetailLazyMap[jenjang];
@@ -196,13 +258,26 @@ function StandaloneDetailRoute({ jenjang }) {
   );
 }
 
-/**
- * Komponen root routes
- */
 export default function AppRoutes() {
   const location = useLocation();
 
-  // Heuristik prefetch tetangga rute
+  // ===== Smooth route rendering:
+  // UI menahan halaman lama sampai halaman baru (lazy chunk) siap, sehingga tidak ada "kaku" saat pindah.
+  const [displayLocation, setDisplayLocation] = useState(location);
+
+  useEffect(() => {
+    // gunakan key bila tersedia, fallback ke pathname+search
+    const same =
+      (displayLocation?.key && location?.key && displayLocation.key === location.key) ||
+      (displayLocation?.pathname === location?.pathname && displayLocation?.search === location?.search);
+
+    if (same) return;
+
+    startTransition(() => {
+      setDisplayLocation(location);
+    });
+  }, [location, displayLocation]);
+
   useEffect(() => {
     const path = location.pathname;
     if (path === "/" || path === "/dashboard") {
@@ -218,16 +293,47 @@ export default function AppRoutes() {
     }
   }, [location.pathname]);
 
+  // Warm-up prefetch saat idle (mengurangi kemungkinan suspense saat pindah halaman)
+  useEffect(() => {
+    const cancels = [];
+
+    cancels.push(
+      scheduleLowPriority(() => {
+        // prefetch halaman yang paling sering dipakai (tanpa mengubah perilaku UI)
+        prefetchPages.dashboard();
+        prefetchPages.map();
+        prefetchPages.facilities();
+        prefetchPages.budget();
+        prefetchPages.detail();
+      }, 1500)
+    );
+
+    cancels.push(
+      scheduleLowPriority(() => {
+        // prefetch komponen detail per jenjang agar klik detail terasa instan
+        prefetchDetailModule("SD");
+        prefetchDetailModule("SMP");
+        prefetchDetailModule("PAUD");
+        prefetchDetailModule("PKBM");
+      }, 2500)
+    );
+
+    return () => {
+      for (const c of cancels) {
+        try {
+          c?.();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, []);
+
   return (
     <Suspense fallback={<SuspenseLoader />}>
-      <Routes>
-        {/* ====== Halaman login (DIHAPUS) ====== */}
-        {/* <Route path="/login" element={<LoginPage />} /> */}
-
-        {/* ====== ROUTES DENGAN LAYOUT (Header + Sidebar) ====== */}
+      <Routes location={displayLocation}>
         <Route
           element={
-            // HAPUS ProtectedRoute
             <Layout
               onMenuHover={(key) => {
                 const map = {
@@ -241,60 +347,25 @@ export default function AppRoutes() {
             />
           }
         >
-          {/* Rute utama */}
-          <Route path="/"          element={<Dashboard />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
-
-          {/* Peta */}
           <Route path="/peta" element={<MapPage />} />
-          <Route path="/map"  element={<Navigate to="/peta" replace />} />
-
-          {/* Menu lain */}
-          <Route path="/anggaran"  element={<BudgetPage />} />
-          <Route path="/lainnya"   element={<FacilitiesPage />} />
-
-          {/* Halaman gabungan (punya header/sidebar) */}
+          <Route path="/map" element={<Navigate to="/peta" replace />} />
+          <Route path="/anggaran" element={<BudgetPage />} />
+          <Route path="/lainnya" element={<FacilitiesPage />} />
           <Route path="/detail-sekolah" element={<SchoolDetailPage />} />
         </Route>
 
-        {/* ====== ROUTES TANPA LAYOUT: detail per jenjang (standalone) ====== */}
-        {/* HAPUS ProtectedRoute */}
-        <Route
-          path="/sd/school_detail"
-          element={<StandaloneDetailRoute jenjang="SD" />}
-        />
-        <Route
-          path="/smp/school_detail"
-          element={<StandaloneDetailRoute jenjang="SMP" />}
-        />
-        <Route
-          path="/paud/school_detail"
-          element={<StandaloneDetailRoute jenjang="PAUD" />}
-        />
-        <Route
-          path="/pkbm/school_detail"
-          element={<StandaloneDetailRoute jenjang="PKBM" />}
-        />
+        <Route path="/sd/school_detail" element={<StandaloneDetailRoute jenjang="SD" />} />
+        <Route path="/smp/school_detail" element={<StandaloneDetailRoute jenjang="SMP" />} />
+        <Route path="/paud/school_detail" element={<StandaloneDetailRoute jenjang="PAUD" />} />
+        <Route path="/pkbm/school_detail" element={<StandaloneDetailRoute jenjang="PKBM" />} />
 
-        {/* ====== Alias/redirect lama → detail rute baru ====== */}
-        <Route
-          path="/smp/school_detail_old"
-          element={<QueryPreservingRedirect to="/smp/school_detail" />}
-        />
-        <Route
-          path="/sd/school_detail_old"
-          element={<QueryPreservingRedirect to="/sd/school_detail" />}
-        />
-        <Route
-          path="/paud/school_detail_old"
-          element={<QueryPreservingRedirect to="/paud/school_detail" />}
-        />
-        <Route
-          path="/pkbm/school_detail_old"
-          element={<QueryPreservingRedirect to="/pkbm/school_detail" />}
-        />
+        <Route path="/smp/school_detail_old" element={<QueryPreservingRedirect to="/smp/school_detail" />} />
+        <Route path="/sd/school_detail_old" element={<QueryPreservingRedirect to="/sd/school_detail" />} />
+        <Route path="/paud/school_detail_old" element={<QueryPreservingRedirect to="/paud/school_detail" />} />
+        <Route path="/pkbm/school_detail_old" element={<QueryPreservingRedirect to="/pkbm/school_detail" />} />
 
-        {/* ====== 404 ====== */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

@@ -9,28 +9,42 @@ import { useIdlePrefetch } from "@/hooks/useIdlePrefetch";
 const Layout = () => {
   // === State hasil broadcast dari Sidebar ===
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // desktop only
-  const [isMobile, setIsMobile] = useState(false);                 // <=768
-  const [mobileOpen, setMobileOpen] = useState(false);             // overlay state (informasi)
+  const [isMobile, setIsMobile] = useState(false); // <=768
+  const [mobileOpen, setMobileOpen] = useState(false); // overlay state (informasi)
 
   const idlePrefetch = useIdlePrefetch();
 
   // Prefetch ringan saat idle (chunk + JSON yang sering dipakai)
   useEffect(() => {
-    idlePrefetch([
-      { type: "chunk", importer: () => import("@/pages/Map/Map.jsx") },
-      { type: "chunk", importer: () => import("@/pages/Facilities/FacilitiesPage.jsx") },
-      { type: "chunk", importer: () => import("@/pages/Dashboard/Dashboard.jsx") },
-      { type: "json", url: "/data/kecamatan.geojson" },
-      { type: "json", url: "/data/desa.geojson" },
-      { type: "json", url: "/data/sd_new.json" },
-      { type: "json", url: "/data/smp.json" },
-      { type: "json", url: "/data/paud.json" },
-      { type: "json", url: "/data/pkbm.json" },
-      { type: "json", url: "/data/data_kegiatan_sd.json" },
-      { type: "json", url: "/data/data_kegiatan_smp.json" },
-      { type: "json", url: "/data/data_kegiatan_paud.json" },
-      { type: "json", url: "/data/data_kegiatan_pkbm.json" },
-    ]);
+    // PERF: Hindari prefetch JSON besar (sd/smp/paud/pkbm + data_kegiatan) yang sering membuat initial load “berat”
+    // dan memakan bandwidth sehingga map/chart/Supabase terasa lambat.
+    // Tetap prefetch chunk halaman + geojson boundary yang relatif penting untuk map.
+    const conn =
+      navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+
+    const saveData = Boolean(conn?.saveData);
+    const effectiveType = (conn?.effectiveType || "").toString();
+    const isSlowNet = /(^|-)2g/.test(effectiveType);
+
+    if (saveData || isSlowNet) return;
+
+    // Beri jeda kecil agar tidak mengganggu rendering awal & request penting.
+    const t = window.setTimeout(() => {
+      idlePrefetch([
+        { type: "chunk", importer: () => import("@/pages/Map/Map.jsx") },
+        {
+          type: "chunk",
+          importer: () => import("@/pages/Facilities/FacilitiesPage.jsx"),
+        },
+        { type: "chunk", importer: () => import("@/pages/Dashboard/Dashboard.jsx") },
+
+        // GeoJSON boundary (relatif lebih ringan & sering dipakai map)
+        { type: "json", url: "/data/kecamatan.geojson" },
+        { type: "json", url: "/data/desa.geojson" },
+      ]);
+    }, 1200);
+
+    return () => window.clearTimeout(t);
   }, [idlePrefetch]);
 
   // Dengarkan event dari Sidebar

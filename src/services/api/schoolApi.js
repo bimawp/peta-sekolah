@@ -306,9 +306,9 @@ async function hydrateSchoolsByIds(ids = []) {
         lat, lng,
         village_name,
         kecamatan, kecamatan_name,
-        meta, details, class_condition, facilities, contact,
+        meta, details, class_condition, facilities,
         school_type_id,
-        school_types:school_type_id ( code, name )
+        school_types!school_type_id ( code, name )
       `
       )
       .in("id", c);
@@ -445,9 +445,9 @@ async function fetchSchoolsByFilters(filters = {}) {
       lat, lng,
       village_name,
       kecamatan, kecamatan_name,
-      meta, details, class_condition, facilities, contact,
+      meta, details, class_condition, facilities,
       school_type_id,
-      school_types:school_type_id ( code, name )
+      school_types!school_type_id ( code, name )
     `
     )
     .limit(10000);

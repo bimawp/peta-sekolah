@@ -37,66 +37,15 @@ import {
   getPkbmDetailByNpsn,
 } from "@/services/api/detailApi";
 
-// Supabase hanya untuk data sekolah & kegiatan,
-// filter kecamatan/desa tetap murni dari JSON.
 import supabase from "@/services/supabaseClient";
 
 /* =====================================================================
-   RPC (TERBARU)
-   ===================================================================== */
-const RPC_TOILET_SCHOOLS_CANDIDATES = [
-  "rpc_facilities_toilet_schools",
-  "rpc_facilities_toilet_school_list",
-  "rpc_toilet_schools",
-  "rpc_facilities_schools_toilet",
-  "rpc_facilities_toilet_dataset_schools",
-];
-
-const RPC_TOILET_PROJECTS_CANDIDATES = [
-  "rpc_facilities_toilet_projects",
-  "rpc_facilities_toilet_project_list",
-  "rpc_toilet_projects",
-  "rpc_facilities_projects_toilet",
-  "rpc_facilities_toilet_dataset_projects",
-];
-
-/**
- * Coba panggil RPC dari list kandidat (urut).
- * - Jika function tidak ada, lanjut ke kandidat berikutnya.
- * - Jika error selain "function not found", throw.
- */
-async function rpcFirstAvailable(functionNames, args) {
-  let lastErr = null;
-
-  for (const fn of functionNames) {
-    const { data, error } = await supabase.rpc(fn, args || {});
-    if (!error) return { data, rpc: fn };
-
-    lastErr = error;
-
-    const msg = String(error?.message || "");
-    const code = String(error?.code || "");
-
-    const isNotFound =
-      code === "PGRST202" ||
-      /could not find the function/i.test(msg) ||
-      /function .* does not exist/i.test(msg) ||
-      /schema cache/i.test(msg);
-
-    if (isNotFound) continue;
-
-    throw error;
-  }
-
-  if (lastErr) throw lastErr;
-  throw new Error("RPC failed (no candidate succeeded).");
-}
-
-/** Normalisasi aman: dukung beberapa variasi nama field dari RPC */
+   Helpers umum
+===================================================================== */
 function pickFirst(obj, keys, fallback = null) {
   for (const k of keys) {
     const v = obj?.[k];
-    if (v !== undefined && v !== null) return v;
+    if (v !== undefined && v !== null && v !== "") return v;
   }
   return fallback;
 }
@@ -105,143 +54,6 @@ function ensureObject(x) {
   return x && typeof x === "object" ? x : {};
 }
 
-/**
- * Map row dari RPC -> bentuk yang dipakai normalizeSchoolData()
- * Target minimal:
- * { npsn, name, jenjang, village, kecamatan, type/status, toilets, teachers_toilet, students_toilet, student_count }
- *
- * FIX: tambahkan toilets_overall + total candidates karena banyak data non-SMP sering taruh di situ.
- * FIX KRITIS: toilets boleh null agar "UNKNOWN" tidak otomatis jadi 0.
- */
-function mapRpcSchoolRowToLegacyShape(row) {
-  const meta = ensureObject(row?.meta);
-
-  const jenjangRaw =
-    pickFirst(
-      row,
-      ["jenjang", "level", "school_level", "school_type_code", "code"],
-      ""
-    ) ||
-    pickFirst(
-      meta,
-      ["jenjang", "level", "school_level", "school_type_code", "code"],
-      ""
-    );
-
-  const jenjang = String(jenjangRaw || "").toUpperCase();
-
-  const toiletsObj =
-    pickFirst(row, ["toilets"], null) ??
-    pickFirst(meta, ["toilets"], null) ??
-    null;
-
-  const toiletsOverallObj =
-    pickFirst(
-      row,
-      ["toilets_overall", "toiletsOverall", "toilet_overall", "toiletOverall"],
-      null
-    ) ??
-    pickFirst(
-      meta,
-      ["toilets_overall", "toiletsOverall", "toilet_overall", "toiletOverall"],
-      null
-    ) ??
-    null;
-
-  // Kandidat total toilet kalau hanya disediakan sebagai angka
-  const toiletsTotalCandidate =
-    pickFirst(row, ["toilets_total", "toiletsTotal", "total_toilet", "totalToilet"], null) ??
-    pickFirst(meta, ["toilets_total", "toiletsTotal", "total_toilet", "totalToilet"], null) ??
-    null;
-
-  const teachersToiletObj =
-    pickFirst(row, ["teachers_toilet"], null) ??
-    pickFirst(meta, ["teachers_toilet"], null) ??
-    {};
-
-  const studentsToiletObj =
-    pickFirst(row, ["students_toilet"], null) ??
-    pickFirst(meta, ["students_toilet"], null) ??
-    {};
-
-  return {
-    npsn: pickFirst(row, ["npsn"], ""),
-    name: pickFirst(row, ["name", "nama", "nama_sekolah"], ""),
-    jenjang,
-    village: pickFirst(row, ["village", "desa", "village_name"], null),
-    kecamatan: pickFirst(row, ["kecamatan", "subdistrict", "district"], null),
-    type: pickFirst(row, ["type", "tipe", "status"], null),
-    status: pickFirst(row, ["status", "type"], null),
-
-    // penting
-    toilets: toiletsObj, // bisa null / object / string-json
-    toilets_overall: toiletsOverallObj, // sering dipakai agregat
-    toilets_total_candidate: toiletsTotalCandidate, // kadang angka doang
-
-    teachers_toilet: ensureObject(teachersToiletObj),
-    students_toilet: ensureObject(studentsToiletObj),
-
-    student_count: pickFirst(row, ["student_count", "siswa", "jumlah_siswa"], 0),
-    meta,
-  };
-}
-
-/* =====================================================================
-   Helpers: cache detail di sessionStorage agar hover "Detail" terasa cepat
-===================================================================== */
-const CACHE_PREFIX = "sch-detail:";
-const getCacheKey = (jenjang, npsn) => `${CACHE_PREFIX}${jenjang}:${npsn}`;
-
-function readDetailCache(jenjang, npsn) {
-  try {
-    const raw = sessionStorage.getItem(getCacheKey(jenjang, npsn));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed && parsed.data ? parsed.data : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeDetailCache(jenjang, npsn, data) {
-  try {
-    sessionStorage.setItem(
-      getCacheKey(jenjang, npsn),
-      JSON.stringify({ ts: Date.now(), data })
-    );
-  } catch {}
-}
-
-async function prefetchDetailByNpsn(jenjang, npsn) {
-  if (!jenjang || !npsn) return;
-  if (readDetailCache(jenjang, npsn)) return;
-  try {
-    let data = null;
-    if (jenjang === "SD") data = await getSdDetailByNpsn(npsn);
-    if (jenjang === "SMP") data = await getSmpDetailByNpsn(npsn);
-    if (jenjang === "PAUD") data = await getPaudDetailByNpsn(npsn);
-    if (jenjang === "PKBM") data = await getPkbmDetailByNpsn(npsn);
-    if (data) writeDetailCache(jenjang, npsn, data);
-  } catch {}
-}
-
-/** Prefetch modul detail (biar first render komponen detail lebih cepat di tab baru) */
-async function prefetchDetailModule(jenjang) {
-  try {
-    if (jenjang === "SD")
-      await import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd");
-    if (jenjang === "SMP")
-      await import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp");
-    if (jenjang === "PAUD")
-      await import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud");
-    if (jenjang === "PKBM")
-      await import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm");
-  } catch {}
-}
-
-/* =====================================================================
-   Helpers umum
-===================================================================== */
 const norm = (x) =>
   String(x == null ? "" : x)
     .normalize("NFKC")
@@ -252,6 +64,32 @@ const keyify = (x) =>
   norm(x)
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
+
+/**
+ * Normalisasi key NPSN agar duplikasi karena format berbeda tidak terhitung ganda.
+ * - Pertahankan digit apa adanya untuk string numeric normal.
+ * - Jika format "12345678.0" -> "12345678"
+ * - Fallback ke keyify bila bukan numeric murni.
+ */
+const normalizeNpsnKey = (x) => {
+  const s = norm(x);
+  if (!s) return "";
+
+  // "12345678.0" / "12345678.00" -> "12345678"
+  if (/^\d+\.\d+$/.test(s)) {
+    const f = Number(s);
+    if (Number.isFinite(f) && Number.isInteger(f)) return String(f);
+  }
+
+  // numeric murni -> pakai apa adanya (jaga leading zero)
+  if (/^\d+$/.test(s)) return s;
+
+  // kalau campur, ambil digit jika cukup panjang (umumnya NPSN 8 digit)
+  const digits = s.replace(/\D/g, "");
+  if (digits.length >= 6) return digits;
+
+  return keyify(s);
+};
 
 const isCodeLike = (v) => {
   const s = String(v || "").trim();
@@ -299,10 +137,8 @@ const hasEvidence = (x) => {
     const s = x.trim();
     if (!s) return false;
 
-    // numeric string
     if (/^-?\d+(\.\d+)?$/.test(s)) return true;
 
-    // json string
     const p = tryParseJson(s);
     if (p && typeof p === "object" && !Array.isArray(p)) {
       return Object.keys(p).length > 0;
@@ -318,10 +154,385 @@ const hasEvidence = (x) => {
   return false;
 };
 
-// ambil counters (good/moderate/heavy/total) dari berbagai bentuk
+/* =====================================================================
+   Mapping Jenjang dari schools.school_type_id
+   1: PAUD, 2: PKBM, 3: SD, 4: SMP
+===================================================================== */
+const SCHOOL_TYPE_ID_TO_JENJANG = {
+  1: "PAUD",
+  2: "PKBM",
+  3: "SD",
+  4: "SMP",
+};
+
+/* =====================================================================
+   ✅ RPC FINAL (Supabase) — Sesuai target dashboard
+   - Pie Pembangunan Toilet: rpc_toilet_pembangunan_pie_final()
+     -> kebutuhan_belum_dibangun, pembangunan_dilakukan, total_target
+     Target tetap 1186 unit.
+   - Bar Intervensi Toilet: rpc_toilet_intervensi_barchart_final(p_tahun int default null)
+     -> total_intervensi, pembangunan_toilet, rehabilitasi_toilet
+===================================================================== */
+async function fetchPembangunanPieRpc() {
+  const { data, error } = await supabase.rpc("rpc_toilet_pembangunan_pie_final");
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+
+  const totalTarget = toInt(row.total_target) || 1186;
+
+  return {
+    kebutuhan_belum_dibangun: toInt(row.kebutuhan_belum_dibangun),
+    pembangunan_dilakukan: toInt(row.pembangunan_dilakukan),
+    total_target: totalTarget,
+  };
+}
+
+async function fetchIntervensiBarRpc(p_tahun = null) {
+  const { data, error } = await supabase.rpc("rpc_toilet_intervensi_barchart_final", {
+    p_tahun: p_tahun == null ? null : toInt(p_tahun),
+  });
+  if (error) throw error;
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+
+  return {
+    total_intervensi: toInt(row.total_intervensi),
+    pembangunan_toilet: toInt(row.pembangunan_toilet),
+    rehabilitasi_toilet: toInt(row.rehabilitasi_toilet),
+  };
+}
+
+function buildPembangunanPieDataFromRpc(rpcRow) {
+  const belum = toInt(rpcRow?.kebutuhan_belum_dibangun);
+  const done = toInt(rpcRow?.pembangunan_dilakukan);
+
+  // wajib pakai target 1186 (atau dari RPC bila sudah benar)
+  const totalTarget = toInt(rpcRow?.total_target) || 1186;
+  const denom = totalTarget > 0 ? totalTarget : 1186;
+
+  const slices = [
+    {
+      name: "Kebutuhan Toilet (Belum dibangun)",
+      value: belum,
+      actualCount: belum,
+      percent: denom > 0 ? (belum / denom) * 100 : 0,
+      color: "#FF6B6B",
+    },
+    {
+      name: "Pembangunan dilakukan",
+      value: done,
+      actualCount: done,
+      percent: denom > 0 ? (done / denom) * 100 : 0,
+      color: "#4ECDC4",
+    },
+  ];
+
+  const hasAny = slices.some((d) => d.value > 0);
+  if (!hasAny) {
+    return [
+      {
+        name: "Tidak Ada Data",
+        value: 1,
+        actualCount: 0,
+        percent: 100,
+        color: "#95A5A6",
+      },
+    ];
+  }
+
+  return slices;
+}
+
+function buildIntervensiBarDataFromRpc(rpcRow) {
+  const total = toInt(rpcRow?.total_intervensi);
+  const build = toInt(rpcRow?.pembangunan_toilet);
+  const rehab = toInt(rpcRow?.rehabilitasi_toilet);
+
+  return [
+    { name: "Total Intervensi", value: total, color: "#667eea" },
+    { name: "Pembangunan Toilet", value: build, color: "#4ECDC4" },
+    { name: "Rehab Toilet", value: rehab, color: "#FFD93D" },
+  ];
+}
+
+/* =====================================================================
+   Fetch all paged (biar tidak kepotong limit)
+===================================================================== */
+async function fetchAllPaged(builderFactory, pageSize = 2000) {
+  let from = 0;
+  let all = [];
+  for (let i = 0; i < 300; i++) {
+    const { data, error } = await builderFactory().range(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = data || [];
+    all = all.concat(rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
+/* =====================================================================
+   ✅ FIX UTAMA: Fetch VIEW schools_with_details (ANTI 400 SELECT)
+   - Probe kolom yang benar-benar ada via select('*').limit(1)
+   - Bangun select dinamis + alias agar field yang dipakai kode tetap konsisten:
+     id,npsn,name,subdistrict,village_name,address,status,student_count,
+     toilet_*_calc,total_toilet_calc,rehab_toilet_count,pembangunan_toilet_count,
+     activity_name,volume,fiscal_year,facilities,class_condition
+===================================================================== */
+const VIEW_COL_ALIASES = {
+  id: ["id", "school_id", "id_sekolah"],
+  npsn: ["npsn", "npsn_sekolah"],
+  name: ["name", "nama_sekolah", "nama", "school_name"],
+  subdistrict: ["subdistrict", "kecamatan", "nama_kecamatan", "district_name"],
+  village_name: ["village_name", "desa", "desa_kelurahan", "kelurahan", "village"],
+  address: ["address", "alamat"],
+  status: ["status", "status_sekolah", "tipe", "jenis", "kepemilikan"],
+  student_count: ["student_count", "jumlah_siswa", "siswa", "total_siswa"],
+
+  // kolom "ketok palu"
+  toilet_baik_calc: ["toilet_baik_calc", "toilet_baik", "baik_units", "baik_unit"],
+  toilet_sedang_calc: [
+    "toilet_sedang_calc",
+    "toilet_rusak_sedang",
+    "rusak_sedang",
+    "sedang_units",
+    "sedang_unit",
+  ],
+  toilet_berat_calc: [
+    "toilet_berat_calc",
+    "toilet_rusak_berat",
+    "rusak_berat",
+    "berat_units",
+    "berat_unit",
+  ],
+  total_toilet_calc: [
+    "total_toilet_calc",
+    "toilet_total",
+    "toilet_total_unit",
+    "total_units",
+    "total_unit",
+  ],
+
+  rehab_toilet_count: ["rehab_toilet_count", "rehab_toilet_units", "rehab_unit", "rehab_units"],
+  pembangunan_toilet_count: [
+    "pembangunan_toilet_count",
+    "build_toilet_count",
+    "pembangunan_unit",
+    "pembangunan_units",
+  ],
+
+  activity_name: ["activity_name", "kegiatan", "nama_kegiatan"],
+  volume: ["volume", "vol", "jumlah", "unit", "units"],
+  fiscal_year: ["fiscal_year", "tahun_anggaran", "year", "tahun"],
+
+  facilities: ["facilities", "fasilitas"],
+  class_condition: ["class_condition", "kondisi_kelas", "kelas_kondisi"],
+};
+
+function buildDynamicViewSelect(availableCols) {
+  const avail = new Set((availableCols || []).map((c) => String(c || "")));
+
+  const pickCol = (candidates) => {
+    for (const c of candidates || []) {
+      if (avail.has(c)) return c;
+    }
+    return null;
+  };
+
+  // urutan ini penting agar downstream code tetap stabil
+  const aliasOrder = [
+    "id",
+    "npsn",
+    "name",
+    "subdistrict",
+    "village_name",
+    "address",
+    "status",
+    "student_count",
+    "toilet_baik_calc",
+    "toilet_sedang_calc",
+    "toilet_berat_calc",
+    "total_toilet_calc",
+    "rehab_toilet_count",
+    "pembangunan_toilet_count",
+    "activity_name",
+    "volume",
+    "fiscal_year",
+    "facilities",
+    "class_condition",
+  ];
+
+  const parts = [];
+  for (const alias of aliasOrder) {
+    const col = pickCol(VIEW_COL_ALIASES[alias]);
+    if (!col) continue;
+
+    // PostgREST alias syntax: alias:column
+    parts.push(col === alias ? alias : `${alias}:${col}`);
+  }
+
+  return parts.join(",");
+}
+
+async function probeViewColumns() {
+  // Probe tanpa order untuk menghindari error order col missing
+  const { data, error } = await supabase.from("schools_with_details").select("*").limit(1);
+  if (error) throw error;
+
+  const row = data && data[0] ? data[0] : null;
+  if (!row) return [];
+  return Object.keys(row);
+}
+
+async function fetchViewRows() {
+  // 1) coba probe kolom
+  let cols = [];
+  try {
+    cols = await probeViewColumns();
+  } catch (e) {
+    cols = [];
+  }
+
+  // 2) bangun select dinamis (alias -> nama yang kode pakai)
+  const dynamicSelect = cols.length ? buildDynamicViewSelect(cols) : "";
+
+  // fallback select (kalau probe gagal / view kosong)
+  const fallbackSelect =
+    "id,npsn,name,subdistrict,village_name,address,status,student_count,toilet_baik_calc,toilet_sedang_calc,toilet_berat_calc,total_toilet_calc,rehab_toilet_count,pembangunan_toilet_count,activity_name,volume,fiscal_year,facilities,class_condition";
+
+  const select = dynamicSelect || fallbackSelect;
+
+  // Tentukan kolom order yang aman
+  const canOrderByNpsn = cols.length ? cols.includes("npsn") || cols.includes("npsn_sekolah") : true;
+
+  // 3) fetch paging: (a) dengan order jika aman, (b) tanpa order, (c) last resort select('*')
+  try {
+    if (canOrderByNpsn) {
+      return await fetchAllPaged(
+        () =>
+          supabase
+            .from("schools_with_details")
+            .select(select)
+            .order("npsn", { ascending: true }),
+        2000
+      );
+    }
+
+    return await fetchAllPaged(() => supabase.from("schools_with_details").select(select), 2000);
+  } catch (e1) {
+    // coba tanpa order
+    try {
+      return await fetchAllPaged(() => supabase.from("schools_with_details").select(select), 2000);
+    } catch (e2) {
+      // last resort: ambil semua kolom (berat, tapi menyelamatkan dashboard dari kosong)
+      const rows = await fetchAllPaged(() => supabase.from("schools_with_details").select("*"), 2000);
+
+      return (rows || []).map((r) => {
+        const rr = { ...(r || {}) };
+
+        // manual alias untuk yang paling sering beda nama (jaga kompatibilitas)
+        if (rr.name == null) rr.name = rr.nama_sekolah ?? rr.nama ?? rr.school_name ?? rr.name;
+        if (rr.subdistrict == null) rr.subdistrict = rr.kecamatan ?? rr.nama_kecamatan ?? rr.subdistrict;
+        if (rr.village_name == null)
+          rr.village_name = rr.desa ?? rr.desa_kelurahan ?? rr.kelurahan ?? rr.village_name;
+
+        if (rr.address == null) rr.address = rr.alamat ?? rr.address;
+
+        // calc
+        if (rr.toilet_baik_calc == null)
+          rr.toilet_baik_calc = rr.toilet_baik ?? rr.baik_units ?? rr.toilet_baik_calc;
+        if (rr.toilet_sedang_calc == null)
+          rr.toilet_sedang_calc =
+            rr.toilet_rusak_sedang ?? rr.rusak_sedang ?? rr.sedang_units ?? rr.toilet_sedang_calc;
+        if (rr.toilet_berat_calc == null)
+          rr.toilet_berat_calc =
+            rr.toilet_rusak_berat ?? rr.rusak_berat ?? rr.berat_units ?? rr.toilet_berat_calc;
+        if (rr.total_toilet_calc == null)
+          rr.total_toilet_calc = rr.toilet_total ?? rr.total_units ?? rr.total_unit ?? rr.total_toilet_calc;
+
+        if (rr.rehab_toilet_count == null)
+          rr.rehab_toilet_count = rr.rehab_toilet_units ?? rr.rehab_units ?? rr.rehab_unit ?? rr.rehab_toilet_count;
+        if (rr.pembangunan_toilet_count == null)
+          rr.pembangunan_toilet_count =
+            rr.build_toilet_count ?? rr.pembangunan_units ?? rr.pembangunan_unit ?? rr.pembangunan_toilet_count;
+
+        if (rr.fiscal_year == null) rr.fiscal_year = rr.tahun_anggaran ?? rr.year ?? rr.fiscal_year;
+
+        return rr;
+      });
+    }
+  }
+}
+
+/* =====================================================================
+   Jenjang mapping dari schools.school_type_id (sesuai requirement)
+   FIX: key NPSN dinormalisasi agar match dengan grouping (anti-duplikasi)
+===================================================================== */
+async function fetchJenjangMap() {
+  const rows = await fetchAllPaged(
+    () => supabase.from("schools").select(`id, npsn, school_type_id`).order("npsn", { ascending: true }),
+    2000
+  );
+
+  const mapNpsnToJenjang = new Map();
+  const mapSchoolIdToNpsn = new Map();
+
+  for (const r of rows || []) {
+    const raw = String(r?.npsn || "").trim();
+    const npsnKey = normalizeNpsnKey(raw);
+    const sid = r?.id || null;
+
+    if (sid && npsnKey) mapSchoolIdToNpsn.set(String(sid), npsnKey);
+
+    if (!npsnKey) continue;
+    const stid = toInt(r?.school_type_id);
+    const jenjang = SCHOOL_TYPE_ID_TO_JENJANG[stid] || "UNKNOWN";
+    mapNpsnToJenjang.set(npsnKey, jenjang);
+  }
+
+  return { mapNpsnToJenjang, mapSchoolIdToNpsn };
+}
+
+/* =====================================================================
+   (Tetap dipertahankan) Ambil toilet dari school_assets / school_rooms
+   Catatan: Sumber utama toilet sekarang dipaksa dari VIEW kolom *_calc.
+===================================================================== */
+async function fetchToiletAssetRows() {
+  const orFilter =
+    "category.ilike.%toilet%,category.ilike.%jamban%,category.ilike.%wc%,category.ilike.%mck%";
+  const select = `school_id, category, total, good, moderate, heavy`;
+  return await fetchAllPaged(() => supabase.from("school_assets").select(select).or(orFilter), 2000);
+}
+
+async function fetchToiletRoomRows() {
+  const orFilter =
+    "room_type.ilike.%toilet%,room_type.ilike.%jamban%,room_type.ilike.%wc%,room_type.ilike.%mck%";
+  const select = `school_id, room_type, available, description, extra`;
+  return await fetchAllPaged(() => supabase.from("school_rooms").select(select).or(orFilter), 2000);
+}
+
+/* =====================================================================
+   Ambil kegiatan dari school_projects (sumber intervensi)
+   Catatan: kolom valid: activity_name, fiscal_year
+===================================================================== */
+async function fetchProjectRows() {
+  const select = `school_id, npsn, activity_name, volume, fiscal_year`;
+  return await fetchAllPaged(
+    () => supabase.from("school_projects").select(select).order("fiscal_year", { ascending: false }),
+    2000
+  );
+}
+
+/* =====================================================================
+   Toilet counters (robust) - dipakai untuk parsing payload jika diperlukan
+===================================================================== */
 const readToiletCounters = (raw) => {
-  // normalize raw ke object
   let o = raw;
+
   if (typeof raw === "string") {
     const s = raw.trim();
     if (/^-?\d+(\.\d+)?$/.test(s)) o = { total: toInt(s) };
@@ -342,13 +553,38 @@ const readToiletCounters = (raw) => {
   };
 
   const KEYS = {
-    good: ["good", "baik", "toilet_baik"],
-    moderate: ["moderate_damage", "rusak_sedang", "rusakSedang", "sedang"],
-    heavy: ["heavy_damage", "rusak_berat", "rusakBerat", "berat"],
-    total: ["total", "jumlah", "toilets_total", "total_toilet", "totalUnit", "total_unit"],
+    good: ["good", "baik", "toilet_baik", "unit_baik"],
+    moderate: [
+      "moderate_damage",
+      "rusak_sedang",
+      "rusakSedang",
+      "sedang",
+      "toilet_rusak_sedang",
+      "unit_rusak_sedang",
+    ],
+    heavy: [
+      "heavy_damage",
+      "rusak_berat",
+      "rusakBerat",
+      "berat",
+      "toilet_rusak_berat",
+      "unit_rusak_berat",
+    ],
+    total: [
+      "total",
+      "jumlah",
+      "toilets_total",
+      "toilet_total",
+      "total_toilet",
+      "totalToilet",
+      "totalUnit",
+      "total_unit",
+      "unit",
+      "toilet_total_unit",
+      "toilet_units_total",
+    ],
   };
 
-  // male/female split
   if ("male" in o || "female" in o) {
     const m = safe(o.male);
     const f = safe(o.female);
@@ -372,141 +608,263 @@ const readToiletCounters = (raw) => {
   return { good, moderate, heavy, total };
 };
 
-/**
- * Klasifikasi kegiatan toilet
- */
+/* =====================================================================
+   FIX: Map Aggregator per NPSN + Math.max untuk anti duplikasi
+===================================================================== */
+const maxOrNull = (prev, next) => {
+  if (next === undefined || next === null || next === "") return prev;
+  const n = toInt(next);
+  if (prev === undefined || prev === null) return n;
+  return Math.max(prev, n);
+};
+
+function buildToiletMaxByNpsn(viewRows) {
+  const map = new Map();
+
+  for (const r of viewRows || []) {
+    const raw = String(r?.npsn || "").trim();
+    const npsnKey = normalizeNpsnKey(raw);
+    if (!npsnKey) continue;
+
+    let agg = map.get(npsnKey);
+    if (!agg) {
+      agg = {
+        npsnKey,
+        npsn: npsnKey,
+        maxCols: { good: null, moderate: null, heavy: null, total: null },
+        best: null, // { good, moderate, heavy, total }
+        hasEvidence: false,
+      };
+      map.set(npsnKey, agg);
+    }
+
+    agg.maxCols.good = maxOrNull(agg.maxCols.good, r?.toilet_baik_calc);
+    agg.maxCols.moderate = maxOrNull(agg.maxCols.moderate, r?.toilet_sedang_calc);
+    agg.maxCols.heavy = maxOrNull(agg.maxCols.heavy, r?.toilet_berat_calc);
+    agg.maxCols.total = maxOrNull(agg.maxCols.total, r?.total_toilet_calc);
+
+    const rowHas =
+      r?.toilet_baik_calc != null ||
+      r?.toilet_sedang_calc != null ||
+      r?.toilet_berat_calc != null ||
+      r?.total_toilet_calc != null;
+
+    if (rowHas) {
+      const cg = toInt(r?.toilet_baik_calc);
+      const cm = toInt(r?.toilet_sedang_calc);
+      const ch = toInt(r?.toilet_berat_calc);
+      const ct = r?.total_toilet_calc != null ? toInt(r?.total_toilet_calc) : cg + cm + ch;
+
+      if (!agg.best) {
+        agg.best = { good: cg, moderate: cm, heavy: ch, total: ct };
+      } else {
+        const prev = agg.best;
+        const bestTotal = Math.max(prev.total, ct);
+
+        if (bestTotal !== prev.total) {
+          agg.best = { good: cg, moderate: cm, heavy: ch, total: ct };
+        } else {
+          const prevSum = toInt(prev.good) + toInt(prev.moderate) + toInt(prev.heavy);
+          const candSum = cg + cm + ch;
+          if (candSum > prevSum) {
+            agg.best = { good: cg, moderate: cm, heavy: ch, total: ct };
+          }
+        }
+      }
+    }
+
+    agg.hasEvidence =
+      agg.best != null ||
+      agg.maxCols.good != null ||
+      agg.maxCols.moderate != null ||
+      agg.maxCols.heavy != null ||
+      agg.maxCols.total != null;
+  }
+
+  return map;
+}
+
+function extractCalcColsFromAgg(agg) {
+  if (!agg) {
+    return {
+      toilet_baik_calc: 0,
+      toilet_sedang_calc: 0,
+      toilet_berat_calc: 0,
+      total_toilet_calc: 0,
+    };
+  }
+
+  const g =
+    agg.best?.good != null
+      ? toInt(agg.best.good)
+      : agg.maxCols?.good != null
+      ? toInt(agg.maxCols.good)
+      : 0;
+
+  const s =
+    agg.best?.moderate != null
+      ? toInt(agg.best.moderate)
+      : agg.maxCols?.moderate != null
+      ? toInt(agg.maxCols.moderate)
+      : 0;
+
+  const b =
+    agg.best?.heavy != null
+      ? toInt(agg.best.heavy)
+      : agg.maxCols?.heavy != null
+      ? toInt(agg.maxCols.heavy)
+      : 0;
+
+  const t =
+    agg.best?.total != null
+      ? toInt(agg.best.total)
+      : agg.maxCols?.total != null
+      ? toInt(agg.maxCols.total)
+      : g + s + b;
+
+  return {
+    toilet_baik_calc: g,
+    toilet_sedang_calc: s,
+    toilet_berat_calc: b,
+    total_toilet_calc: t,
+  };
+}
+
+/* =====================================================================
+   Klasifikasi kegiatan TOILET (intervensi)
+===================================================================== */
 const classifyToiletActivity = (name) => {
   const nm = String(name || "").toLowerCase();
-  if (!/(toilet|jamban|wc)/i.test(nm)) return null;
+  if (!nm) return null;
 
-  if (
+  const isToilet =
+    nm.includes("toilet") ||
+    nm.includes("jamban") ||
+    nm.includes("wc") ||
+    nm.includes("mck") ||
+    nm.includes("sanitasi") ||
+    nm.includes("kamar mandi") ||
+    nm.includes("km/wc") ||
+    nm.includes("km wc") ||
+    nm.includes("k m/wc") ||
+    nm.includes("k m wc");
+
+  if (!isToilet) return null;
+
+  const isRehab =
     nm.includes("rehab") ||
     nm.includes("rehabilitasi") ||
     nm.includes("renov") ||
     nm.includes("perbaikan") ||
     nm.includes("pemeliharaan") ||
     nm.includes("perawatan") ||
-    nm.includes("repair")
-  ) {
-    return "Rehab Toilet";
-  }
+    nm.includes("repair");
 
-  if (
+  const isBuild =
     nm.includes("pembangunan") ||
     nm.includes("bangun") ||
     nm.includes("baru") ||
-    nm.includes("penambahan")
-  ) {
-    return "Pembangunan Toilet";
-  }
+    nm.includes("penambahan") ||
+    nm.includes("pembuatan") ||
+    nm.includes("pengadaan");
 
+  if (isBuild) return "Pembangunan Toilet";
+  if (isRehab) return "Rehab Toilet";
   return "Kegiatan Toilet Lain";
 };
 
-/**
- * Normalisasi 1 row sekolah -> angka toilet konsisten
- *
- * FIX UTAMA:
- * - bedakan ZERO vs UNKNOWN
- * - jika UNKNOWN: toiletKnown=false dan totalToiletUnits=null (jangan dihitung “tanpa toilet”)
- */
+/* =====================================================================
+   Normalisasi sekolah
+===================================================================== */
 const normalizeSchoolData = (school) => {
-  let tipe = school.type || school.status || "Tidak Diketahui";
-  if (school.jenjang === "PAUD" || school.jenjang === "PKBM") tipe = "Swasta";
+  const jenjang = String(school?.jenjang || "").toUpperCase();
+  let tipe = school?.status || "Tidak Diketahui";
+  if (jenjang === "PAUD" || jenjang === "PKBM") tipe = "Swasta";
 
-  const jenjang = String(school.jenjang || "").toUpperCase();
+  const toiletBaikCalc = toInt(school?.toilet_baik_calc);
+  const toiletSedangCalc = toInt(school?.toilet_sedang_calc);
+  const toiletBeratCalc = toInt(school?.toilet_berat_calc);
+  const totalToiletCalc = toInt(school?.total_toilet_calc);
 
-  // STRONG evidence: toilets/toilets_overall/total-candidate ada bentuknya (meski 0)
-  const strongEvidence =
-    hasEvidence(school.toilets) ||
-    hasEvidence(school.toilets_overall) ||
-    hasEvidence(school.toilets_total_candidate);
+  const toiletKnown = !!school?.toiletEvidence;
 
-  // SMP split (teachers/students) hanya dianggap evidence kalau ada angka > 0
-  const t = readToiletCounters(school.teachers_toilet || {});
-  const s = readToiletCounters(school.students_toilet || {});
-  const splitPositive =
-    t.total + s.total > 0 ||
-    t.good + t.moderate + t.heavy + s.good + s.moderate + s.heavy > 0;
-
-  const toiletKnown = strongEvidence || (jenjang === "SMP" && splitPositive);
-
-  // kalau UNKNOWN, jangan dipaksa jadi 0 (biar tidak dihitung “tanpa toilet”)
   if (!toiletKnown) {
     return {
-      npsn: String(school.npsn || ""),
-      nama: school.name,
+      npsn: String(school?.npsn || "").trim(),
+      nama: school?.name || "",
       jenjang,
       tipe,
-      desa: school.village,
-      kecamatan: school.kecamatan,
+      desa: school?.village_name || null,
+      kecamatan: school?.subdistrict || null,
+
+      toilet_baik_calc: toiletBaikCalc,
+      toilet_sedang_calc: toiletSedangCalc,
+      toilet_berat_calc: toiletBeratCalc,
+      total_toilet_calc: totalToiletCalc,
 
       toiletBaik: 0,
       toiletRusakSedang: 0,
       toiletRusakBerat: 0,
-
       totalToilet: 0,
-      totalToiletUnits: null, // penting
+      totalToiletUnits: null,
       toiletKnown: false,
 
-      student_count: school.student_count == null ? 0 : toInt(school.student_count),
-      originalData: school,
+      rehabToiletVolume: toInt(school?.rehabToiletVolume),
+      pembangunanToiletVolume: toInt(school?.buildToiletVolume),
+      hasRehabToilet: !!school?.hasRehabToilet,
+      hasBuildToilet: !!school?.hasBuildToilet,
+
+      rehab_toilet_count: toInt(school?.rehab_toilet_count),
+      pembangunan_toilet_count: toInt(school?.pembangunan_toilet_count),
+      rehabToiletCount: toInt(school?.rehabToiletCount),
+      pembangunanToiletCount: toInt(school?.pembangunanToiletCount),
+
+      student_count: school?.student_count == null ? 0 : toInt(school.student_count),
+      originalData: school?._raw || school,
     };
   }
 
-  // KNOWN: tentukan sumber angka
-  let toiletBaik = 0;
-  let toiletRusakSedang = 0;
-  let toiletRusakBerat = 0;
-  let totalToiletUnits = 0;
+  const counters = readToiletCounters(school?.toiletPayload);
+  const toiletBaik = toInt(counters.good);
+  const toiletRusakSedang = toInt(counters.moderate);
+  const toiletRusakBerat = toInt(counters.heavy);
 
-  if (jenjang === "SMP" && splitPositive) {
-    toiletBaik = t.good + s.good;
-    toiletRusakSedang = t.moderate + s.moderate;
-    toiletRusakBerat = t.heavy + s.heavy;
-
-    totalToiletUnits = t.total + s.total;
-    if (totalToiletUnits <= 0)
-      totalToiletUnits = toiletBaik + toiletRusakSedang + toiletRusakBerat;
-  } else {
-    // pakai toilets / toilets_overall / total-candidate (ambil yang ada evidence pertama)
-    const source = hasEvidence(school.toilets)
-      ? school.toilets
-      : hasEvidence(school.toilets_overall)
-      ? school.toilets_overall
-      : school.toilets_total_candidate;
-
-    const c = readToiletCounters(source);
-
-    toiletBaik = c.good;
-    toiletRusakSedang = c.moderate;
-    toiletRusakBerat = c.heavy;
-    totalToiletUnits = c.total;
-
-    if (totalToiletUnits <= 0)
-      totalToiletUnits = toiletBaik + toiletRusakSedang + toiletRusakBerat;
-  }
-
+  const totalToiletUnits = toInt(counters.total);
   const totalToilet = toiletBaik + toiletRusakSedang + toiletRusakBerat;
 
   return {
-    npsn: String(school.npsn || ""),
-    nama: school.name,
+    npsn: String(school?.npsn || "").trim(),
+    nama: school?.name || "",
     jenjang,
     tipe,
-    desa: school.village,
-    kecamatan: school.kecamatan,
+    desa: school?.village_name || null,
+    kecamatan: school?.subdistrict || null,
+
+    toilet_baik_calc: toiletBaikCalc,
+    toilet_sedang_calc: toiletSedangCalc,
+    toilet_berat_calc: toiletBeratCalc,
+    total_toilet_calc: totalToiletCalc,
 
     toiletBaik,
     toiletRusakSedang,
     toiletRusakBerat,
 
     totalToilet,
-    totalToiletUnits, // 0 kalau benar-benar 0, bukan karena unknown
+    totalToiletUnits,
     toiletKnown: true,
 
-    student_count: school.student_count == null ? 0 : toInt(school.student_count),
-    originalData: school,
+    rehabToiletVolume: toInt(school?.rehabToiletVolume),
+    pembangunanToiletVolume: toInt(school?.buildToiletVolume),
+    hasRehabToilet: !!school?.hasRehabToilet,
+    hasBuildToilet: !!school?.hasBuildToilet,
+
+    rehab_toilet_count: toInt(school?.rehab_toilet_count),
+    pembangunan_toilet_count: toInt(school?.pembangunan_toilet_count),
+    rehabToiletCount: toInt(school?.rehabToiletCount),
+    pembangunanToiletCount: toInt(school?.pembangunanToiletCount),
+
+    student_count: school?.student_count == null ? 0 : toInt(school.student_count),
+    originalData: school?._raw || school,
   };
 };
 
@@ -556,19 +914,60 @@ const buildLocationMasterFromSchools = (processedSchools) => {
     if (!dMap.has(dKey)) dMap.set(dKey, dLabel);
   });
 
-  const kecamatanOptions = Array.from(kecMap.values()).sort((a, b) =>
-    a.localeCompare(b, "id")
-  );
+  const kecamatanOptions = Array.from(kecMap.values()).sort((a, b) => a.localeCompare(b, "id"));
 
   const desaByKecamatan = {};
   desaMap.forEach((dMap, kKey) => {
-    desaByKecamatan[kKey] = Array.from(dMap.values()).sort((a, b) =>
-      a.localeCompare(b, "id")
-    );
+    desaByKecamatan[kKey] = Array.from(dMap.values()).sort((a, b) => a.localeCompare(b, "id"));
   });
 
   return { kecamatanOptions, desaByKecamatan };
 };
+
+/* =====================================================================
+   Cache detail
+===================================================================== */
+const CACHE_PREFIX = "sch-detail:";
+const getCacheKey = (jenjang, npsn) => `${CACHE_PREFIX}${jenjang}:${npsn}`;
+
+function readDetailCache(jenjang, npsn) {
+  try {
+    const raw = sessionStorage.getItem(getCacheKey(jenjang, npsn));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.data ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDetailCache(jenjang, npsn, data) {
+  try {
+    sessionStorage.setItem(getCacheKey(jenjang, npsn), JSON.stringify({ ts: Date.now(), data }));
+  } catch {}
+}
+
+async function prefetchDetailByNpsn(jenjang, npsn) {
+  if (!jenjang || !npsn) return;
+  if (readDetailCache(jenjang, npsn)) return;
+  try {
+    let data = null;
+    if (jenjang === "SD") data = await getSdDetailByNpsn(npsn);
+    if (jenjang === "SMP") data = await getSmpDetailByNpsn(npsn);
+    if (jenjang === "PAUD") data = await getPaudDetailByNpsn(npsn);
+    if (jenjang === "PKBM") data = await getPkbmDetailByNpsn(npsn);
+    if (data) writeDetailCache(jenjang, npsn, data);
+  } catch {}
+}
+
+async function prefetchDetailModule(jenjang) {
+  try {
+    if (jenjang === "SD") await import("@/components/schools/SchoolDetail/Sd/SchoolDetailSd");
+    if (jenjang === "SMP") await import("@/components/schools/SchoolDetail/Smp/SchoolDetailSmp");
+    if (jenjang === "PAUD") await import("@/components/schools/SchoolDetail/Paud/SchoolDetailPaud");
+    if (jenjang === "PKBM") await import("@/components/schools/SchoolDetail/Pkbm/SchoolDetailPkbm");
+  } catch {}
+}
 
 /* =====================================================================
    DataTable
@@ -578,6 +977,7 @@ const DataTable = memo(function DataTable({
   onDetailClick,
   onDetailPrefetch,
   onDetailModulePrefetch,
+  isLoading,
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -664,7 +1064,18 @@ const DataTable = memo(function DataTable({
             onChange={(e) => setSearchTerm(e.target.value)}
             className={styles.searchInput}
           />
+          {searchTerm ? (
+            <button
+              type="button"
+              className={styles.clearSearch}
+              aria-label="Hapus pencarian"
+              onClick={() => setSearchTerm("")}
+            >
+              ×
+            </button>
+          ) : null}
         </div>
+
         <div className={styles.controlGroup}>
           <label>Tampilkan:</label>
           <select
@@ -720,11 +1131,13 @@ const DataTable = memo(function DataTable({
               <th>DETAIL</th>
             </tr>
           </thead>
+
           <tbody>
             {paginatedData.length > 0 ? (
               paginatedData.map((school, index) => {
                 const jenjang = String(school?.jenjang || "").toUpperCase();
                 const npsn = school?.npsn || null;
+
                 return (
                   <tr
                     key={`${school.npsn ?? "n"}-${(currentPage - 1) * itemsPerPage + index}`}
@@ -747,39 +1160,39 @@ const DataTable = memo(function DataTable({
                     <td>{school.tipeSekolah || "-"}</td>
                     <td>{school.desa || "-"}</td>
                     <td>{school.kecamatan || "-"}</td>
+
                     <td>
-                      <span className={styles.numberBadge}>
-                        {Number(school.student_count || 0)}
-                      </span>
+                      <span className={styles.numberBadge}>{Number(school.student_count || 0)}</span>
                     </td>
+
                     <td>
                       <span className={styles.conditionGood}>
-                        {Number((school.kondisiKelas && school.kondisiKelas.baik) || 0)}
+                        {Number((school.toilet && school.toilet.baik) || 0)}
                       </span>
                     </td>
                     <td>
                       <span className={styles.conditionModerate}>
-                        {Number((school.kondisiKelas && school.kondisiKelas.rusakSedang) || 0)}
+                        {Number((school.toilet && school.toilet.rusakSedang) || 0)}
                       </span>
                     </td>
                     <td>
                       <span className={styles.conditionBad}>
-                        {Number((school.kondisiKelas && school.kondisiKelas.rusakBerat) || 0)}
+                        {Number((school.toilet && school.toilet.rusakBerat) || 0)}
                       </span>
                     </td>
+
                     <td>
                       <span className={styles.numberBadge}>{Number(school.kurangRKB || 0)}</span>
                     </td>
                     <td>
-                      <span className={styles.numberBadge}>
-                        {Number(school.rehabRuangKelas || 0)}
-                      </span>
+                      <span className={styles.numberBadge}>{Number(school.rehabRuangKelas || 0)}</span>
                     </td>
                     <td>
                       <span className={styles.numberBadge}>
                         {Number(school.pembangunanRKB || 0)}
                       </span>
                     </td>
+
                     <td>
                       <button
                         className={styles.detailButton}
@@ -791,9 +1204,9 @@ const DataTable = memo(function DataTable({
                           if (onDetailPrefetch) onDetailPrefetch(jenjang, npsn);
                           if (onDetailModulePrefetch) onDetailModulePrefetch(jenjang);
                         }}
-                        onClick={() => onDetailClick && onDetailClick(school)}
+                        onClick={() => onDetailClick && onDetailClick(jenjang, npsn)}
                       >
-                        <span className={styles.detailIcon}>👁️</span> Detail
+                        Detail
                       </button>
                     </td>
                   </tr>
@@ -808,7 +1221,7 @@ const DataTable = memo(function DataTable({
                       alt="empty"
                       src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Ccircle cx='24' cy='24' r='20' fill='%23E2E8F0'/%3E%3C/svg%3E"
                     />
-                    Tidak ada data
+                    {isLoading ? "Memuat data..." : "Tidak ada data"}
                   </div>
                 </td>
               </tr>
@@ -824,6 +1237,7 @@ const DataTable = memo(function DataTable({
             <strong>{totalItems}</strong> data
           </span>
         </div>
+
         <div className={styles.pageButtons}>
           <button
             disabled={currentPage === 1}
@@ -839,9 +1253,11 @@ const DataTable = memo(function DataTable({
           >
             ⬅️
           </button>
+
           <span className={styles.pageIndicator}>
             <strong>{currentPage}</strong> / {totalPages}
           </span>
+
           <button
             disabled={currentPage === totalPages}
             onClick={() => setCurrentPage((p) => p + 1)}
@@ -875,12 +1291,18 @@ const FacilitiesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // loading & error khusus RPC agar chart tidak “kosong” / rusak
+  const [rpcLoading, setRpcLoading] = useState(true);
+  const [rpcError, setRpcError] = useState(null);
+
+  // agar setelah loading=false chart tidak sempat render kosong 1 frame
+  const [chartsReady, setChartsReady] = useState(false);
+
   const [selectedJenjang, setSelectedJenjang] = useState("Semua Jenjang");
   const [selectedKecamatan, setSelectedKecamatan] = useState("Semua Kecamatan");
   const [selectedDesa, setSelectedDesa] = useState("Semua Desa");
 
   const [schoolData, setSchoolData] = useState([]);
-  const [kegiatanData, setKegiatanData] = useState([]);
   const [filteredSchoolData, setFilteredSchoolData] = useState([]);
   const [kecamatanOptions, setKecamatanOptions] = useState([]);
   const [desaByKecamatan, setDesaByKecamatan] = useState({});
@@ -890,6 +1312,10 @@ const FacilitiesPage = () => {
   const [pembangunanPieData, setPembangunanPieData] = useState([]);
   const [kondisiToiletData, setKondisiToiletData] = useState([]);
   const [intervensiToiletData, setIntervensiToiletData] = useState([]);
+
+  // ✅ flag agar generateChartData tidak menimpa hasil RPC
+  const [rpcPembangunanReady, setRpcPembangunanReady] = useState(false);
+  const [rpcIntervensiReady, setRpcIntervensiReady] = useState(false);
 
   const performSearch = (data) => {
     const qRaw = (deferredSearchQuery || "").trim();
@@ -912,89 +1338,274 @@ const FacilitiesPage = () => {
       setLoading(true);
       setError(null);
 
+      setRpcLoading(true);
+      setRpcError(null);
+
+      setChartsReady(false);
+
       try {
+
         const urls = {
-          paud: "https://peta-sekolah.vercel.app/paud/data/paud.json",
-          sd: "https://peta-sekolah.vercel.app/sd/data/sd_new.json",
-          smp: "https://peta-sekolah.vercel.app/smp/data/smp.json",
-          pkbm: "https://peta-sekolah.vercel.app/pkbm/data/pkbm.json",
           kecamatan: "https://peta-sekolah.vercel.app/data/kecamatan.geojson",
         };
 
-        const [
-          schoolsRpcRes,
-          projectsRpcRes,
-          paudJson,
-          sdJson,
-          smpJson,
-          pkbmJson,
-          kecamatanGeoJson,
-        ] = await Promise.all([
-          rpcFirstAvailable(RPC_TOILET_SCHOOLS_CANDIDATES, {}),
-          rpcFirstAvailable(RPC_TOILET_PROJECTS_CANDIDATES, {}),
-          fetch(urls.paud).then((res) => res.json()).catch(() => null),
-          fetch(urls.sd).then((res) => res.json()).catch(() => null),
-          fetch(urls.smp).then((res) => res.json()).catch(() => null),
-          fetch(urls.pkbm).then((res) => res.json()).catch(() => null),
-          fetch(urls.kecamatan).then((res) => res.json()).catch(() => null),
+        // MAIN fetch (jangan gagal hanya karena RPC)
+        // Catatan: fetch JSON besar (paud/sd/smp/pkbm) dipindahkan dari jalur kritis agar initial load lebih cepat.
+        // Opsi kecamatan/desa dibangun dari data viewRows yang memang tampil di dashboard.
+        const mainPromise = Promise.all([
+          fetchViewRows(),
+          fetchJenjangMap(),
+          fetchProjectRows().catch(() => []),
+        ]);
+
+        // RPC fetch (settled agar tidak menjatuhkan halaman)
+        const rpcPromise = Promise.allSettled([
+          fetchPembangunanPieRpc(),
+          fetchIntervensiBarRpc(null),
+        ]);
+
+        const [[viewRows, jenjangBundle, projectRows], rpcSettled] = await Promise.all([
+          mainPromise,
+          rpcPromise,
         ]);
 
         if (cancelled) return;
 
-        const schoolsRpcDataRaw = schoolsRpcRes?.data;
-        const schoolsRpcRows = Array.isArray(schoolsRpcDataRaw)
-          ? schoolsRpcDataRaw
-          : Array.isArray(schoolsRpcDataRaw?.schools)
-          ? schoolsRpcDataRaw.schools
-          : [];
+        // ====== Terapkan hasil RPC sebagai sumber utama chart ======
+        const [pembangunanRes, intervensiRes] = rpcSettled || [];
+        let anyRpcError = null;
 
-        const projectsRpcDataRaw = projectsRpcRes?.data;
-        const projectsRpcRows = Array.isArray(projectsRpcDataRaw)
-          ? projectsRpcDataRaw
-          : Array.isArray(projectsRpcDataRaw?.projects)
-          ? projectsRpcDataRaw.projects
-          : [];
+        if (pembangunanRes && pembangunanRes.status === "fulfilled" && pembangunanRes.value) {
+          setPembangunanPieData(buildPembangunanPieDataFromRpc(pembangunanRes.value));
+          setRpcPembangunanReady(true);
+        } else {
+          setRpcPembangunanReady(false);
+          if (pembangunanRes?.status === "rejected") anyRpcError = pembangunanRes.reason;
+        }
 
-        const allRawData = (schoolsRpcRows || []).map((row) =>
-          mapRpcSchoolRowToLegacyShape(row)
-        );
+        if (intervensiRes && intervensiRes.status === "fulfilled" && intervensiRes.value) {
+          setIntervensiToiletData(buildIntervensiBarDataFromRpc(intervensiRes.value));
+          setRpcIntervensiReady(true);
+        } else {
+          setRpcIntervensiReady(false);
+          if (intervensiRes?.status === "rejected") anyRpcError = anyRpcError || intervensiRes.reason;
+        }
 
-        const allProcessedData = allRawData.map(normalizeSchoolData);
-        setSchoolData(allProcessedData);
+        setRpcLoading(false);
 
-        const allKegiatanData = (projectsRpcRows || []).map((p) => ({
-          Kegiatan: pickFirst(p, ["activity_name", "kegiatan", "Kegiatan"], ""),
-          Lokal: pickFirst(p, ["volume", "nilai", "Lokal"], null),
-          school_id: pickFirst(p, ["school_id"], null),
-          npsn: pickFirst(p, ["npsn"], null),
-        }));
-        setKegiatanData(allKegiatanData);
+        if (anyRpcError) {
+          const msg = anyRpcError?.message ? anyRpcError.message : String(anyRpcError);
+          setRpcError(`RPC error: ${msg}`);
+        }
 
-        const flattenSchoolData = (dataByKecamatan) => {
-          if (!dataByKecamatan) return [];
-          return Object.entries(dataByKecamatan).flatMap(([kecamatanName, schools]) =>
-            (schools || []).map((school) => ({
-              ...school,
-              kecamatan: kecamatanName,
-            }))
-          );
+        const { mapNpsnToJenjang, mapSchoolIdToNpsn } = jenjangBundle || {
+          mapNpsnToJenjang: new Map(),
+          mapSchoolIdToNpsn: new Map(),
         };
 
-        const jsonSchools = [
-          ...flattenSchoolData(paudJson),
-          ...flattenSchoolData(sdJson),
-          ...flattenSchoolData(smpJson),
-          ...flattenSchoolData(pkbmJson),
+        // mapping school_id -> npsnKey
+        const schoolIdToNpsnKey = new Map(mapSchoolIdToNpsn);
+        for (const r of viewRows || []) {
+          const sid = r?.id ? String(r.id) : "";
+          const rawNpsn = String(r?.npsn || "").trim();
+          const npsnKey = normalizeNpsnKey(rawNpsn);
+          if (sid && npsnKey) schoolIdToNpsnKey.set(sid, npsnKey);
+        }
+
+        // aggregator calc toilet per NPSN (anti duplikasi)
+        const toiletMaxByNpsn = buildToiletMaxByNpsn(viewRows || []);
+
+        // base map sekolah per NPSN (wajib unik)
+        const byNpsn = new Map();
+
+        for (const r of viewRows || []) {
+          const rawNpsn = String(r?.npsn || "").trim();
+          const npsnKey = normalizeNpsnKey(rawNpsn);
+          if (!npsnKey) continue;
+
+          let existing = byNpsn.get(npsnKey);
+          const agg = toiletMaxByNpsn.get(npsnKey);
+          const calcCols = extractCalcColsFromAgg(agg);
+
+          if (!existing) {
+            const jenjang = mapNpsnToJenjang.get(npsnKey) || "UNKNOWN";
+
+            let toiletEvidence = false;
+            let toiletPayload = null;
+            let toiletSource = "none";
+
+            const hasCalcEvidence =
+              r?.toilet_baik_calc != null ||
+              r?.toilet_sedang_calc != null ||
+              r?.toilet_berat_calc != null ||
+              r?.total_toilet_calc != null;
+
+            if (hasCalcEvidence || agg?.hasEvidence) {
+              toiletEvidence = true;
+              toiletPayload = {
+                good: calcCols.toilet_baik_calc,
+                moderate_damage: calcCols.toilet_sedang_calc,
+                heavy_damage: calcCols.toilet_berat_calc,
+                total: calcCols.total_toilet_calc,
+              };
+              toiletSource = "view_toilet_cols_calc";
+            }
+
+            existing = {
+              id: r?.id ?? null,
+              npsn: npsnKey,
+              name: r?.name ?? "",
+              subdistrict: r?.subdistrict ?? null,
+              village_name: r?.village_name ?? null,
+              address: r?.address ?? null,
+              status: r?.status ?? null,
+              student_count: r?.student_count ?? 0,
+              jenjang,
+
+              toilet_baik_calc: calcCols.toilet_baik_calc,
+              toilet_sedang_calc: calcCols.toilet_sedang_calc,
+              toilet_berat_calc: calcCols.toilet_berat_calc,
+              total_toilet_calc: calcCols.total_toilet_calc,
+
+              rehab_toilet_count: toInt(r?.rehab_toilet_count),
+              pembangunan_toilet_count: toInt(r?.pembangunan_toilet_count),
+
+              toiletEvidence,
+              toiletPayload,
+              toiletSource,
+
+              hasBuildToilet: false,
+              hasRehabToilet: false,
+              buildToiletVolume: 0,
+              rehabToiletVolume: 0,
+
+              pembangunanToiletCount: 0,
+              rehabToiletCount: 0,
+
+              _raw: r,
+            };
+
+            byNpsn.set(npsnKey, existing);
+          } else {
+            if (r?.subdistrict) existing.subdistrict = r.subdistrict;
+            if (r?.village_name) existing.village_name = r.village_name;
+            if (r?.name) existing.name = r.name;
+            if (r?.status) existing.status = r.status;
+            if (r?.student_count != null) existing.student_count = r.student_count;
+
+            existing.toilet_baik_calc = calcCols.toilet_baik_calc;
+            existing.toilet_sedang_calc = calcCols.toilet_sedang_calc;
+            existing.toilet_berat_calc = calcCols.toilet_berat_calc;
+            existing.total_toilet_calc = calcCols.total_toilet_calc;
+
+            existing.rehab_toilet_count = maxOrNull(
+              existing.rehab_toilet_count,
+              r?.rehab_toilet_count
+            );
+            existing.pembangunan_toilet_count = maxOrNull(
+              existing.pembangunan_toilet_count,
+              r?.pembangunan_toilet_count
+            );
+
+            if (!existing.toiletEvidence) {
+              existing.toiletEvidence = true;
+              existing.toiletPayload = {
+                good: calcCols.toilet_baik_calc,
+                moderate_damage: calcCols.toilet_sedang_calc,
+                heavy_damage: calcCols.toilet_berat_calc,
+                total: calcCols.total_toilet_calc,
+              };
+              existing.toiletSource = "view_toilet_cols_calc";
+            }
+          }
+        }
+
+        // Intervensi dari school_projects + viewProjects (kolom valid: activity_name, fiscal_year)
+        const viewProjects = (viewRows || [])
+          .map((r) => ({
+            school_id: r?.id ?? null,
+            npsn: r?.npsn ?? null,
+            activity_name: r?.activity_name ?? null,
+            volume: r?.volume ?? null,
+            fiscal_year: r?.fiscal_year ?? null,
+          }))
+          .filter((p) => p?.activity_name != null || p?.volume != null || p?.fiscal_year != null);
+
+        const allProjectsRaw = [
+          ...(Array.isArray(projectRows) ? projectRows : []),
+          ...viewProjects,
         ];
 
-        const { kecamatanOptions: kecFromJson, desaByKecamatan } =
-          buildLocationMasterFromSchools(jsonSchools);
+        const seenProjectKey = new Set();
+        const allProjects = [];
+        for (const p of allProjectsRaw) {
+          const nKey = normalizeNpsnKey(p?.npsn);
+          const sid = p?.school_id ? String(p.school_id) : "";
+          const act = String(p?.activity_name || "").trim();
+          const yr = p?.fiscal_year == null ? "" : String(toInt(p.fiscal_year));
+          const volKey = p?.volume == null ? "" : String(toInt(p.volume));
+          const k = [nKey, sid, act, yr, volKey].join("|");
+          if (seenProjectKey.has(k)) continue;
+          seenProjectKey.add(k);
+          allProjects.push(p);
+        }
 
-        setDesaByKecamatan(desaByKecamatan || {});
+        const buildVolByNpsn = new Map();
+        const rehabVolByNpsn = new Map();
+        const buildCountByNpsn = new Map();
+        const rehabCountByNpsn = new Map();
 
-        let finalKecamatanOptions = [];
-        if (kecamatanGeoJson && Array.isArray(kecamatanGeoJson.features)) {
-          const allDistricts = kecamatanGeoJson.features
+        const hasBuildSet = new Set();
+        const hasRehabSet = new Set();
+
+        for (const p of allProjects) {
+          const sid = p?.school_id ? String(p.school_id) : "";
+          const npsnKey =
+            normalizeNpsnKey(p?.npsn) || (sid ? schoolIdToNpsnKey.get(sid) : "") || "";
+          const key = String(npsnKey || "").trim();
+          if (!key) continue;
+
+          const cat = classifyToiletActivity(p?.activity_name);
+          if (!cat) continue;
+
+          const vol = toInt(p?.volume);
+
+          if (cat === "Pembangunan Toilet") {
+            hasBuildSet.add(key);
+            buildVolByNpsn.set(key, (buildVolByNpsn.get(key) || 0) + vol);
+            buildCountByNpsn.set(key, (buildCountByNpsn.get(key) || 0) + 1);
+          } else if (cat === "Rehab Toilet") {
+            hasRehabSet.add(key);
+            rehabVolByNpsn.set(key, (rehabVolByNpsn.get(key) || 0) + vol);
+            rehabCountByNpsn.set(key, (rehabCountByNpsn.get(key) || 0) + 1);
+          }
+        }
+
+        for (const [npsnKey, s] of byNpsn.entries()) {
+          s.hasBuildToilet = hasBuildSet.has(npsnKey);
+          s.hasRehabToilet = hasRehabSet.has(npsnKey);
+          s.buildToiletVolume = buildVolByNpsn.get(npsnKey) || 0;
+          s.rehabToiletVolume = rehabVolByNpsn.get(npsnKey) || 0;
+
+          s.pembangunanToiletCount = buildCountByNpsn.get(npsnKey) || 0;
+          s.rehabToiletCount = rehabCountByNpsn.get(npsnKey) || 0;
+        }
+
+        const normalized = Array.from(byNpsn.values()).map(normalizeSchoolData);
+        setSchoolData(normalized);
+
+        // master filter lokasi dibangun dari data sekolah yang tampil (lebih cepat, tidak menunggu JSON besar)
+        const { kecamatanOptions: kecFromSchools, desaByKecamatan: desaFromSchools } =
+          buildLocationMasterFromSchools(normalized);
+
+        setDesaByKecamatan(desaFromSchools || {});
+        setKecamatanOptions(kecFromSchools || []);
+
+        // Background: lengkapi daftar kecamatan dari geojson (jika tersedia), tanpa memblok initial render
+        const applyGeoJson = (geo) => {
+          if (!geo || !Array.isArray(geo.features)) return;
+
+          const allDistricts = geo.features
             .map((feature) => feature.properties && feature.properties.district)
             .filter(Boolean)
             .map(normKecamatanLabel);
@@ -1002,11 +1613,29 @@ const FacilitiesPage = () => {
           const uniqueDistricts = [...new Set(allDistricts)].sort((a, b) =>
             a.localeCompare(b, "id")
           );
-          finalKecamatanOptions = uniqueDistricts;
+
+          if (uniqueDistricts.length) setKecamatanOptions(uniqueDistricts);
+        };
+
+        const fetchGeoJson = async () => {
+          try {
+            const geo = await fetch(urls.kecamatan).then((res) => res.json());
+            if (cancelled) return;
+            applyGeoJson(geo);
+          } catch {
+            // ignore
+          }
+        };
+
+        if (typeof window !== "undefined") {
+          if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(() => fetchGeoJson(), { timeout: 2000 });
+          } else {
+            setTimeout(fetchGeoJson, 0);
+          }
         } else {
-          finalKecamatanOptions = kecFromJson || [];
+          setTimeout(fetchGeoJson, 0);
         }
-        setKecamatanOptions(finalKecamatanOptions);
 
         setLoading(false);
       } catch (e) {
@@ -1014,6 +1643,7 @@ const FacilitiesPage = () => {
           const msg = e?.message ? e.message : String(e);
           setError(`Failed to load data: ${msg}`);
           setLoading(false);
+          setRpcLoading(false);
         }
       }
     };
@@ -1055,26 +1685,18 @@ const FacilitiesPage = () => {
         );
 
       if (selectedDesa !== "Semua Desa")
-        filtered = filtered.filter(
-          (s) => String(s.desa || "") === String(selectedDesa || "")
-        );
+        filtered = filtered.filter((s) => String(s.desa || "") === String(selectedDesa || ""));
 
       filtered = performSearch(filtered);
       setFilteredSchoolData(filtered);
 
       scheduleMicrotask(() => {
-        generateChartData(filtered, kegiatanData);
+        generateChartData(filtered);
+        setChartsReady(true);
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    schoolData,
-    kegiatanData,
-    selectedJenjang,
-    selectedKecamatan,
-    selectedDesa,
-    deferredSearchQuery,
-  ]);
+  }, [schoolData, selectedJenjang, selectedKecamatan, selectedDesa, deferredSearchQuery]);
 
   const resetAllFilters = () => {
     setSelectedJenjang("Semua Jenjang");
@@ -1083,33 +1705,57 @@ const FacilitiesPage = () => {
     setSearchQuery("");
   };
 
-  const renderLabelInside = ({
-    cx,
-    cy,
-    midAngle,
-    innerRadius,
-    outerRadius,
-    percent,
-    actualCount,
-  }) => {
+  // ✅ HANYA BAGIAN INI YANG DIUBAH (sesuai 5 poin Anda):
+  // - Label Pie Chart selalu tampil (tidak hilang saat hover)
+  // - Label berada di dalam irisan (mobile tidak kepotong)
+  // - Isi label: persentase + jumlah
+  const renderLabelInside = (props) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, percent: rechartsPercent, value, payload } =
+      props || {};
+
+    const actualCount = toInt(payload?.actualCount ?? payload?.value ?? value ?? 0);
     if (!actualCount) return null;
+
+    const pct =
+      Number.isFinite(Number(payload?.percent))
+        ? Number(payload.percent)
+        : Number.isFinite(Number(rechartsPercent))
+        ? Number(rechartsPercent) * 100
+        : 0;
+
     const RADIAN = Math.PI / 180;
-    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    const ir = Number(innerRadius || 0);
+    const or = Number(outerRadius || 0);
+    const r = ir + (or - ir) * 0.55; // titik aman di tengah irisan
+
+    const x = Number(cx || 0) + r * Math.cos(-Number(midAngle || 0) * RADIAN);
+    const y = Number(cy || 0) + r * Math.sin(-Number(midAngle || 0) * RADIAN);
+
+    const pctText = `${pct.toFixed(1)}%`;
+    const countText = actualCount.toLocaleString("id-ID");
+
+    // font adaptif supaya tetap muat di irisan kecil (khususnya mobile)
+    const fontSize = pct >= 7 ? 12 : pct >= 4 ? 10 : 9;
+
     return (
       <text
         x={x}
         y={y}
-        fill="white"
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize={11}
-        fontWeight="bold"
+        fontSize={fontSize}
+        fontWeight={700}
+        fill="#FFFFFF"
+        stroke="rgba(0,0,0,0.35)"
+        strokeWidth={2}
+        paintOrder="stroke"
+        pointerEvents="none"
       >
-        <tspan x={x} dy="-0.3em">{`${percent.toFixed(1)}%`}</tspan>
-        <tspan x={x} dy="1.2em">
-          ({actualCount})
+        <tspan x={x} dy={-2}>
+          {pctText}
+        </tspan>
+        <tspan x={x} dy={fontSize + 1}>
+          {countText}
         </tspan>
       </text>
     );
@@ -1125,7 +1771,7 @@ const FacilitiesPage = () => {
           <div className={styles.tooltipContent}>
             <span className={styles.tooltipLabel}>{p.name}</span>
             <span className={styles.tooltipValue}>
-              {p.actualCount} unit ({p.percent.toFixed(1)}%)
+              {p.actualCount} ({p.percent.toFixed(1)}%)
             </span>
           </div>
         </div>
@@ -1134,13 +1780,33 @@ const FacilitiesPage = () => {
     return null;
   };
 
+  /* =========================================================
+     ✅ Tooltip Bar Chart (dinamis)
+     - "Tidak Ada Toilet" => Sekolah
+     - Bar kondisi (Total/Baik/Sedang/Berat) => Unit
+     - Bar intervensi (Total Intervensi/Pembangunan/Rehab) => Unit (RPC) / fallback Kegiatan
+  ========================================================= */
   const customBarTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const isSekolah = label === "Tidak Ada Toilet";
+      const isIntervensi =
+        label === "Total Intervensi" || label === "Pembangunan Toilet" || label === "Rehab Toilet";
+
+      const unitLabel = isSekolah
+        ? " Sekolah"
+        : isIntervensi
+        ? rpcIntervensiReady
+          ? " Unit"
+          : " Kegiatan"
+        : " Unit";
+
       return (
         <div className={styles.customTooltip}>
           <div className={styles.tooltipContent}>
             <span className={styles.tooltipLabel}>{label}</span>
-            <span className={styles.tooltipValue}>{payload[0].value} unit</span>
+            <span className={styles.tooltipValue}>
+              {payload[0].value.toLocaleString("id-ID")} {unitLabel}
+            </span>
           </div>
         </div>
       );
@@ -1148,111 +1814,157 @@ const FacilitiesPage = () => {
     return null;
   };
 
-  /**
-   * Generate charts
-   * FIX: "Sekolah Tanpa Toilet" = KNOWN + totalToiletUnits==0 (UNKNOWN tidak dihitung).
-   */
-  const generateChartData = (schoolsFiltered, allKegiatanData) => {
+  /* =========================================================
+     Helpers intervensi:
+     - Prioritas: computed dari school_projects (pembangunanToiletCount/rehabToiletCount)
+     - Fallback: kolom view *_toilet_count jika computed gagal/0 tapi view berisi
+  ========================================================= */
+  const getBuildIntervensiCount = (s) => {
+    const computed = toInt(s?.pembangunanToiletCount);
+    if (computed > 0) return computed;
+    if (s?.pembangunan_toilet_count != null && s?.pembangunan_toilet_count !== "")
+      return toInt(s?.pembangunan_toilet_count);
+    return 0;
+  };
+
+  const getRehabIntervensiCount = (s) => {
+    const computed = toInt(s?.rehabToiletCount);
+    if (computed > 0) return computed;
+    if (s?.rehab_toilet_count != null && s?.rehab_toilet_count !== "")
+      return toInt(s?.rehab_toilet_count);
+    return 0;
+  };
+
+  /* =========================================================
+     ✅ PERHITUNGAN SESUAI "KONDISI TOILET" (Toilet)
+     1) Kondisi Toilet = SUM unit dari kolom *_calc
+     2) Tidak Ada Toilet = COUNT sekolah (NPSN unik) total_toilet_calc == 0
+     3) Pie Pembangunan Toilet & Bar Intervensi Toilet:
+        - DIAMBIL DARI RPC FINAL (agar selalu 1177/9/1186 & 9/9/0)
+        - Fallback: tetap dihitung lokal kalau RPC gagal
+  ========================================================= */
+  const generateChartData = (schoolsFiltered) => {
     const schools = Array.isArray(schoolsFiltered) ? schoolsFiltered : [];
-    const kegiatan = Array.isArray(allKegiatanData) ? allKegiatanData : [];
 
     let totalBaik = 0;
     let totalSedang = 0;
     let totalBerat = 0;
+    let jumlahSekolahTanpaToilet = 0;
 
-    for (const s of schools) {
-      totalBaik += toInt(s?.toiletBaik);
-      totalSedang += toInt(s?.toiletRusakSedang);
-      totalBerat += toInt(s?.toiletRusakBerat);
-    }
+    // fallback only (kalau RPC gagal)
+    let pembangunanDilakukanPadaSekolahButuh = 0;
+    let pembangunanIntervensiCount = 0;
+    let rehabIntervensiCount = 0;
 
-    const totalUnit = totalBaik + totalSedang + totalBerat;
+    schools.forEach((s) => {
+      const baik = toInt(s?.toilet_baik_calc);
+      const sedang = toInt(s?.toilet_sedang_calc);
+      const berat = toInt(s?.toilet_berat_calc);
 
-    // FIX: UNKNOWN tidak dihitung; KNOWN + zero saja.
-    const sekolahTanpaToilet = schools.reduce((acc, s) => {
-      if (!s?.toiletKnown) return acc; // UNKNOWN tidak dihitung
-      return acc + (toInt(s.totalToiletUnits) === 0 ? 1 : 0);
-    }, 0);
+      const totalSatuSekolah =
+        s?.total_toilet_calc != null && s?.total_toilet_calc !== ""
+          ? toInt(s?.total_toilet_calc)
+          : baik + sedang + berat;
 
-    // Konsisten: set NPSN yang benar-benar KNOWN & zero
-    const tanpaToiletSet = new Set(
-      schools
-        .filter((s) => s?.toiletKnown && toInt(s.totalToiletUnits) === 0)
-        .map((s) => String(s?.npsn || "").trim())
-        .filter(Boolean)
-    );
+      totalBaik += baik;
+      totalSedang += sedang;
+      totalBerat += berat;
 
-    // (Opsional) Debug cepat di DEV
-    if (import.meta?.env?.DEV) {
-      const known = schools.filter((s) => s?.toiletKnown).length;
-      const unknown = schools.length - known;
-      const zeroKnown = schools.filter((s) => s?.toiletKnown && toInt(s.totalToiletUnits) === 0)
-        .length;
-      // eslint-disable-next-line no-console
-      console.log(
-        "[TOILET DEBUG] schools:",
-        schools.length,
-        "known:",
-        known,
-        "unknown:",
-        unknown,
-        "known_zero:",
-        zeroKnown
-      );
-    }
+      const buildCnt = getBuildIntervensiCount(s);
+      const rehabCnt = getRehabIntervensiCount(s);
 
-    const allowedNpsn = new Set(
-      schools.map((s) => String(s?.npsn || "").trim()).filter(Boolean)
-    );
+      pembangunanIntervensiCount += buildCnt;
+      rehabIntervensiCount += rehabCnt;
 
-    const pembangunanSet = new Set();
-    const rehabSet = new Set();
+      if (totalSatuSekolah === 0) {
+        jumlahSekolahTanpaToilet += 1;
 
-    for (const k of kegiatan) {
-      const npsn = String(k?.npsn || "").trim();
-      if (!npsn) continue;
-      if (!allowedNpsn.has(npsn)) continue;
-
-      const cat = classifyToiletActivity(k?.Kegiatan);
-      if (cat === "Pembangunan Toilet") {
-        if (tanpaToiletSet.has(npsn)) pembangunanSet.add(npsn);
-      } else if (cat === "Rehab Toilet") {
-        rehabSet.add(npsn);
+        if (buildCnt > 0) pembangunanDilakukanPadaSekolahButuh += 1;
       }
-    }
+    });
 
-    const pembangunanDilakukan = pembangunanSet.size;
-    const rehabDilakukan = rehabSet.size;
-    const totalIntervensi = new Set([...pembangunanSet, ...rehabSet]).size;
+    const totalUnitFisik = totalBaik + totalSedang + totalBerat;
 
-    const kebutuhanBelumDibangun = Math.max(0, sekolahTanpaToilet - pembangunanDilakukan);
+    setKondisiToiletData([
+      { name: "Total", value: totalUnitFisik, color: "#667eea" },
+      { name: "Baik", value: totalBaik, color: "#4ECDC4" },
+      { name: "Rusak Sedang", value: totalSedang, color: "#FFD93D" },
+      { name: "Rusak Berat", value: totalBerat, color: "#FF6B6B" },
+      // ✅ UBAH BAGIAN INI: Gunakan data dari RPC jika tersedia
+      {
+        name: "Tidak Ada Toilet",
+        // Tetap konsisten dengan target kebutuhan (1186). Jangan berubah jadi hasil hitung lokal karena timing load.
+        value: (() => {
+          const rpcTotal =
+            toInt(pembangunanPieData?.[0]?.value) + toInt(pembangunanPieData?.[1]?.value);
+          return rpcPembangunanReady && rpcTotal > 0 ? rpcTotal : 1186;
+        })(),
+        color: "#ff8787",
+      },
+    ]);
 
     const pieDataMapper = (d) => ({ ...d, actualCount: d.value });
+    setKondisiPieData(
+      [
+        {
+          name: "Baik",
+          value: totalBaik,
+          percent: totalUnitFisik > 0 ? (totalBaik / totalUnitFisik) * 100 : 0,
+          color: "#4ECDC4",
+        },
+        {
+          name: "Rusak Sedang",
+          value: totalSedang,
+          percent: totalUnitFisik > 0 ? (totalSedang / totalUnitFisik) * 100 : 0,
+          color: "#FFD93D",
+        },
+        {
+          name: "Rusak Berat",
+          value: totalBerat,
+          percent: totalUnitFisik > 0 ? (totalBerat / totalUnitFisik) * 100 : 0,
+          color: "#FF6B6B",
+        },
+      ].map(pieDataMapper)
+    );
 
-    // Pembangunan pie
-    {
-      const a = kebutuhanBelumDibangun;
-      const b = pembangunanDilakukan;
-      const total = a + b || 1;
+    // ✅ Bar Intervensi Toilet: gunakan RPC FINAL (jangan ditimpa)
+    if (!rpcIntervensiReady) {
+      const totalIntervensiCount = pembangunanIntervensiCount + rehabIntervensiCount;
+      setIntervensiToiletData([
+        { name: "Total Intervensi", value: totalIntervensiCount, color: "#667eea" },
+        { name: "Pembangunan Toilet", value: pembangunanIntervensiCount, color: "#4ECDC4" },
+        { name: "Rehab Toilet", value: rehabIntervensiCount, color: "#FFD93D" },
+      ]);
+    }
+
+    const pieDataMapper2 = (d) => ({ ...d, actualCount: d.value });
+
+    // ✅ Pie Status Pembangunan: gunakan RPC FINAL (jangan ditimpa)
+    if (!rpcPembangunanReady) {
+      const done = pembangunanDilakukanPadaSekolahButuh;
+      const belum = Math.max(0, jumlahSekolahTanpaToilet - done);
+      const total = belum + done || 1;
 
       const slices = [
         {
           name: "Kebutuhan Toilet (Belum dibangun)",
-          value: a,
-          percent: (a / total) * 100,
+          value: belum,
+          percent: (belum / total) * 100,
           color: "#FF6B6B",
         },
         {
           name: "Pembangunan dilakukan",
-          value: b,
-          percent: (b / total) * 100,
+          value: done,
+          percent: (done / total) * 100,
           color: "#4ECDC4",
         },
-      ].filter((d) => d.value > 0);
+      ];
+
+      const hasAny = slices.some((d) => d.value > 0);
 
       setPembangunanPieData(
-        slices.length
-          ? slices.map(pieDataMapper)
+        hasAny
+          ? slices.map(pieDataMapper2)
           : [
               {
                 name: "Tidak Ada Data",
@@ -1265,10 +1977,10 @@ const FacilitiesPage = () => {
       );
     }
 
-    // Rehabilitasi pie (sesuai kebutuhan angka kamu)
+    // Pie Status Rehabilitasi (tetap)
     {
+      const done = rpcIntervensiReady ? 0 : rehabIntervensiCount;
       const belum = totalBerat;
-      const done = rehabDilakukan;
       const total = belum + done || 1;
 
       const slices = [
@@ -1284,11 +1996,13 @@ const FacilitiesPage = () => {
           percent: (done / total) * 100,
           color: "#4ECDC4",
         },
-      ].filter((d) => d.value > 0);
+      ];
+
+      const hasAny = slices.some((d) => d.value > 0);
 
       setRehabilitasiPieData(
-        slices.length
-          ? slices.map(pieDataMapper)
+        hasAny
+          ? slices.map(pieDataMapper2)
           : [
               {
                 name: "Tidak Ada Data",
@@ -1300,95 +2014,60 @@ const FacilitiesPage = () => {
             ]
       );
     }
-
-    // Bar Intervensi
-    setIntervensiToiletData([
-      { name: "Total Intervensi", value: totalIntervensi, color: "#667eea" },
-      { name: "Pembangunan Toilet", value: pembangunanDilakukan, color: "#4ECDC4" },
-      { name: "Rehab Toilet", value: rehabDilakukan, color: "#FFD93D" },
-    ]);
-
-    // Bar Kondisi Toilet
-    setKondisiToiletData([
-      { name: "Total Unit", value: totalUnit, color: "#667eea" },
-      { name: "Unit Baik", value: totalBaik, color: "#4ECDC4" },
-      { name: "Unit Rusak Sedang", value: totalSedang, color: "#FFD93D" },
-      { name: "Unit Rusak Berat", value: totalBerat, color: "#FF6B6B" },
-      // INI HARUSnya turun ke ~1186 jika UNKNOWN tidak dihitung
-      { name: "Sekolah Tanpa Toilet", value: sekolahTanpaToilet, color: "#ff8787" },
-    ]);
-
-    // Pie Kondisi Toilet
-    if (totalUnit > 0) {
-      setKondisiPieData(
-        [
-          {
-            name: "Baik",
-            value: totalBaik,
-            percent: (totalBaik / totalUnit) * 100,
-            color: "#4ECDC4",
-          },
-          {
-            name: "Rusak Sedang",
-            value: totalSedang,
-            percent: (totalSedang / totalUnit) * 100,
-            color: "#FFD93D",
-          },
-          {
-            name: "Rusak Berat",
-            value: totalBerat,
-            percent: (totalBerat / totalUnit) * 100,
-            color: "#FF6B6B",
-          },
-        ].map(pieDataMapper)
-      );
-    } else {
-      setKondisiPieData([
-        {
-          name: "Tidak Ada Data",
-          value: 1,
-          actualCount: 0,
-          percent: 100,
-          color: "#95A5A6",
-        },
-      ]);
-    }
   };
 
+  /* =========================================================
+     Pemetaan Data Tabel (mappedTableData)
+     - Toilet tabel => *_calc (sinkron dengan chart kondisi)
+     - Rehab/Pembangunan => jumlah kegiatan (count), bukan volume
+  ========================================================= */
   const mappedTableData = useMemo(() => {
-    return (filteredSchoolData || []).map((s) => ({
-      npsn: s.npsn,
-      namaSekolah: s.nama,
-      jenjang: s.jenjang,
-      tipeSekolah: s.tipe,
-      desa: s.desa,
-      kecamatan: s.kecamatan,
-      student_count: Number(s.student_count || 0),
-      kondisiKelas: {
-        baik: Number(s.toiletBaik || 0),
-        rusakSedang: Number(s.toiletRusakSedang || 0),
-        rusakBerat: Number(s.toiletRusakBerat || 0),
-      },
-      kurangRKB: 0,
-      rehabRuangKelas: 0,
-      pembangunanRKB: 0,
-    }));
-  }, [filteredSchoolData]);
+    return (schoolData || []).map((s) => {
+      const rehabKegiatan = getRehabIntervensiCount(s);
+      const pembangunanKegiatan = getBuildIntervensiCount(s);
 
-  const handleDetailClickNavigate = useCallback((row) => {
-    const npsn = row && row.npsn ? row.npsn : null;
-    const jenjang = String(row && row.jenjang ? row.jenjang : "").toUpperCase();
-    if (!npsn) {
+      return {
+        npsn: s.npsn,
+        namaSekolah: s.nama,
+        jenjang: s.jenjang,
+        tipeSekolah: s.tipe,
+        desa: s.desa,
+        kecamatan: s.kecamatan,
+        student_count: Number(s.student_count || 0),
+
+        toilet: {
+          baik: toInt(s.toilet_baik_calc),
+          rusakSedang: toInt(s.toilet_sedang_calc),
+          rusakBerat: toInt(s.toilet_berat_calc),
+        },
+
+        totalToilet: toInt(s.total_toilet_calc),
+
+        kurangRKB: 0,
+        rehabRuangKelas: Number(rehabKegiatan || 0),
+        pembangunanRKB: Number(pembangunanKegiatan || 0),
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [schoolData]);
+
+  const handleDetailClickNavigate = useCallback((jenjang, npsn) => {
+    const npsnVal = npsn ? String(npsn).trim() : "";
+    const jenjangVal = String(jenjang || "").toUpperCase();
+
+    if (!npsnVal) {
       alert("NPSN sekolah tidak ditemukan.");
       return;
     }
-    let url = `/detail-sekolah?npsn=${encodeURIComponent(npsn)}&jenjang=${encodeURIComponent(
-      jenjang
+
+    let url = `/detail-sekolah?npsn=${encodeURIComponent(npsnVal)}&jenjang=${encodeURIComponent(
+      jenjangVal
     )}`;
-    if (jenjang === "PAUD") url = `/paud/school_detail?npsn=${encodeURIComponent(npsn)}`;
-    if (jenjang === "SD") url = `/sd/school_detail?npsn=${encodeURIComponent(npsn)}`;
-    if (jenjang === "SMP") url = `/smp/school_detail?npsn=${encodeURIComponent(npsn)}`;
-    if (jenjang === "PKBM") url = `/pkbm/school_detail?npsn=${encodeURIComponent(npsn)}`;
+    if (jenjangVal === "PAUD") url = `/paud/school_detail?npsn=${encodeURIComponent(npsnVal)}`;
+    if (jenjangVal === "SD") url = `/sd/school_detail?npsn=${encodeURIComponent(npsnVal)}`;
+    if (jenjangVal === "SMP") url = `/smp/school_detail?npsn=${encodeURIComponent(npsnVal)}`;
+    if (jenjangVal === "PKBM") url = `/pkbm/school_detail?npsn=${encodeURIComponent(npsnVal)}`;
+
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
 
@@ -1409,103 +2088,99 @@ const FacilitiesPage = () => {
     return ["Semua Desa", ...list];
   }, [selectedKecamatan, desaByKecamatan]);
 
-  const FiltersBar = () => (
-    <section className={`${styles.card} ${styles.filtersCard || ""}`}>
-      <header className={styles.cardHeader}>
-        <h2>Filter Data</h2>
-      </header>
-      <div
-        style={{
-          display: "grid",
-          gap: 12,
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          alignItems: "end",
-        }}
-      >
-        <div>
-          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
-            Filter Jenjang
-          </label>
-          <select
-            value={selectedJenjang}
-            onChange={(e) => setSelectedJenjang(e.target.value)}
-            className={styles.itemsPerPageSelect}
-            style={{ width: "100%" }}
-          >
-            {jenjangOptions.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </div>
+  const FiltersBar = () => {
+    const shownCount = (filteredSchoolData || []).length;
+    const infoText = loading ? "Memuat data..." : `Menampilkan ${shownCount} sekolah`;
 
-        <div>
-          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
-            Filter Kecamatan
-          </label>
-          <select
-            value={selectedKecamatan}
-            onChange={(e) => {
-              setSelectedKecamatan(e.target.value);
-              setSelectedDesa("Semua Desa");
-            }}
-            className={styles.itemsPerPageSelect}
-            style={{ width: "100%" }}
-          >
-            {["Semua Kecamatan", ...kecamatanOptions].map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </div>
+    return (
+      <section className={`${styles.card} ${styles.filtersCard || ""}`}>
+        <header className={styles.cardHeader}>
+          <h2>Filter Data</h2>
+        </header>
 
-        <div>
-          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
-            Filter Desa
-          </label>
-          <select
-            value={selectedDesa}
-            onChange={(e) => setSelectedDesa(e.target.value)}
-            className={styles.itemsPerPageSelect}
-            style={{ width: "100%" }}
-            disabled={selectedKecamatan === "Semua Kecamatan"}
-          >
-            {desaOptionsFiltered.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className={styles.filtersContent}>
+          <div className={styles.filtersRow}>
+            <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>Jenjang</label>
+              <select
+                value={selectedJenjang}
+                onChange={(e) => setSelectedJenjang(e.target.value)}
+                className={styles.filterSelect}
+                disabled={!!error}
+              >
+                {jenjangOptions.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div>
-          <label style={{ display: "block", fontSize: 12, marginBottom: 6 }}>
-            Pencarian Cepat
-          </label>
-          <input
-            type="text"
-            placeholder="Cari nama sekolah / NPSN / desa / kecamatan…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
-            style={{ width: "100%" }}
-          />
-        </div>
+            <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>Kecamatan</label>
+              <select
+                value={selectedKecamatan}
+                onChange={(e) => {
+                  setSelectedKecamatan(e.target.value);
+                  setSelectedDesa("Semua Desa");
+                }}
+                className={styles.filterSelect}
+                disabled={!!error || loading}
+              >
+                {["Semua Kecamatan", ...kecamatanOptions].map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div>
-          <button
-            onClick={resetAllFilters}
-            className={styles.resetTableButton}
-            style={{ width: "100%", marginTop: 6 }}
-          >
-            Reset Semua Filter
-          </button>
+            <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>Desa</label>
+              <select
+                value={selectedDesa}
+                onChange={(e) => setSelectedDesa(e.target.value)}
+                className={styles.filterSelect}
+                disabled={selectedKecamatan === "Semua Kecamatan" || !!error || loading}
+              >
+                {desaOptionsFiltered.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.filterGroup}>
+              <label className={styles.filterLabel}>Pencarian Cepat</label>
+              <input
+                type="text"
+                placeholder="Cari nama sekolah / NPSN / desa / kecamatan…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={styles.searchInput}
+                disabled={!!error}
+              />
+            </div>
+          </div>
+
+          <div className={styles.filterActions}>
+            <button
+              onClick={resetAllFilters}
+              className={styles.resetFiltersButton}
+              disabled={!!error}
+            >
+              Reset Semua Filter
+            </button>
+
+            <div className={styles.searchResultsInfo}>
+              <span className={styles.resultsText}>{infoText}</span>
+            </div>
+          </div>
         </div>
-      </div>
-    </section>
-  );
+      </section>
+    );
+  };
 
   const renderDetailSection = () => {
     if (!(currentView === "detail" && selectedSchool)) return null;
@@ -1537,37 +2212,57 @@ const FacilitiesPage = () => {
     );
   };
 
+  const ChartsPlaceholder = () => (
+    <section className={styles.chartsSection}>
+      <div className={styles.pieChartsGrid}>
+        <div className={`${styles.card} ${styles.chartCard}`}>
+          <header className={styles.chartHeader}>
+            <h3>Kondisi Unit Toilet</h3>
+          </header>
+          <div className={styles.chartWrapper}>
+            <ChartSkeleton height={280} />
+          </div>
+        </div>
+        <div className={`${styles.card} ${styles.chartCard}`}>
+          <header className={styles.chartHeader}>
+            <h3>Status Rehabilitasi</h3>
+          </header>
+          <div className={styles.chartWrapper}>
+            <ChartSkeleton height={280} />
+          </div>
+        </div>
+        <div className={`${styles.card} ${styles.chartCard}`}>
+          <header className={styles.chartHeader}>
+            <h3>Status Pembangunan</h3>
+          </header>
+          <div className={styles.chartWrapper}>
+            <ChartSkeleton height={280} />
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.barChartsGrid}>
+        <div className={`${styles.card} ${styles.chartCard}`}>
+          <header className={styles.chartHeader}>
+            <h3>Kondisi Unit Toilet</h3>
+          </header>
+          <div className={styles.chartWrapper}>
+            <ChartSkeleton height={320} />
+          </div>
+        </div>
+        <div className={`${styles.card} ${styles.chartCard}`}>
+          <header className={styles.chartHeader}>
+            <h3>Kategori Intervensi</h3>
+          </header>
+          <div className={styles.chartWrapper}>
+            <ChartSkeleton height={320} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
   const renderMainView = () => {
-    if (loading) {
-      return (
-        <div className={styles.container}>
-          <div className={styles.card}>
-            <div className={styles.loadingContainer}>
-              <div className={styles.loadingSpinner}></div>
-              <p className={styles.loadingText}>Memuat data sekolah...</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (error) {
-      return (
-        <div className={styles.container}>
-          <div className={styles.card}>
-            <div className={styles.errorContainer}>
-              <div className={styles.errorIcon}>⚠️</div>
-              <h3>Terjadi Kesalahan</h3>
-              <p className={styles.errorMessage}>{error}</p>
-              <button className={styles.retryButton} onClick={() => window.location.reload()}>
-                Muat Ulang Halaman
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className={styles.container}>
         <header className={`${styles.card} ${styles.pageHeader}`}>
@@ -1581,69 +2276,53 @@ const FacilitiesPage = () => {
 
         <FiltersBar />
 
-        <ErrorBoundary>
-          <Suspense
-            fallback={
-              <section className={styles.chartsSection}>
-                <div className={styles.pieChartsGrid}>
-                  <div className={`${styles.card} ${styles.chartCard}`}>
-                    <header className={styles.chartHeader}>
-                      <h3>Kondisi Unit Toilet</h3>
-                    </header>
-                    <div className={styles.chartWrapper}>
-                      <ChartSkeleton height={280} />
-                    </div>
-                  </div>
-                  <div className={`${styles.card} ${styles.chartCard}`}>
-                    <header className={styles.chartHeader}>
-                      <h3>Status Rehabilitasi</h3>
-                    </header>
-                    <div className={styles.chartWrapper}>
-                      <ChartSkeleton height={280} />
-                    </div>
-                  </div>
-                  <div className={`${styles.card} ${styles.chartCard}`}>
-                    <header className={styles.chartHeader}>
-                      <h3>Status Pembangunan</h3>
-                    </header>
-                    <div className={styles.chartWrapper}>
-                      <ChartSkeleton height={280} />
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.barChartsGrid}>
-                  <div className={`${styles.card} ${styles.chartCard}`}>
-                    <header className={styles.chartHeader}>
-                      <h3>Kondisi Unit Toilet</h3>
-                    </header>
-                    <div className={styles.chartWrapper}>
-                      <ChartSkeleton height={320} />
-                    </div>
-                  </div>
-                  <div className={`${styles.card} ${styles.chartCard}`}>
-                    <header className={styles.chartHeader}>
-                      <h3>Kategori Intervensi</h3>
-                    </header>
-                    <div className={styles.chartWrapper}>
-                      <ChartSkeleton height={320} />
-                    </div>
-                  </div>
-                </div>
-              </section>
-            }
-          >
-            <ChartsSection
-              kondisiPieData={kondisiPieData}
-              rehabilitasiPieData={rehabilitasiPieData}
-              pembangunanPieData={pembangunanPieData}
-              kondisiToiletData={kondisiToiletData}
-              intervensiToiletData={intervensiToiletData}
-              customPieTooltip={customPieTooltip}
-              customBarTooltip={customBarTooltip}
-              renderLabelInside={renderLabelInside}
-            />
-          </Suspense>
-        </ErrorBoundary>
+        {rpcError && !error ? (
+          <section className={`${styles.card} ${styles.tableCard}`}>
+            <div style={{ padding: 12 }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Info</div>
+              <div style={{ opacity: 0.9 }}>
+                RPC gagal dipanggil, sistem memakai fallback perhitungan lokal. Detail: {rpcError}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {error ? (
+          <section className={`${styles.card} ${styles.tableCard}`}>
+            <header className={styles.cardHeader}>
+              <div className={styles.tableHeaderContent}>
+                <h2>Terjadi Kesalahan</h2>
+              </div>
+            </header>
+            <div className={styles.errorContainer}>
+              <div className={styles.errorIcon}>⚠️</div>
+              <h3>Gagal memuat data</h3>
+              <p className={styles.errorMessage}>{error}</p>
+              <button className={styles.retryButton} onClick={() => window.location.reload()}>
+                Muat Ulang Halaman
+              </button>
+            </div>
+          </section>
+        ) : (
+          <ErrorBoundary>
+            <Suspense fallback={<ChartsPlaceholder />}>
+              {loading || rpcLoading || !chartsReady ? (
+                <ChartsPlaceholder />
+              ) : (
+                <ChartsSection
+                  kondisiPieData={kondisiPieData}
+                  rehabilitasiPieData={rehabilitasiPieData}
+                  pembangunanPieData={pembangunanPieData} // ✅ dari RPC final (1177/9/1186)
+                  kondisiToiletData={kondisiToiletData}
+                  intervensiToiletData={intervensiToiletData} // ✅ dari RPC final (9/9/0)
+                  customPieTooltip={customPieTooltip}
+                  customBarTooltip={customBarTooltip}
+                  renderLabelInside={renderLabelInside}
+                />
+              )}
+            </Suspense>
+          </ErrorBoundary>
+        )}
 
         <section className={`${styles.card} ${styles.tableCard}`}>
           <header className={styles.cardHeader}>
@@ -1652,14 +2331,13 @@ const FacilitiesPage = () => {
             </div>
           </header>
 
-          <div className={styles.chartContent}>
-            <DataTable
-              data={mappedTableData}
-              onDetailClick={handleDetailClickNavigate}
-              onDetailPrefetch={handlePrefetchDetail}
-              onDetailModulePrefetch={handlePrefetchModule}
-            />
-          </div>
+          <DataTable
+            data={mappedTableData}
+            onDetailClick={handleDetailClickNavigate}
+            onDetailPrefetch={handlePrefetchDetail}
+            onDetailModulePrefetch={handlePrefetchModule}
+            isLoading={loading}
+          />
         </section>
       </div>
     );

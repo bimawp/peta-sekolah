@@ -95,19 +95,30 @@
 }
 
 /* Loading & Error */
-.loading,
+/* ✅ dibuat ringan (tidak full-screen / tidak berat) */
+.loading {
+  display: block;
+  max-width: 1400px;
+  margin: 0 auto 1rem;
+  padding: .6rem .9rem;
+  color: var(--text-muted);
+  font-size: .95rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
 .error {
   display: flex; align-items: center; justify-content: center;
   min-height: 40vh;
   font-size: 1.0625rem; font-weight: 600;
   background: var(--bg-card);
-  color: var(--text-secondary);
+  color: var(--danger);
   border: 1px solid var(--border-light);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-medium);
   padding: 1.5rem;
 }
-.error { color: var(--danger); }
 
 /* Summary cards */
 .summaryCardsContainer { margin-bottom: 2.25rem; padding: 0 1rem; }
@@ -429,6 +440,16 @@
   .chartHeader { padding: 1rem; }
   .chartContent, .chartOverflow { padding: 1rem; }
   .filtersContainer { flex-direction: column; gap: .9rem; }
+
+  /* ✅ Table controls lebih responsif di mobile */
+  .tableControls { flex-direction: column; align-items: stretch; }
+  .searchContainer { max-width: none; width: 100%; }
+  .controlGroup { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+
+  .table thead th { padding: .6rem .6rem; font-size: .78rem; }
+  .table tbody td { padding: .55rem .6rem; font-size: .88rem; }
+  .schoolNameCell { max-width: 240px; }
+  .detailButton { padding: .4rem .55rem; }
 }
 @media (max-width: 640px) {
   .summaryCards { grid-template-columns: 1fr 1fr; gap: .75rem; }

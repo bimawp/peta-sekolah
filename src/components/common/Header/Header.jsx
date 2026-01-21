@@ -39,7 +39,12 @@ const Header = () => {
 
           <div className={styles.logoSection}>
             <div className={styles.logoIcon}>
-              <img src="/assets/logo-disdik.png" alt="Logo Disdik" className={styles.logoImage} />
+              {/* ✅ Pakai logo asli dari public/assets, tanpa wadah hijau */}
+              <img
+                src="/assets/logo-disdik.png"
+                alt="Logo Dinas Pendidikan Kabupaten Garut"
+                className={styles.logoImage}
+              />
             </div>
             <div className={styles.logoText}>
               <h1 className={styles.mainTitle}>Dinas Pendidikan</h1>

@@ -1,34 +1,51 @@
 /* src/components/schools/SchoolDetail/Paud/SchoolDetailPaud.module.css */
 
-:root {
-  --primary-green: #1E7F4F;
-  --dark-green: #145C3C;
-  --soft-green: #56B789;
-  --gold-yellow: #F2B705;
-  --dark-yellow: #C79404;
-  --bg-light: #FAFAFA;
-  --text-primary: #1A1A1A;
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+
+/* =========================================================
+   IMPORTANT (CSS Modules):
+   Gunakan :global(:root) agar CSS variables benar-benar global
+   dan tidak “tersembunyi” oleh scope CSS Modules di beberapa setup.
+   ========================================================= */
+:global(:root) {
+  --primary-green: #1e7f4f;
+  --dark-green: #145c3c;
+  --soft-green: #56b789;
+  --gold-yellow: #f2b705;
+  --dark-yellow: #c79404;
+
+  --bg-light: #fafafa;
+  --text-primary: #1a1a1a;
   --text-secondary: #666666;
-  --border-light: #E5E5E5;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --border-light: #e5e5e5;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg-light: #1A1A1A;
-    --text-primary: #F5F5F5;
-    --text-secondary: #B0B0B0;
+  :global(:root) {
+    --bg-light: #1a1a1a;
+    --text-primary: #f5f5f5;
+    --text-secondary: #b0b0b0;
     --border-light: #333333;
   }
 }
 
+/* Optional: font fallback global (tidak wajib, tapi membantu konsisten) */
+:global(body) {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* =========================================================
+   Layout
+   ========================================================= */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: var(--bg-light);
   color: var(--text-primary);
 }
@@ -44,9 +61,9 @@
 .schoolName {
   font-size: 28px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #ffffff;
   margin: 0 0 24px 0;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .schoolInfo {
@@ -60,20 +77,20 @@
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   transition: all 0.2s ease;
 }
 
 .infoRow:hover {
-  background: rgba(255,255,255,0.25);
+  background: rgba(255, 255, 255, 0.25);
   transform: translateX(4px);
 }
 
 .label {
   font-weight: 600;
-  color: #FFFFFF;
+  color: #ffffff;
   min-width: 130px;
   font-size: 14px;
 }
@@ -85,7 +102,7 @@
 }
 
 .value {
-  color: #FFFFFF;
+  color: #ffffff;
   font-weight: 500;
   flex: 1;
 }
@@ -94,7 +111,7 @@
   width: 100%;
   padding: 14px 24px;
   background: linear-gradient(135deg, var(--soft-green), var(--primary-green));
-  color: #FFFFFF;
+  color: #ffffff;
   border: none;
   border-radius: 12px;
   font-size: 15px;
@@ -110,6 +127,9 @@
   background: linear-gradient(135deg, var(--primary-green), var(--dark-green));
 }
 
+/* =========================================================
+   Sections / Cards
+   ========================================================= */
 .section {
   margin-bottom: 28px;
 }
@@ -124,7 +144,7 @@
 }
 
 .card {
-  background: #FFFFFF;
+  background: #ffffff;
   padding: 24px;
   border-radius: 16px;
   border: 1px solid var(--border-light);
@@ -133,10 +153,13 @@
 
 @media (prefers-color-scheme: dark) {
   .card {
-    background: #2A2A2A;
+    background: #2a2a2a;
   }
 }
 
+/* =========================================================
+   Chart
+   ========================================================= */
 .chartContainer {
   width: 100%;
   margin: 20px 0;
@@ -169,39 +192,39 @@
   justify-content: center;
   padding-top: 8px;
   border-radius: 12px 12px 4px 4px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15), inset 0 -2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), inset 0 -2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   position: relative;
 }
 
 .bar::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 40%;
-  background: linear-gradient(180deg, rgba(255,255,255,0.3), transparent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent);
   border-radius: 12px 12px 0 0;
   pointer-events: none;
 }
 
 .bar:hover {
   transform: translateY(-4px) scale(1.05);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2), inset 0 -2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), inset 0 -2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .barLabel {
   position: relative;
   z-index: 1;
-  background: rgba(255,255,255,0.95);
+  background: rgba(255, 255, 255, 0.95);
   color: var(--text-primary);
   padding: 6px 12px;
   border-radius: 6px;
   font-weight: 700;
   font-size: 14px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  border: 1px solid rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .barText {
@@ -213,34 +236,32 @@
   max-width: 90px;
 }
 
+/* bar colors */
 .barGreen {
   background: linear-gradient(135deg, #10b981, #059669);
 }
-
 .barRed {
-  background: linear-gradient(135deg, #EF4444, #DC2626);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
 }
-
 .barYellow {
-  background: linear-gradient(135deg, #F59E0B, #D97706);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
 }
-
 .barBlue {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
 }
-
 .barPurple {
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
-
 .barOrange {
-  background: linear-gradient(135deg, #F97316, #EA580C);
+  background: linear-gradient(135deg, #f97316, #ea580c);
 }
-
 .barCyan {
-  background: linear-gradient(135deg, #06B6D4, #0891B2);
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
 }
 
+/* =========================================================
+   Subsections / Rows
+   ========================================================= */
 .subsection {
   margin-top: 20px;
   padding-top: 16px;
@@ -281,6 +302,9 @@
   display: block;
 }
 
+/* =========================================================
+   Mobile
+   ========================================================= */
 @media (max-width: 640px) {
   .container {
     padding: 16px 12px;

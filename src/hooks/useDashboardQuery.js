@@ -31,7 +31,7 @@ function asKecamatanStrings(v) {
   return arr
     .map((x) =>
       x && typeof x === "object"
-        ? x.kecamatan ?? x.kecamatan_name ?? x.name ?? null
+        ? x.kecamatan ?? x.kecamatan_name ?? x.subdistrict ?? x.name ?? null
         : null
     )
     .filter(Boolean);
@@ -53,22 +53,134 @@ async function fetchSchoolTypesMap() {
   return map;
 }
 
+/**
+ * ✅ NEW SCHEMA FIX:
+ * - schools TIDAK punya kolom kecamatan / kecamatan_name lagi.
+ * - sumber kecamatan sekarang dari locations.subdistrict
+ * - sumber desa bisa dari schools.village_name (kalau ada) atau locations.village
+ *
+ * Agar Dashboard.jsx tidak perlu diubah, kita "menyediakan" field legacy:
+ * - kecamatan, kecamatan_name  -> locations.subdistrict
+ * - village                   -> locations.village
+ */
 async function fetchSchoolsLite() {
   // minimal fields untuk top kecamatan/desa + fallback agregasi
-  const { data, error } = await supabase
+  const { data: schools, error: e1 } = await supabase
     .from("schools")
-    .select(
-      "id,npsn,school_type_id,kecamatan,kecamatan_name,village_name,class_condition"
-    );
+    .select("id,npsn,school_type_id,location_id,village_name,class_condition");
+  if (e1) throw e1;
+
+  const rows = schools || [];
+  const ids = Array.from(
+    new Set(rows.map((r) => r.location_id).filter((x) => x != null))
+  );
+
+  let locMap = {};
+  if (ids.length) {
+    const { data: locs, error: e2 } = await supabase
+      .from("locations")
+      .select("id,subdistrict,village")
+      .in("id", ids);
+    if (e2) throw e2;
+
+    locMap = {};
+    (locs || []).forEach((l) => {
+      locMap[String(l.id)] = l;
+    });
+  }
+
+  return rows.map((r) => {
+    const loc = r.location_id != null ? locMap[String(r.location_id)] : null;
+    const subdistrict = (loc?.subdistrict ?? null) && String(loc.subdistrict).trim()
+      ? String(loc.subdistrict).trim()
+      : null;
+    const village = (loc?.village ?? null) && String(loc.village).trim()
+      ? String(loc.village).trim()
+      : null;
+
+    const villageName =
+      (r.village_name ?? null) && String(r.village_name).trim()
+        ? String(r.village_name).trim()
+        : village;
+
+    return {
+      ...r,
+
+      // legacy keys agar Dashboard.jsx tidak perlu diubah
+      kecamatan: subdistrict,
+      kecamatan_name: subdistrict,
+      village: village,
+
+      // pastikan village_name tetap terisi untuk filter desa
+      village_name: villageName,
+
+      // optional: expose raw location fields jika perlu debug
+      _loc: loc || null,
+    };
+  });
+}
+
+/**
+ * ✅ fallback kegiatan dari tabel baru (school_projects)
+ * Dipakai jika RPC_KEGIATAN gagal / kosong.
+ */
+async function fetchProjectsLite() {
+  const { data, error } = await supabase
+    .from("school_projects")
+    .select("school_id,activity_name,volume,fiscal_year");
   if (error) throw error;
   return data || [];
+}
+
+function buildKegiatanSummaryFromProjects(projects, schools, schoolTypesMap) {
+  const idToType = {};
+  (schools || []).forEach((s) => {
+    if (s?.id) idToType[String(s.id)] = s.school_type_id;
+  });
+
+  const sums = {
+    PAUD: { rehab: 0, pembangunan: 0 },
+    SD: { rehab: 0, pembangunan: 0 },
+    SMP: { rehab: 0, pembangunan: 0 },
+    PKBM: { rehab: 0, pembangunan: 0 },
+  };
+
+  (projects || []).forEach((p) => {
+    const sid = p?.school_id ? String(p.school_id) : null;
+    const stid = sid ? idToType[sid] : null;
+    const jenjang = schoolTypesMap?.[String(stid)] || "UNKNOWN";
+    if (!sums[jenjang]) return;
+
+    const nm = String(p?.activity_name || "").toLowerCase();
+    const vol = Number(p?.volume);
+    const v = Number.isFinite(vol) ? vol : 0;
+    if (v <= 0) return;
+
+    if (nm.includes("rehab") || nm.includes("rehabil")) sums[jenjang].rehab += v;
+    if (nm.includes("pembangunan")) sums[jenjang].pembangunan += v;
+  });
+
+  // bentuk LONG format yang sudah di-handle oleh Dashboard.jsx (branch "long format")
+  return [
+    { jenjang: "PAUD", kegiatan: "Rehabilitasi Ruang Kelas", total_lokal: sums.PAUD.rehab },
+    { jenjang: "PAUD", kegiatan: "Pembangunan RKB", total_lokal: sums.PAUD.pembangunan },
+
+    { jenjang: "SD", kegiatan: "Rehabilitasi Ruang Kelas", total_lokal: sums.SD.rehab },
+    { jenjang: "SD", kegiatan: "Pembangunan RKB", total_lokal: sums.SD.pembangunan },
+
+    { jenjang: "SMP", kegiatan: "Rehabilitasi Ruang Kelas", total_lokal: sums.SMP.rehab },
+    { jenjang: "SMP", kegiatan: "Pembangunan RKB", total_lokal: sums.SMP.pembangunan },
+
+    { jenjang: "PKBM", kegiatan: "Rehabilitasi Ruang Kelas", total_lokal: sums.PKBM.rehab },
+    { jenjang: "PKBM", kegiatan: "Pembangunan RKB", total_lokal: sums.PKBM.pembangunan },
+  ];
 }
 
 /**
  * Fetch dashboard bundle (Supabase-first)
  */
 async function fetchDashboardData() {
-  const [statsRaw, kegiatanRaw, kondisiRaw, kecRaw, typeMap, schoolsLite] =
+  const [statsRaw, kegiatanRaw, kondisiRaw, kecRaw, typeMapRaw, schoolsLiteRaw] =
     await Promise.allSettled([
       rpcSafe(RPC_STATS),
       rpcSafe(RPC_KEGIATAN),
@@ -79,16 +191,27 @@ async function fetchDashboardData() {
     ]);
 
   const stats = statsRaw.status === "fulfilled" ? asObject(statsRaw.value) : {};
-  const kegiatanSummary =
+  let kegiatanSummary =
     kegiatanRaw.status === "fulfilled" ? asArray(kegiatanRaw.value) : [];
   const kondisiSummary =
     kondisiRaw.status === "fulfilled" ? asArray(kondisiRaw.value) : [];
   const allKecamatan =
     kecRaw.status === "fulfilled" ? asKecamatanStrings(kecRaw.value) : [];
   const schoolTypesMap =
-    typeMap.status === "fulfilled" ? typeMap.value : {};
+    typeMapRaw.status === "fulfilled" ? typeMapRaw.value : {};
   const schools =
-    schoolsLite.status === "fulfilled" ? schoolsLite.value : [];
+    schoolsLiteRaw.status === "fulfilled" ? schoolsLiteRaw.value : [];
+
+  // ✅ fallback intervensi jika RPC kegiatan kosong/gagal
+  if (!kegiatanSummary.length) {
+    try {
+      const projects = await fetchProjectsLite();
+      const fallback = buildKegiatanSummaryFromProjects(projects, schools, schoolTypesMap);
+      if (Array.isArray(fallback) && fallback.length) kegiatanSummary = fallback;
+    } catch (_) {
+      // biarkan tetap [] jika fallback gagal
+    }
+  }
 
   return {
     stats,
@@ -99,7 +222,7 @@ async function fetchDashboardData() {
     schools,
     _debug: {
       stats_ok: statsRaw.status === "fulfilled",
-      kegiatan_ok: kegiatanRaw.status === "fulfilled",
+      kegiatan_ok: kegiatanRaw.status === "fulfilled" || kegiatanSummary.length > 0,
       kondisi_ok: kondisiRaw.status === "fulfilled",
       kec_ok: kecRaw.status === "fulfilled",
       schools_count: schools.length,

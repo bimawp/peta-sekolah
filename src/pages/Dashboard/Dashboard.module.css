@@ -1,74 +1,82 @@
 /* Dashboard.module.css - Tema Dinas Pendidikan Garut (Hijau–Kuning), Modern & Responsif */
 
 /* Import font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
 
 /* CSS Variables: diselaraskan dengan header/sidebar */
 :root {
   /* Tema utama */
-  --primary-color: #1E7F4F;    /* hijau Garut */
-  --primary-strong: #145C3C;
-  --primary-soft: #56B789;
-  --accent-color: #F2B705;     /* kuning emas */
-  --accent-strong: #C79404;
+  --primary-color: #1e7f4f; /* hijau Garut */
+  --primary-strong: #145c3c;
+  --primary-soft: #56b789;
+  --accent-color: #f2b705; /* kuning emas */
+  --accent-strong: #c79404;
 
   /* Status/info pendukung */
-  --info: #0EA5E9;
-  --warn: #F59E0B;
-  --danger: #DC2626;
-  --ok: #16A34A;
+  --info: #0ea5e9;
+  --warn: #f59e0b;
+  --danger: #dc2626;
+  --ok: #16a34a;
 
   /* Permukaan & teks */
-  --bg-primary: #F8FAFC;       /* surface-weak */
-  --bg-secondary: #FFFFFF;     /* surface */
-  --bg-card: #FFFFFF;
-  --bg-hover: #F1F5F9;
+  --bg-primary: #f8fafc; /* surface-weak */
+  --bg-secondary: #ffffff; /* surface */
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
 
-  --text-primary: #0F172A;
+  --text-primary: #0f172a;
   --text-secondary: #334155;
-  --text-muted: #64748B;
+  --text-muted: #64748b;
 
-  --border-color: #E2E8F0;
-  --border-light: #EEF2F7;
+  --border-color: #e2e8f0;
+  --border-light: #eef2f7;
 
   --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-medium: 0 4px 10px rgba(0, 0, 0, 0.06);
-  --shadow-large: 0 12px 24px rgba(0, 0, 0, 0.10);
+  --shadow-large: 0 12px 24px rgba(0, 0, 0, 0.1);
 
   --border-radius: 12px;
   --border-radius-lg: 16px;
 
   --transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-fast: all 0.14s ease-out;
+
+  --ring: 0 0 0 3px rgba(30, 127, 79, 0.15);
 }
 
 /* Dark mode tetap jalan dengan tone tema */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg-primary: #0F172A;
-    --bg-secondary: #0B1A14; /* hijau gelap sangat samar */
-    --bg-card: #0B1A14;
-    --bg-hover: #0E2119;
+    --bg-primary: #0f172a;
+    --bg-secondary: #0b1a14; /* hijau gelap sangat samar */
+    --bg-card: #0b1a14;
+    --bg-hover: #0e2119;
 
-    --text-primary: #E6F5EC;
-    --text-secondary: #CFE8DA;
-    --text-muted: #8DBAA5;
+    --text-primary: #e6f5ec;
+    --text-secondary: #cfe8da;
+    --text-muted: #8dbaa5;
 
-    --border-color: #153A2A;
-    --border-light: #112E22;
+    --border-color: #153a2a;
+    --border-light: #112e22;
 
-    --shadow-light: 0 1px 3px rgba(0,0,0,.35);
-    --shadow-medium: 0 4px 10px rgba(0,0,0,.35);
-    --shadow-large: 0 12px 24px rgba(0,0,0,.40);
+    --shadow-light: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-medium: 0 4px 10px rgba(0, 0, 0, 0.35);
+    --shadow-large: 0 12px 24px rgba(0, 0, 0, 0.4);
+
+    --ring: 0 0 0 3px rgba(86, 183, 137, 0.22);
   }
 }
 
 /* Reset ringan */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
 /* Kontainer utama */
 .dashboard {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg-primary);
   min-height: 100vh;
   color: var(--text-primary);
@@ -87,41 +95,45 @@
   font-weight: 800;
   letter-spacing: -0.025em;
   color: var(--text-primary);
-  margin-bottom: .5rem;
-  text-shadow: 0 1px 0 rgba(255,255,255,.4);
+  margin-bottom: 0.5rem;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 .dashboardHeader h1::after {
-  content: '';
+  content: "";
   display: block;
-  width: 92px; height: 4px;
+  width: 92px;
+  height: 4px;
   background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
   margin: 1rem auto 0;
   border-radius: 2px;
 }
 
-/* Loading & Error */
-.loading,
-.error {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 50vh;
-  font-size: 1.0625rem; font-weight: 600;
+/* Error banner (tanpa mengunci halaman) */
+.errorBanner {
+  max-width: 1400px;
+  margin: 0 auto 1.25rem auto;
+  padding: 0 1rem;
 }
-.loading { color: var(--text-secondary); }
-.error {
-  color: var(--danger);
+.errorBannerInner {
   background: var(--bg-card);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-left: 6px solid var(--danger);
   border-radius: var(--border-radius);
-  padding: 2rem;
-  box-shadow: var(--shadow-medium);
+  box-shadow: var(--shadow-light);
+  padding: 1rem 1rem;
 }
 
 /* Ringkasan (cards) */
-.summaryCardsContainer { margin-bottom: 2.25rem; padding: 0 1rem; }
+.summaryCardsContainer {
+  margin-bottom: 2.25rem;
+  padding: 0 1rem;
+}
 .summaryCards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.25rem;
-  max-width: 1400px; margin: 0 auto;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 .summaryCard {
   background: var(--bg-card);
@@ -131,11 +143,13 @@
   box-shadow: var(--shadow-medium);
   border: 1px solid var(--border-light);
   transition: var(--transition);
-  position: relative; overflow: hidden;
+  position: relative;
+  overflow: hidden;
 }
 .summaryCard::before {
-  content: '';
-  position: absolute; inset: 0 0 auto 0;
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
   height: 4px;
   background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
   transform: translateX(-100%);
@@ -146,27 +160,34 @@
   box-shadow: var(--shadow-large);
   border-color: var(--border-color);
 }
-.summaryCard:hover::before { transform: translateX(0); }
-.summaryCard .title {
-  font-size: .8125rem; letter-spacing: .05em;
-  color: var(--text-secondary);
-  font-weight: 700; text-transform: uppercase;
-  margin-bottom: .8rem;
+.summaryCard:hover::before {
+  transform: translateX(0);
 }
-.summaryCard .value {
-  font-size: 2.25rem; font-weight: 800;
-  line-height: 1.2; color: var(--primary-color);
+.title {
+  font-size: 0.8125rem;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 0.8rem;
+}
+.value {
+  font-size: 2.25rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--primary-color);
 }
 
 /* Grid kartu chart */
 .chartsContainer {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(560px, 100%), 1fr));
   gap: 1.75rem;
   margin-bottom: 2.5rem;
   padding: 0 1rem;
   max-width: 1400px;
-  margin-left: auto; margin-right: auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Kartu chart & kontainer chart besar */
@@ -188,7 +209,8 @@
 .chartContainer {
   margin: 0 1rem 2.5rem 1rem;
   max-width: 1400px;
-  margin-left: auto; margin-right: auto;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* Header chart */
@@ -199,122 +221,306 @@
 }
 .chartHeader h2,
 .chartHeader h3 {
-  font-size: 1.35rem; font-weight: 700; color: var(--text-primary);
-  margin-bottom: .35rem; line-height: 1.3;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+  line-height: 1.3;
 }
-.chartHeader h3 { font-size: 1.2rem; }
+.chartHeader h3 {
+  font-size: 1.2rem;
+}
 
 /* Isi chart */
-.chartContent { padding: 1.5rem; background: var(--bg-card); }
+.chartContent {
+  padding: 1.5rem;
+  background: var(--bg-card);
+}
 
-/* Filter bar kecil */
+/* Filter bar kecil (lebih menarik, tanpa tambah filter) */
 .filtersContainer {
-  display: flex; flex-wrap: wrap; gap: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
   margin-top: 1.1rem;
   padding: 1rem;
   background: var(--bg-hover);
   border-radius: var(--border-radius);
   border: 1px solid var(--border-light);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 .filterGroup {
-  display: flex; flex-direction: column; gap: .5rem;
-  min-width: 120px; flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 160px;
+  flex: 1;
 }
 .filterGroup label {
-  font-size: .8125rem; font-weight: 700;
-  color: var(--text-secondary); text-transform: uppercase;
-  letter-spacing: .025em;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 .filterGroup select,
 .filterGroup input {
-  padding: .65rem .9rem;
+  padding: 0.7rem 0.95rem;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  background: var(--bg-secondary);
+  background: linear-gradient(180deg, var(--bg-secondary), var(--bg-hover));
   color: var(--text-primary);
-  font-size: .875rem; font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 700;
   transition: var(--transition-fast);
   outline: none;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
+
+/* Select dibuat lebih modern */
+.filterGroup select {
+  appearance: none;
+  padding-right: 2.4rem;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%),
+    linear-gradient(180deg, var(--bg-secondary), var(--bg-hover));
+  background-position: calc(100% - 18px) calc(1.05em), calc(100% - 13px) calc(1.05em), 0 0;
+  background-size: 6px 6px, 6px 6px, 100% 100%;
+  background-repeat: no-repeat;
+}
+
 .filterGroup select:focus,
 .filterGroup input:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(30, 127, 79, 0.15);
+  box-shadow: var(--ring);
 }
 .filterGroup select:hover,
-.filterGroup input:hover { border-color: #cfd8df; }
+.filterGroup input:hover {
+  border-color: rgba(30, 127, 79, 0.35);
+}
+
 .info {
-  display: flex; align-items: center;
-  font-size: .875rem; color: var(--text-muted);
-  font-style: italic; padding: .5rem 1rem;
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.6rem 1rem;
   background: var(--bg-secondary);
   border-radius: var(--border-radius);
   border: 1px solid var(--border-light);
+  min-width: 240px;
 }
 
 /* Overflow chart horizontal */
 .chartOverflow {
-  overflow-x: auto; overflow-y: visible;
+  overflow-x: auto;
+  overflow-y: visible;
   padding: 1.5rem;
   background: var(--bg-card);
-  min-width: 320px; /* ⬅️ penting agar ResponsiveContainer tidak membaca width=0 di iOS */
+  min-width: 320px; /* penting agar ResponsiveContainer tidak membaca width=0 di iOS */
   -webkit-overflow-scrolling: touch;
 }
-.chartOverflow::-webkit-scrollbar { height: 8px; }
-.chartOverflow::-webkit-scrollbar-track { background: var(--bg-hover); border-radius: 4px; }
-.chartOverflow::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; transition: var(--transition-fast); }
-.chartOverflow::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+.chartOverflowInner {
+  width: 100%;
+  min-width: 720px; /* desktop nyaman; mobile akan scroll */
+}
 
-/* Recharts helper */
-.recharts-responsive-container { min-height: 0 !important; }
+.chartOverflow::-webkit-scrollbar {
+  height: 8px;
+}
+.chartOverflow::-webkit-scrollbar-track {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+.chartOverflow::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+.chartOverflow::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
 
-/* Horizontal bar tweaks jika diberi class di JSX */
-.horizontal-bar-chart .recharts-cartesian-axis-tick-value {
+/* Recharts helpers (pakai :global agar kena ke class bawaan recharts) */
+.dashboard :global(.recharts-responsive-container) {
+  min-height: 0 !important;
+}
+.horizontalBarChart :global(.recharts-cartesian-axis-tick-value) {
   font-size: 10px !important;
   fill: var(--text-secondary) !important;
 }
-.horizontal-bar-chart .recharts-bar-rectangle { rx: 4; ry: 4; }
+.horizontalBarChart :global(.recharts-legend-wrapper) {
+  padding-top: 14px !important;
+}
+.horizontalBarChart :global(.recharts-default-legend) {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* Tooltip custom */
+.tooltip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  box-shadow: var(--shadow-large);
+  padding: 0.75rem 0.9rem;
+  min-width: 220px;
+}
+.tooltipTitle {
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.01em;
+}
+.tooltipRows {
+  display: grid;
+  gap: 0.3rem;
+}
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+.tooltipName {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.tooltipValue {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+/* Label angka di bar horizontal */
+.valueLabel {
+  fill: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
+}
 
 /* Responsif */
 @media (max-width: 1200px) {
-  .chartsContainer { grid-template-columns: 1fr; }
-  .dashboard { padding: 1.5rem .75rem; }
-}
-@media (max-width: 768px) {
-  .dashboard { padding: 1rem .5rem; }
-  .summaryCards { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
-  .summaryCard { padding: 1.25rem 1rem; }
-  .summaryCard .value { font-size: 1.9rem; }
-  .chartHeader { padding: 1.2rem 1rem .9rem 1rem; }
-  .chartContent, .chartOverflow { padding: 1rem; }
-  .filtersContainer { flex-direction: column; gap: .9rem; }
-  .chartContainer { margin: 0 .5rem 2rem .5rem; }
-}
-@media (max-width: 640px) {
-  .summaryCards { grid-template-columns: 1fr 1fr; gap: .75rem; }
-  .summaryCard { padding: 1rem .8rem; }
-  .summaryCard .title { font-size: .75rem; }
-  .summaryCard .value { font-size: 1.65rem; }
-  .chartHeader h2, .chartHeader h3 { font-size: 1.08rem; }
-}
-@media (max-width: 480px) {
-  .dashboard { padding: .75rem .25rem; }
-  .summaryCards { grid-template-columns: 1fr; }
-  .summaryCard { padding: .95rem; }
-  .chartHeader { padding: 1rem; }
-  .chartContent, .chartOverflow { padding: .75rem; }
-  .chartContainer { margin: 0 .25rem 1.4rem .25rem; }
+  .chartsContainer {
+    grid-template-columns: 1fr;
+  }
+  .dashboard {
+    padding: 1.5rem 0.75rem;
+  }
+  .chartOverflowInner {
+    min-width: 680px;
+  }
 }
 
-/* Loading anim */
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
-.loading { animation: pulse 2s cubic-bezier(.4,0,.6,1) infinite; }
+@media (max-width: 768px) {
+  .dashboard {
+    padding: 1rem 0.5rem;
+  }
+  .summaryCards {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .summaryCard {
+    padding: 1.25rem 1rem;
+  }
+  .value {
+    font-size: 1.9rem;
+  }
+  .chartHeader {
+    padding: 1.2rem 1rem 0.9rem 1rem;
+  }
+  .chartContent,
+  .chartOverflow {
+    padding: 1rem;
+  }
+  .filtersContainer {
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .chartContainer {
+    margin: 0 0.5rem 2rem 0.5rem;
+  }
+  .filterGroup {
+    min-width: 100%;
+  }
+  .info {
+    min-width: 100%;
+  }
+  .chartOverflowInner {
+    min-width: 640px;
+  }
+}
+
+@media (max-width: 640px) {
+  .summaryCards {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .summaryCard {
+    padding: 1rem 0.8rem;
+  }
+  .title {
+    font-size: 0.75rem;
+  }
+  .value {
+    font-size: 1.65rem;
+  }
+  .chartHeader h2,
+  .chartHeader h3 {
+    font-size: 1.08rem;
+  }
+  .chartOverflowInner {
+    min-width: 600px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard {
+    padding: 0.75rem 0.25rem;
+  }
+  .summaryCards {
+    grid-template-columns: 1fr;
+  }
+  .summaryCard {
+    padding: 0.95rem;
+  }
+  .chartHeader {
+    padding: 1rem;
+  }
+  .chartContent,
+  .chartOverflow {
+    padding: 0.75rem;
+  }
+  .chartContainer {
+    margin: 0 0.25rem 1.4rem 0.25rem;
+  }
+  .chartOverflowInner {
+    min-width: 560px;
+  }
+}
 
 /* Scrollbar umum */
-.dashboard ::-webkit-scrollbar { width: 8px; height: 8px; }
-.dashboard ::-webkit-scrollbar-track { background: var(--bg-hover); border-radius: 4px; }
-.dashboard ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; transition: var(--transition-fast); }
-.dashboard ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+.dashboard ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.dashboard ::-webkit-scrollbar-track {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+.dashboard ::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: var(--transition-fast);
+}
+.dashboard ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
 
 /* Focus ring aksesibilitas */
 .filterGroup select:focus-visible,
@@ -325,40 +531,32 @@
 
 /* Print */
 @media print {
-  .dashboard { background: white; color: black; padding: 1rem; }
-  .summaryCard, .chartCard, .chartContainer {
-    box-shadow: none; border: 1px solid #ccc; break-inside: avoid; margin-bottom: 1rem;
+  .dashboard {
+    background: white;
+    color: black;
+    padding: 1rem;
   }
-  .filtersContainer { display: none; }
+  .summaryCard,
+  .chartCard,
+  .chartContainer {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+  .filtersContainer {
+    display: none;
+  }
 }
 
 /* Util */
-.text-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chart-responsive { width: 100%; overflow-x: auto; overflow-y: visible; }
-.chart-responsive::-webkit-scrollbar { height: 6px; }
-.chart-responsive::-webkit-scrollbar-track { background: var(--bg-hover); border-radius: 3px; }
-.chart-responsive::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 3px; opacity: .8; }
-.chart-responsive::-webkit-scrollbar-thumb:hover { opacity: 1; }
-
-/* Skeleton chart */
-.chart-loading {
-  background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-secondary) 50%, var(--bg-hover) 75%);
-  background-size: 200% 100%;
-  animation: loading-skeleton 1.5s infinite;
-}
-@keyframes loading-skeleton {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.textEllipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Spacing util */
-.chart-margin-sm { margin: 1rem 0; }
-.chart-margin-md { margin: 1.5rem 0; }
-.chart-margin-lg { margin: 2rem 0; }
-
-/* Empty state */
-.chart-empty {
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  min-height:300px; color:var(--text-muted); font-size:.875rem;
+/* Horizontal chart class hook */
+.horizontalBarChart {
+  width: 100%;
 }
-.chart-empty-icon { width:48px; height:48px; margin-bottom:1rem; opacity:.5; }
