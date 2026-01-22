@@ -2,15 +2,21 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
 
+/* Optional: font fallback global */
+:global(body) {
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
 /* =========================================================
-   IMPORTANT (CSS Modules):
-   Gunakan :global(:root) agar CSS variables benar-benar global
-   dan tidak “tersembunyi” oleh scope CSS Modules di beberapa setup.
+   Layout
+   (Theme PAUD = ORANGE TUA) -> scope di .container agar tidak dioverride global
    ========================================================= */
-:global(:root) {
-  --primary-green: #1e7f4f;
-  --dark-green: #145c3c;
-  --soft-green: #56b789;
+.container {
+  /* THEME (PAUD - ORANGE TUA, RAMAH MATA) */
+  --primary-green: #9a3412; /* orange tua */
+  --dark-green: #7c2d12;    /* orange lebih tua */
+  --soft-green: #c2410c;    /* orange medium (tidak terang) */
+
   --gold-yellow: #f2b705;
   --dark-yellow: #c79404;
 
@@ -22,32 +28,22 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
 
-@media (prefers-color-scheme: dark) {
-  :global(:root) {
-    --bg-light: #1a1a1a;
-    --text-primary: #f5f5f5;
-    --text-secondary: #b0b0b0;
-    --border-light: #333333;
-  }
-}
-
-/* Optional: font fallback global (tidak wajib, tapi membantu konsisten) */
-:global(body) {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-
-/* =========================================================
-   Layout
-   ========================================================= */
-.container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 24px 16px;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background-color: var(--bg-light);
   color: var(--text-primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --bg-light: #1a1a1a;
+    --text-primary: #f5f5f5;
+    --text-secondary: #b0b0b0;
+    --border-light: #333333;
+  }
 }
 
 .header {
@@ -236,7 +232,7 @@
   max-width: 90px;
 }
 
-/* bar colors */
+/* bar colors (tetap) */
 .barGreen {
   background: linear-gradient(135deg, #10b981, #059669);
 }
@@ -253,7 +249,7 @@
   background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 .barOrange {
-  background: linear-gradient(135deg, #f97316, #ea580c);
+  background: linear-gradient(135deg, #9a3412, #7c2d12); /* orange tua konsisten */
 }
 .barCyan {
   background: linear-gradient(135deg, #06b6d4, #0891b2);
@@ -293,7 +289,7 @@
 }
 
 .dataRow:hover {
-  background: rgba(30, 127, 79, 0.05);
+  background: rgba(154, 52, 18, 0.08); /* hover orange tua */
   border-color: var(--soft-green);
   transform: translateX(4px);
 }

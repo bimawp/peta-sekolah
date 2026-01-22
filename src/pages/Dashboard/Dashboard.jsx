@@ -1,5 +1,5 @@
 // src/pages/Dashboard/Dashboard.jsx
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -20,12 +20,21 @@ const toNum = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const JENJANGS = ["PAUD", "SD", "SMP", "PKBM"];
+
+const TOOLTIP_CONTENT_STYLE = {
+  backgroundColor: "#fff",
+  border: "1px solid #E5E7EB",
+  borderRadius: "8px",
+  boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
+};
+
 const getJenjangOfSchool = (s, schoolTypesMap) => {
   const code = schoolTypesMap?.[String(s?.school_type_id)];
   if (code) return code;
 
   const guess = String(s?.jenjang || s?.level || "").toUpperCase();
-  if (["PAUD", "SD", "SMP", "PKBM"].includes(guess)) return guess;
+  if (JENJANGS.includes(guess)) return guess;
 
   return "UNKNOWN";
 };
@@ -51,6 +60,154 @@ const readClassCond = (cc) => {
 
   return { baik, sedang, berat, kurang };
 };
+
+const getTipeDisplayName = (tipe) =>
+  tipe === "berat"
+    ? "Rusak Berat"
+    : tipe === "sedang"
+    ? "Rusak Sedang"
+    : tipe === "kurangRkb"
+    ? "Kurang RKB"
+    : tipe;
+
+const getFieldByTipe = (tipe) => {
+  if (tipe === "sedang") return "sedang";
+  if (tipe === "kurangRkb") return "kurangRkb";
+  return "berat";
+};
+
+// === Custom label (stabil, tidak dibuat ulang tiap render)
+const CustomLabel = React.memo(function CustomLabel(props) {
+  const { x, y, width, height, value } = props;
+  if (!value || Number.isNaN(value)) return null;
+
+  return (
+    <text
+      x={x + width + 12}
+      y={y + height / 2}
+      fill="#374151"
+      fontSize="11"
+      fontWeight="600"
+      textAnchor="start"
+      dominantBaseline="middle"
+      style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))" }}
+    >
+      {Number(value).toLocaleString()}
+    </text>
+  );
+});
+
+const CustomBar = React.memo(function CustomBar({ fill, dataKey, ...props }) {
+  return (
+    <Bar
+      {...props}
+      dataKey={dataKey}
+      fill={fill}
+      radius={[0, 4, 4, 0]}
+      minPointSize={20}
+    >
+      <LabelList content={CustomLabel} />
+    </Bar>
+  );
+});
+
+const SummaryCards = React.memo(function SummaryCards({ summary }) {
+  return (
+    <div className={styles.summaryCardsContainer}>
+      <div className={styles.summaryCards}>
+        <div className={styles.summaryCard}>
+          <div className={styles.title}>TOTAL PAUD</div>
+          <div className={styles.value}>{summary.totalPaud?.toLocaleString?.() ?? 0}</div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={styles.title}>TOTAL SD</div>
+          <div className={styles.value}>{summary.totalSd?.toLocaleString?.() ?? 0}</div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={styles.title}>TOTAL SMP</div>
+          <div className={styles.value}>{summary.totalSmp?.toLocaleString?.() ?? 0}</div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={styles.title}>TOTAL PKBM</div>
+          <div className={styles.value}>{summary.totalPkbm?.toLocaleString?.() ?? 0}</div>
+        </div>
+        <div className={styles.summaryCard}>
+          <div className={styles.title}>TENAGA PENDIDIK</div>
+          <div className={styles.value}>
+            {(summary.totalTenagaPendidik || summary.totaltenagapendidik || 0).toLocaleString()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const ConditionChartCard = React.memo(function ConditionChartCard({
+  chartWidth,
+  rcKey,
+  isMobile,
+  conditionChartData,
+}) {
+  return (
+    <div className={styles.chartCard}>
+      <div className={styles.chartHeader}>
+        <h3>Kondisi Sekolah berdasarkan Ruang Kelas:</h3>
+      </div>
+      <div className={styles.chartContent}>
+        <ResponsiveContainer width={chartWidth || "100%"} height={350} key={`rc-a-${rcKey}`}>
+          <BarChart
+            data={conditionChartData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            isAnimationActive={!isMobile}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="jenjang" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="Total Kelas" fill="#94A3B8" name="Total Kelas" isAnimationActive={!isMobile} />
+            <Bar dataKey="Kondisi Baik" fill="#1E7F4F" name="Kondisi Baik" isAnimationActive={!isMobile} />
+            <Bar dataKey="Rusak Sedang" fill="#F59E0B" name="Rusak Sedang" isAnimationActive={!isMobile} />
+            <Bar dataKey="Rusak Berat" fill="#DC2626" name="Rusak Berat" isAnimationActive={!isMobile} />
+            <Bar dataKey="Kurang RKB" fill="#0EA5E9" name="Kurang RKB" isAnimationActive={!isMobile} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+});
+
+const IntervensiChartCard = React.memo(function IntervensiChartCard({
+  chartWidth,
+  rcKey,
+  isMobile,
+  intervensiChartData,
+}) {
+  return (
+    <div className={styles.chartCard}>
+      <div className={styles.chartHeader}>
+        <h3>Intervensi Ruang Kelas Berdasarkan Kategori Sekolah</h3>
+      </div>
+      <div className={styles.chartContent}>
+        <ResponsiveContainer width={chartWidth || "100%"} height={350} key={`rc-b-${rcKey}`}>
+          <BarChart
+            data={intervensiChartData}
+            margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+            isAnimationActive={!isMobile}
+          >
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="jenjang" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="Rehabilitasi Ruang Kelas" fill="#56B789" isAnimationActive={!isMobile} />
+            <Bar dataKey="Pembangunan RKB" fill="#F2B705" isAnimationActive={!isMobile} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+});
 
 const Dashboard = () => {
   const { data, loading, error } = useDashboardData();
@@ -81,6 +238,7 @@ const Dashboard = () => {
   const [rcKey, setRcKey] = useState(0);
   const [chartWrapEl, setChartWrapEl] = useState(null);
   const [chartWidth, setChartWidth] = useState(null);
+  const lastWidthRef = useRef(null);
 
   useEffect(() => {
     const el = chartWrapEl;
@@ -89,9 +247,12 @@ const Dashboard = () => {
     let raf = 0;
 
     const measure = () => {
-      // guard: element bisa “stale” saat HMR
       if (!el || !el.isConnected) return;
       const w = el.clientWidth || 360;
+
+      if (lastWidthRef.current === w) return;
+      lastWidthRef.current = w;
+
       setChartWidth(w);
       setRcKey((k) => k + 1);
     };
@@ -119,10 +280,7 @@ const Dashboard = () => {
   // === Layout dinamis
   const hLayout = useMemo(() => {
     const w = chartWidth || 360;
-    const yAxisWidth = Math.min(
-      180,
-      Math.max(70, Math.floor(w * (isMobile ? 0.34 : 0.44)))
-    );
+    const yAxisWidth = Math.min(180, Math.max(70, Math.floor(w * (isMobile ? 0.34 : 0.44))));
     const left = isMobile ? 6 : 60;
     const right = isMobile ? 24 : 100;
     const barSize = isMobile ? 16 : 24;
@@ -145,9 +303,47 @@ const Dashboard = () => {
     urutan: "teratas",
   });
 
+  // === Handlers (stabil, tidak membuat fungsi baru di tiap render)
+  const onKecTipeChange = useCallback((e) => {
+    const v = e.target.value;
+    setKecamatanFilters((prev) => (prev.tipe === v ? prev : { ...prev, tipe: v }));
+  }, []);
+
+  const onKecUrutanChange = useCallback((e) => {
+    const v = e.target.value;
+    setKecamatanFilters((prev) => (prev.urutan === v ? prev : { ...prev, urutan: v }));
+  }, []);
+
+  const onDesaJenjangChange = useCallback((e) => {
+    const v = e.target.value;
+    setDesaFilters((prev) => (prev.jenjang === v ? prev : { ...prev, jenjang: v }));
+  }, []);
+
+  const onDesaKecamatanChange = useCallback((e) => {
+    const v = e.target.value;
+    setDesaFilters((prev) => (prev.kecamatan === v ? prev : { ...prev, kecamatan: v }));
+  }, []);
+
+  const onDesaTipeChange = useCallback((e) => {
+    const v = e.target.value;
+    setDesaFilters((prev) => (prev.tipe === v ? prev : { ...prev, tipe: v }));
+  }, []);
+
+  const onDesaJumlahChange = useCallback((e) => {
+    const raw = parseInt(e.target.value, 10);
+    const next = Number.isFinite(raw) ? raw : 20;
+    setDesaFilters((prev) => (prev.jumlah === next ? prev : { ...prev, jumlah: next }));
+  }, []);
+
+  const onDesaUrutanChange = useCallback((e) => {
+    const v = e.target.value;
+    setDesaFilters((prev) => (prev.urutan === v ? prev : { ...prev, urutan: v }));
+  }, []);
+
   /**
    * ============================================================
    * Derivasi data dari Supabase
+   * - Optimasi utama: normalisasi schools + parsing class_condition sekali saja
    * ============================================================
    */
   const {
@@ -155,8 +351,7 @@ const Dashboard = () => {
     conditionData,
     intervensiData,
     allKecamatan,
-    schools,
-    schoolTypesMap,
+    normalizedSchools,
   } = useMemo(() => {
     if (loading || error || !data) {
       return {
@@ -164,13 +359,59 @@ const Dashboard = () => {
         conditionData: null,
         intervensiData: null,
         allKecamatan: [],
-        schools: [],
-        schoolTypesMap: {},
+        normalizedSchools: [],
       };
     }
 
     const schoolTypesMap = data.schoolTypesMap || {};
-    const schools = Array.isArray(data.schools) ? data.schools : [];
+    const schoolsRaw = Array.isArray(data.schools) ? data.schools : [];
+
+    // --- Normalisasi schools untuk pemakaian lintas grafik/filter (1x loop) ---
+    const normalized = new Array(schoolsRaw.length);
+    const kecSet = new Set();
+
+    // untuk fallback total jenjang
+    const jenjangCount = { PAUD: 0, SD: 0, SMP: 0, PKBM: 0 };
+
+    // untuk fallback conditionData bila kondisiSummary kosong
+    const condFallback = {
+      PAUD: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
+      SD: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
+      SMP: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
+      PKBM: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
+    };
+
+    for (let i = 0; i < schoolsRaw.length; i++) {
+      const sc = schoolsRaw[i];
+
+      const jenjang = getJenjangOfSchool(sc, schoolTypesMap);
+      if (jenjangCount[jenjang] != null) jenjangCount[jenjang] += 1;
+
+      const kec = (sc.kecamatan_name || sc.kecamatan || "").toString().trim();
+      if (kec) kecSet.add(kec);
+
+      const desa = (sc.village_name || sc.village || "").toString().trim();
+
+      const { baik, sedang, berat, kurang } = readClassCond(sc.class_condition);
+
+      normalized[i] = {
+        jenjang,
+        kecamatan: kec,
+        desa,
+        baik,
+        sedang,
+        berat,
+        kurangRkb: kurang,
+      };
+
+      if (condFallback[jenjang]) {
+        condFallback[jenjang].baik += baik;
+        condFallback[jenjang].sedang += sedang;
+        condFallback[jenjang].berat += berat;
+        condFallback[jenjang].kurangRkb += kurang;
+        condFallback[jenjang].total += baik + sedang + berat;
+      }
+    }
 
     // --- SUMMARY ---
     const s = data.stats || {};
@@ -179,9 +420,7 @@ const Dashboard = () => {
       totalSd: toNum(s.total_sd ?? s.totalSd ?? s.sd ?? 0),
       totalSmp: toNum(s.total_smp ?? s.totalSmp ?? s.smp ?? 0),
       totalPkbm: toNum(s.total_pkbm ?? s.totalPkbm ?? s.pkbm ?? 0),
-      totalTenagaPendidik: toNum(
-        s.total_teachers ?? s.totalTenagaPendidik ?? s.teachers ?? 0
-      ),
+      totalTenagaPendidik: toNum(s.total_teachers ?? s.totalTenagaPendidik ?? s.teachers ?? 0),
     };
 
     const needFallbackTotals =
@@ -190,34 +429,28 @@ const Dashboard = () => {
       !summaryFromStats.totalSmp &&
       !summaryFromStats.totalPkbm;
 
-    if (needFallbackTotals && schools.length) {
-      const cnt = { PAUD: 0, SD: 0, SMP: 0, PKBM: 0 };
-      schools.forEach((sc) => {
-        const j = getJenjangOfSchool(sc, schoolTypesMap);
-        if (cnt[j] != null) cnt[j] += 1;
-      });
-      summaryFromStats.totalPaud = cnt.PAUD;
-      summaryFromStats.totalSd = cnt.SD;
-      summaryFromStats.totalSmp = cnt.SMP;
-      summaryFromStats.totalPkbm = cnt.PKBM;
+    if (needFallbackTotals && schoolsRaw.length) {
+      summaryFromStats.totalPaud = jenjangCount.PAUD;
+      summaryFromStats.totalSd = jenjangCount.SD;
+      summaryFromStats.totalSmp = jenjangCount.SMP;
+      summaryFromStats.totalPkbm = jenjangCount.PKBM;
     }
 
     // --- CONDITION DATA ---
     const kondisi = Array.isArray(data.kondisiSummary) ? data.kondisiSummary : [];
 
-    const baseCond = {
+    let conditionData = {
       PAUD: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
       SD: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
       SMP: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
       PKBM: { total: 0, baik: 0, sedang: 0, berat: 0, kurangRkb: 0 },
     };
 
-    let conditionData = { ...baseCond };
-
     if (kondisi.length > 0) {
-      kondisi.forEach((r) => {
+      for (let i = 0; i < kondisi.length; i++) {
+        const r = kondisi[i];
         const j = String(r.jenjang || r.level || r.code || "").toUpperCase();
-        if (!conditionData[j]) return;
+        if (!conditionData[j]) continue;
 
         const baik = toNum(r.baik ?? r.good ?? r.classrooms_good ?? 0);
         const sedang = toNum(
@@ -239,19 +472,10 @@ const Dashboard = () => {
           berat,
           kurangRkb: kurang,
         };
-      });
-    } else if (schools.length) {
-      schools.forEach((sc) => {
-        const j = getJenjangOfSchool(sc, schoolTypesMap);
-        if (!conditionData[j]) return;
-
-        const { baik, sedang, berat, kurang } = readClassCond(sc.class_condition);
-        conditionData[j].baik += baik;
-        conditionData[j].sedang += sedang;
-        conditionData[j].berat += berat;
-        conditionData[j].kurangRkb += kurang;
-        conditionData[j].total += baik + sedang + berat;
-      });
+      }
+    } else if (schoolsRaw.length) {
+      // gunakan agregasi fallback yang sudah dihitung saat normalisasi
+      conditionData = condFallback;
     }
 
     // --- INTERVENSI DATA ---
@@ -262,41 +486,37 @@ const Dashboard = () => {
       SMP: { rehab: 0, pembangunan: 0 },
       PKBM: { rehab: 0, pembangunan: 0 },
     };
-    let intervensiData = { ...baseInt };
+    const intervensiData = { ...baseInt };
 
     if (
       keg.length > 0 &&
-      ("pembangunan_rkb" in (keg[0] || {}) ||
-        "rehabilitasi_ruang_kelas" in (keg[0] || {}))
+      ("pembangunan_rkb" in (keg[0] || {}) || "rehabilitasi_ruang_kelas" in (keg[0] || {}))
     ) {
       // pivot format
-      keg.forEach((r) => {
+      for (let i = 0; i < keg.length; i++) {
+        const r = keg[i];
         const j = String(r.jenjang || "").toUpperCase();
-        if (!intervensiData[j]) return;
+        if (!intervensiData[j]) continue;
         intervensiData[j].pembangunan += toNum(r.pembangunan_rkb ?? 0);
         intervensiData[j].rehab += toNum(r.rehabilitasi_ruang_kelas ?? 0);
-      });
+      }
     } else if (keg.length > 0) {
       // long format
-      keg.forEach((r) => {
+      for (let i = 0; i < keg.length; i++) {
+        const r = keg[i];
         const j = String(r.jenjang || "").toUpperCase();
-        if (!intervensiData[j]) return;
+        if (!intervensiData[j]) continue;
         const nm = String(r.kegiatan || "").toLowerCase();
         const total = toNum(r.total_lokal ?? r.total ?? r.lokal ?? 0);
         if (nm.includes("rehab") || nm.includes("rehabil")) intervensiData[j].rehab += total;
         if (nm.includes("pembangunan")) intervensiData[j].pembangunan += total;
-      });
+      }
     }
 
     // --- ALL KECAMATAN ---
     let allKecamatan = Array.isArray(data.allKecamatan) ? data.allKecamatan : [];
-    if (!allKecamatan.length && schools.length) {
-      const set = new Set();
-      schools.forEach((sc) => {
-        const k = (sc.kecamatan_name || sc.kecamatan || "").toString().trim();
-        if (k) set.add(k);
-      });
-      allKecamatan = Array.from(set).sort((a, b) => a.localeCompare(b, "id"));
+    if (!allKecamatan.length && kecSet.size) {
+      allKecamatan = Array.from(kecSet).sort((a, b) => a.localeCompare(b, "id"));
     } else {
       allKecamatan = allKecamatan.slice().sort((a, b) => a.localeCompare(b, "id"));
     }
@@ -306,8 +526,7 @@ const Dashboard = () => {
       conditionData,
       intervensiData,
       allKecamatan,
-      schools,
-      schoolTypesMap,
+      normalizedSchools: normalized,
     };
   }, [data, loading, error]);
 
@@ -377,40 +596,50 @@ const Dashboard = () => {
     ];
   }, [intervensiData]);
 
-  // === Top Kecamatan (dari schools.class_condition)
-  const topKecamatanData = useMemo(() => {
-    if (loading || error || !schools?.length) return [];
+  // === Formatter yang stabil (hindari fungsi baru di tiap render untuk Recharts)
+  const topTooltipFormatter = useCallback((v, n) => [v?.toLocaleString?.() || 0, n], []);
+  const topLabelFormatter = useCallback((l) => `Kecamatan: ${l}`, []);
+  const yTickFormatter = useCallback(
+    (v) => (isMobile && v.length > 25 ? `${v.slice(0, 22)}...` : v),
+    [isMobile]
+  );
 
-    const pickVal = (cc) => {
-      const { sedang, berat, kurang } = readClassCond(cc);
-      if (kecamatanFilters.tipe === "sedang") return sedang;
-      if (kecamatanFilters.tipe === "kurangRkb") return kurang;
-      return berat;
+  // === Top Kecamatan (dari normalizedSchools)
+  const topKecamatanData = useMemo(() => {
+    if (loading || error || !normalizedSchools?.length) return [];
+
+    const field = getFieldByTipe(kecamatanFilters.tipe);
+    const byJenjang = {
+      PAUD: new Map(),
+      SD: new Map(),
+      SMP: new Map(),
+      PKBM: new Map(),
     };
 
-    const byJenjang = { PAUD: {}, SD: {}, SMP: {}, PKBM: {} };
+    for (let i = 0; i < normalizedSchools.length; i++) {
+      const r = normalizedSchools[i];
+      const map = byJenjang[r.jenjang];
+      if (!map) continue;
 
-    schools.forEach((sc) => {
-      const j = getJenjangOfSchool(sc, schoolTypesMap);
-      if (!byJenjang[j]) return;
+      const kec = r.kecamatan;
+      if (!kec) continue;
 
-      const kec = (sc.kecamatan_name || sc.kecamatan || "").toString().trim();
-      if (!kec) return;
+      const v = toNum(r[field]);
+      if (v <= 0) continue;
 
-      const v = pickVal(sc.class_condition);
-      if (v <= 0) return;
+      map.set(kec, (map.get(kec) || 0) + v);
+    }
 
-      byJenjang[j][kec] = (byJenjang[j][kec] || 0) + v;
-    });
+    const takeTop = (map, jenjang) => {
+      const arr = [];
+      map.forEach((value, kecamatanName) => {
+        arr.push({ kecamatanName, value });
+      });
 
-    const takeTop = (obj, jenjang) => {
-      const arr = Object.entries(obj).map(([kecamatanName, value]) => ({
-        kecamatanName,
-        value,
-      }));
       arr.sort((a, b) =>
         kecamatanFilters.urutan === "teratas" ? b.value - a.value : a.value - b.value
       );
+
       return arr.slice(0, 5).map((it) => ({
         name: `${it.kecamatanName} (${jenjang})`,
         PAUD: jenjang === "PAUD" ? it.value : 0,
@@ -429,80 +658,54 @@ const Dashboard = () => {
       ...takeTop(byJenjang.SMP, "SMP"),
       ...takeTop(byJenjang.PKBM, "PKBM"),
     ];
-  }, [schools, schoolTypesMap, loading, error, kecamatanFilters]);
+  }, [normalizedSchools, loading, error, kecamatanFilters.tipe, kecamatanFilters.urutan]);
 
-  // === Top Desa (dari schools.class_condition)
+  // === Top Desa (dari normalizedSchools)
   const topDesaData = useMemo(() => {
-    if (loading || error || !schools?.length) return [];
+    if (loading || error || !normalizedSchools?.length) return [];
 
-    const pickVal = (cc) => {
-      const { sedang, berat, kurang } = readClassCond(cc);
-      if (desaFilters.tipe === "sedang") return sedang;
-      if (desaFilters.tipe === "kurangRkb") return kurang;
-      return berat;
-    };
+    const field = getFieldByTipe(desaFilters.tipe);
+    const agg = new Map(); // key -> {name,kecamatan,displayName,value}
 
-    const agg = {}; // key -> {name,kecamatan,displayName,value}
+    for (let i = 0; i < normalizedSchools.length; i++) {
+      const r = normalizedSchools[i];
 
-    schools.forEach((sc) => {
-      const j = getJenjangOfSchool(sc, schoolTypesMap);
-      if (desaFilters.jenjang !== "Semua Jenjang" && desaFilters.jenjang !== j) return;
+      if (desaFilters.jenjang !== "Semua Jenjang" && desaFilters.jenjang !== r.jenjang) continue;
 
-      const kec = (sc.kecamatan_name || sc.kecamatan || "").toString().trim();
-      if (desaFilters.kecamatan !== "Semua Kecamatan" && desaFilters.kecamatan !== kec) return;
+      const kec = r.kecamatan;
+      if (desaFilters.kecamatan !== "Semua Kecamatan" && desaFilters.kecamatan !== kec) continue;
 
-      const desa = (sc.village_name || sc.village || "").toString().trim();
-      if (!desa || !kec) return;
+      const desa = r.desa;
+      if (!desa || !kec) continue;
 
-      const v = pickVal(sc.class_condition);
-      if (v <= 0) return;
+      const v = toNum(r[field]);
+      if (v <= 0) continue;
 
       const key = `${desa} (${kec})`;
-      if (!agg[key]) agg[key] = { name: desa, kecamatan: kec, displayName: key, value: 0 };
-      agg[key].value += v;
-    });
+      const prev = agg.get(key);
+      if (prev) {
+        prev.value += v;
+      } else {
+        agg.set(key, { name: desa, kecamatan: kec, displayName: key, value: v });
+      }
+    }
 
-    const arr = Object.values(agg);
+    const arr = Array.from(agg.values());
     arr.sort((a, b) =>
       desaFilters.urutan === "teratas" ? b.value - a.value : a.value - b.value
     );
+
     return arr.slice(0, desaFilters.jumlah);
-  }, [schools, schoolTypesMap, loading, error, desaFilters]);
-
-  // === Custom label
-  const CustomLabel = (props) => {
-    const { x, y, width, height, value } = props;
-    if (!value || Number.isNaN(value)) return null;
-    return (
-      <text
-        x={x + width + 12}
-        y={y + height / 2}
-        fill="#374151"
-        fontSize="11"
-        fontWeight="600"
-        textAnchor="start"
-        dominantBaseline="middle"
-        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.1))" }}
-      >
-        {Number(value).toLocaleString()}
-      </text>
-    );
-  };
-
-  const CustomBar = ({ fill, dataKey, ...props }) => (
-    <Bar {...props} dataKey={dataKey} fill={fill} radius={[0, 4, 4, 0]} minPointSize={20}>
-      <LabelList content={CustomLabel} />
-    </Bar>
-  );
-
-  const getTipeDisplayName = (tipe) =>
-    tipe === "berat"
-      ? "Rusak Berat"
-      : tipe === "sedang"
-      ? "Rusak Sedang"
-      : tipe === "kurangRkb"
-      ? "Kurang RKB"
-      : tipe;
+  }, [
+    normalizedSchools,
+    loading,
+    error,
+    desaFilters.jenjang,
+    desaFilters.kecamatan,
+    desaFilters.tipe,
+    desaFilters.jumlah,
+    desaFilters.urutan,
+  ]);
 
   if (loading) {
     return (
@@ -526,82 +729,21 @@ const Dashboard = () => {
         <h1>Dashboard Pendidikan</h1>
       </div>
 
-      <div className={styles.summaryCardsContainer}>
-        <div className={styles.summaryCards}>
-          <div className={styles.summaryCard}>
-            <div className={styles.title}>TOTAL PAUD</div>
-            <div className={styles.value}>{summary.totalPaud?.toLocaleString?.() ?? 0}</div>
-          </div>
-          <div className={styles.summaryCard}>
-            <div className={styles.title}>TOTAL SD</div>
-            <div className={styles.value}>{summary.totalSd?.toLocaleString?.() ?? 0}</div>
-          </div>
-          <div className={styles.summaryCard}>
-            <div className={styles.title}>TOTAL SMP</div>
-            <div className={styles.value}>{summary.totalSmp?.toLocaleString?.() ?? 0}</div>
-          </div>
-          <div className={styles.summaryCard}>
-            <div className={styles.title}>TOTAL PKBM</div>
-            <div className={styles.value}>{summary.totalPkbm?.toLocaleString?.() ?? 0}</div>
-          </div>
-          <div className={styles.summaryCard}>
-            <div className={styles.title}>TENAGA PENDIDIK</div>
-            <div className={styles.value}>
-              {summary.totalTenagaPendidik?.toLocaleString?.() ?? 0}
-            </div>
-          </div>
-        </div>
-      </div>
+      <SummaryCards summary={summary} />
 
       <div className={styles.chartsContainer}>
-        <div className={styles.chartCard}>
-          <div className={styles.chartHeader}>
-            <h3>Kondisi Sekolah berdasarkan Ruang Kelas:</h3>
-          </div>
-          <div className={styles.chartContent}>
-            <ResponsiveContainer width={chartWidth || "100%"} height={350} key={`rc-a-${rcKey}`}>
-              <BarChart
-                data={conditionChartData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                isAnimationActive={!isMobile}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="jenjang" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="Total Kelas" fill="#94A3B8" name="Total Kelas" isAnimationActive={!isMobile} />
-                <Bar dataKey="Kondisi Baik" fill="#1E7F4F" name="Kondisi Baik" isAnimationActive={!isMobile} />
-                <Bar dataKey="Rusak Sedang" fill="#F59E0B" name="Rusak Sedang" isAnimationActive={!isMobile} />
-                <Bar dataKey="Rusak Berat" fill="#DC2626" name="Rusak Berat" isAnimationActive={!isMobile} />
-                <Bar dataKey="Kurang RKB" fill="#0EA5E9" name="Kurang RKB" isAnimationActive={!isMobile} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className={styles.chartCard}>
-          <div className={styles.chartHeader}>
-            <h3>Intervensi Ruang Kelas Berdasarkan Kategori Sekolah</h3>
-          </div>
-          <div className={styles.chartContent}>
-            <ResponsiveContainer width={chartWidth || "100%"} height={350} key={`rc-b-${rcKey}`}>
-              <BarChart
-                data={intervensiChartData}
-                margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                isAnimationActive={!isMobile}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="jenjang" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="Rehabilitasi Ruang Kelas" fill="#56B789" isAnimationActive={!isMobile} />
-                <Bar dataKey="Pembangunan RKB" fill="#F2B705" isAnimationActive={!isMobile} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <ConditionChartCard
+          chartWidth={chartWidth}
+          rcKey={rcKey}
+          isMobile={isMobile}
+          conditionChartData={conditionChartData}
+        />
+        <IntervensiChartCard
+          chartWidth={chartWidth}
+          rcKey={rcKey}
+          isMobile={isMobile}
+          intervensiChartData={intervensiChartData}
+        />
       </div>
 
       <div className={styles.chartContainer}>
@@ -613,12 +755,7 @@ const Dashboard = () => {
           <div className={styles.filtersContainer}>
             <div className={styles.filterGroup}>
               <label>Tampilkan Grafik:</label>
-              <select
-                value={kecamatanFilters.tipe}
-                onChange={(e) =>
-                  setKecamatanFilters({ ...kecamatanFilters, tipe: e.target.value })
-                }
-              >
+              <select value={kecamatanFilters.tipe} onChange={onKecTipeChange}>
                 <option value="berat">Rusak Berat</option>
                 <option value="sedang">Rusak Sedang</option>
                 <option value="kurangRkb">Kurang RKB</option>
@@ -627,12 +764,7 @@ const Dashboard = () => {
 
             <div className={styles.filterGroup}>
               <label>Urutan:</label>
-              <select
-                value={kecamatanFilters.urutan}
-                onChange={(e) =>
-                  setKecamatanFilters({ ...kecamatanFilters, urutan: e.target.value })
-                }
-              >
+              <select value={kecamatanFilters.urutan} onChange={onKecUrutanChange}>
                 <option value="teratas">Teratas</option>
                 <option value="terbawah">Terbawah</option>
               </select>
@@ -674,18 +806,18 @@ const Dashboard = () => {
                 interval={0}
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 10, fill: "#374151", textAnchor: "end", dominantBaseline: "middle" }}
-                tickFormatter={(v) => (isMobile && v.length > 25 ? `${v.slice(0, 22)}...` : v)}
+                tick={{
+                  fontSize: 10,
+                  fill: "#374151",
+                  textAnchor: "end",
+                  dominantBaseline: "middle",
+                }}
+                tickFormatter={yTickFormatter}
               />
               <Tooltip
-                formatter={(v, n) => [v?.toLocaleString?.() || 0, n]}
-                labelFormatter={(l) => `Kecamatan: ${l}`}
-                contentStyle={{
-                  backgroundColor: "#fff",
-                  border: "1px solid #E5E7EB",
-                  borderRadius: "8px",
-                  boxShadow: "0 4px 6px rgba(0,0,0,0.05)",
-                }}
+                formatter={topTooltipFormatter}
+                labelFormatter={topLabelFormatter}
+                contentStyle={TOOLTIP_CONTENT_STYLE}
               />
               <Legend wrapperStyle={{ paddingTop: "20px", fontSize: "12px" }} />
 
@@ -707,10 +839,7 @@ const Dashboard = () => {
           <div className={styles.filtersContainer}>
             <div className={styles.filterGroup}>
               <label>Jenjang:</label>
-              <select
-                value={desaFilters.jenjang}
-                onChange={(e) => setDesaFilters({ ...desaFilters, jenjang: e.target.value })}
-              >
+              <select value={desaFilters.jenjang} onChange={onDesaJenjangChange}>
                 <option value="Semua Jenjang">Semua Jenjang</option>
                 <option value="PAUD">PAUD</option>
                 <option value="SD">SD</option>
@@ -721,10 +850,7 @@ const Dashboard = () => {
 
             <div className={styles.filterGroup}>
               <label>Kecamatan:</label>
-              <select
-                value={desaFilters.kecamatan}
-                onChange={(e) => setDesaFilters({ ...desaFilters, kecamatan: e.target.value })}
-              >
+              <select value={desaFilters.kecamatan} onChange={onDesaKecamatanChange}>
                 <option value="Semua Kecamatan">Semua Kecamatan</option>
                 {allKecamatan.map((k) => (
                   <option key={k} value={k}>
@@ -736,10 +862,7 @@ const Dashboard = () => {
 
             <div className={styles.filterGroup}>
               <label>Tipe:</label>
-              <select
-                value={desaFilters.tipe}
-                onChange={(e) => setDesaFilters({ ...desaFilters, tipe: e.target.value })}
-              >
+              <select value={desaFilters.tipe} onChange={onDesaTipeChange}>
                 <option value="berat">Rusak Berat</option>
                 <option value="sedang">Rusak Sedang</option>
                 <option value="kurangRkb">Kurang RKB</option>
@@ -753,21 +876,13 @@ const Dashboard = () => {
                 min="1"
                 max="50"
                 value={desaFilters.jumlah}
-                onChange={(e) =>
-                  setDesaFilters({
-                    ...desaFilters,
-                    jumlah: parseInt(e.target.value, 10) || 20,
-                  })
-                }
+                onChange={onDesaJumlahChange}
               />
             </div>
 
             <div className={styles.filterGroup}>
               <label>Urutan:</label>
-              <select
-                value={desaFilters.urutan}
-                onChange={(e) => setDesaFilters({ ...desaFilters, urutan: e.target.value })}
-              >
+              <select value={desaFilters.urutan} onChange={onDesaUrutanChange}>
                 <option value="teratas">Teratas</option>
                 <option value="terbawah">Terbawah</option>
               </select>
@@ -809,4 +924,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-  

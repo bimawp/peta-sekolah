@@ -21,21 +21,33 @@ function asObject(v) {
   }
   return typeof v === "object" ? v : {};
 }
+
 function asArray(v) {
   return Array.isArray(v) ? v : v != null ? [v] : [];
 }
+
 function asKecamatanStrings(v) {
   const arr = asArray(v);
   if (arr.length === 0) return [];
   if (arr.every((x) => typeof x === "string")) return arr;
-  return arr
-    .map((x) =>
+
+  const out = [];
+  for (let i = 0; i < arr.length; i++) {
+    const x = arr[i];
+    const val =
       x && typeof x === "object"
         ? x.kecamatan ?? x.kecamatan_name ?? x.subdistrict ?? x.name ?? null
-        : null
-    )
-    .filter(Boolean);
+        : null;
+    if (val) out.push(val);
+  }
+  return out;
 }
+
+const trimOrNull = (v) => {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s ? s : null;
+};
 
 async function rpcSafe(fn, args = {}) {
   const { data, error } = await supabase.rpc(fn, args);
@@ -46,10 +58,13 @@ async function rpcSafe(fn, args = {}) {
 async function fetchSchoolTypesMap() {
   const { data, error } = await supabase.from("school_types").select("id,code");
   if (error) throw error;
+
   const map = {};
-  (data || []).forEach((r) => {
+  const rows = data || [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
     map[String(r.id)] = String(r.code || "").toUpperCase();
-  });
+  }
   return map;
 }
 
@@ -71,9 +86,18 @@ async function fetchSchoolsLite() {
   if (e1) throw e1;
 
   const rows = schools || [];
-  const ids = Array.from(
-    new Set(rows.map((r) => r.location_id).filter((x) => x != null))
-  );
+
+  // kumpulkan location_id unik tanpa map+Set besar yang berulang
+  const ids = [];
+  const seen = new Set();
+  for (let i = 0; i < rows.length; i++) {
+    const id = rows[i]?.location_id;
+    if (id == null) continue;
+    const key = String(id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    ids.push(id);
+  }
 
   let locMap = {};
   if (ids.length) {
@@ -84,26 +108,24 @@ async function fetchSchoolsLite() {
     if (e2) throw e2;
 
     locMap = {};
-    (locs || []).forEach((l) => {
+    const locRows = locs || [];
+    for (let i = 0; i < locRows.length; i++) {
+      const l = locRows[i];
       locMap[String(l.id)] = l;
-    });
+    }
   }
 
-  return rows.map((r) => {
+  const out = new Array(rows.length);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
     const loc = r.location_id != null ? locMap[String(r.location_id)] : null;
-    const subdistrict = (loc?.subdistrict ?? null) && String(loc.subdistrict).trim()
-      ? String(loc.subdistrict).trim()
-      : null;
-    const village = (loc?.village ?? null) && String(loc.village).trim()
-      ? String(loc.village).trim()
-      : null;
 
-    const villageName =
-      (r.village_name ?? null) && String(r.village_name).trim()
-        ? String(r.village_name).trim()
-        : village;
+    const subdistrict = trimOrNull(loc?.subdistrict);
+    const village = trimOrNull(loc?.village);
 
-    return {
+    const villageName = trimOrNull(r.village_name) || village;
+
+    out[i] = {
       ...r,
 
       // legacy keys agar Dashboard.jsx tidak perlu diubah
@@ -117,7 +139,9 @@ async function fetchSchoolsLite() {
       // optional: expose raw location fields jika perlu debug
       _loc: loc || null,
     };
-  });
+  }
+
+  return out;
 }
 
 /**
@@ -134,9 +158,11 @@ async function fetchProjectsLite() {
 
 function buildKegiatanSummaryFromProjects(projects, schools, schoolTypesMap) {
   const idToType = {};
-  (schools || []).forEach((s) => {
+  const sRows = schools || [];
+  for (let i = 0; i < sRows.length; i++) {
+    const s = sRows[i];
     if (s?.id) idToType[String(s.id)] = s.school_type_id;
-  });
+  }
 
   const sums = {
     PAUD: { rehab: 0, pembangunan: 0 },
@@ -145,20 +171,22 @@ function buildKegiatanSummaryFromProjects(projects, schools, schoolTypesMap) {
     PKBM: { rehab: 0, pembangunan: 0 },
   };
 
-  (projects || []).forEach((p) => {
+  const pRows = projects || [];
+  for (let i = 0; i < pRows.length; i++) {
+    const p = pRows[i];
     const sid = p?.school_id ? String(p.school_id) : null;
     const stid = sid ? idToType[sid] : null;
     const jenjang = schoolTypesMap?.[String(stid)] || "UNKNOWN";
-    if (!sums[jenjang]) return;
+    if (!sums[jenjang]) continue;
 
     const nm = String(p?.activity_name || "").toLowerCase();
     const vol = Number(p?.volume);
     const v = Number.isFinite(vol) ? vol : 0;
-    if (v <= 0) return;
+    if (v <= 0) continue;
 
     if (nm.includes("rehab") || nm.includes("rehabil")) sums[jenjang].rehab += v;
     if (nm.includes("pembangunan")) sums[jenjang].pembangunan += v;
-  });
+  }
 
   // bentuk LONG format yang sudah di-handle oleh Dashboard.jsx (branch "long format")
   return [
@@ -191,16 +219,11 @@ async function fetchDashboardData() {
     ]);
 
   const stats = statsRaw.status === "fulfilled" ? asObject(statsRaw.value) : {};
-  let kegiatanSummary =
-    kegiatanRaw.status === "fulfilled" ? asArray(kegiatanRaw.value) : [];
-  const kondisiSummary =
-    kondisiRaw.status === "fulfilled" ? asArray(kondisiRaw.value) : [];
-  const allKecamatan =
-    kecRaw.status === "fulfilled" ? asKecamatanStrings(kecRaw.value) : [];
-  const schoolTypesMap =
-    typeMapRaw.status === "fulfilled" ? typeMapRaw.value : {};
-  const schools =
-    schoolsLiteRaw.status === "fulfilled" ? schoolsLiteRaw.value : [];
+  let kegiatanSummary = kegiatanRaw.status === "fulfilled" ? asArray(kegiatanRaw.value) : [];
+  const kondisiSummary = kondisiRaw.status === "fulfilled" ? asArray(kondisiRaw.value) : [];
+  const allKecamatan = kecRaw.status === "fulfilled" ? asKecamatanStrings(kecRaw.value) : [];
+  const schoolTypesMap = typeMapRaw.status === "fulfilled" ? typeMapRaw.value : {};
+  const schools = schoolsLiteRaw.status === "fulfilled" ? schoolsLiteRaw.value : [];
 
   // ✅ fallback intervensi jika RPC kegiatan kosong/gagal
   if (!kegiatanSummary.length) {
@@ -234,16 +257,12 @@ async function fetchDashboardData() {
  * Default export: kompatibel dengan pemakaian lama {data, loading, error}
  */
 export default function useDashboardData() {
-  const { data, error, isLoading } = useSWR(
-    "dashboardDataSupabase",
-    fetchDashboardData,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 1000 * 60 * 5,
-      keepPreviousData: true,
-      errorRetryCount: 1,
-    }
-  );
+  const { data, error, isLoading } = useSWR("dashboardDataSupabase", fetchDashboardData, {
+    revalidateOnFocus: false,
+    dedupingInterval: 1000 * 60 * 5,
+    keepPreviousData: true,
+    errorRetryCount: 1,
+  });
 
   return {
     data,

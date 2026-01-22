@@ -8,16 +8,6 @@ const getData = (data, path, defaultValue = 0) => {
   return value ?? defaultValue;
 };
 
-const findOwnershipStatus = (obj, defaultValue = "-") => {
-  if (!obj) return defaultValue;
-  for (const key in obj) {
-    if (obj[key] === "Ya" || obj[key] === "YA") {
-      return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
-    }
-  }
-  return defaultValue;
-};
-
 // ===================== UTIL TAMBAHAN =====================
 const isObj = (v) => v && typeof v === "object" && !Array.isArray(v);
 
@@ -862,10 +852,8 @@ const SchoolDetailSmp = ({ schoolData }) => {
 
   const PR = META?.prasarana || {};
   const KL = META?.kelembagaan || {};
-  // ===================== RELASI: AUTO-FETCH DARI SUPABASE (ANTI KOSONG) =====================
-  // Jika RPC belum mengembalikan relasi (rooms/assets/classes/projects), komponen akan fetch langsung
-  // dari tabel relasi: school_rooms, school_assets, school_classes, school_projects.
 
+  // ===================== RELASI: AUTO-FETCH DARI SUPABASE (ANTI KOSONG) =====================
   const schoolIdFromPayload =
     BASE?.school_id ?? BASE?.id ?? BASE?._raw?.school_id ?? BASE?._raw?.id ?? null;
 
@@ -917,13 +905,8 @@ const SchoolDetailSmp = ({ schoolData }) => {
 
   // Final arrays untuk UI (payload -> relasi fetch)
   const ROOMS = roomsFromPayload.length > 0 ? roomsFromPayload : Array.isArray(relRooms) ? relRooms : [];
-
-  const ASSETS =
-    assetsFromPayload.length > 0 ? assetsFromPayload : Array.isArray(relAssets) ? relAssets : [];
-
-  const CLASSES =
-    classesFromPayload.length > 0 ? classesFromPayload : Array.isArray(relClasses) ? relClasses : [];
-
+  const ASSETS = assetsFromPayload.length > 0 ? assetsFromPayload : Array.isArray(relAssets) ? relAssets : [];
+  const CLASSES = classesFromPayload.length > 0 ? classesFromPayload : Array.isArray(relClasses) ? relClasses : [];
   const PROJECTS =
     projectsFromPayload.length > 0 ? projectsFromPayload : Array.isArray(relProjects) ? relProjects : [];
 
@@ -945,7 +928,6 @@ const SchoolDetailSmp = ({ schoolData }) => {
 
         const needSid = (shouldFetchRooms || shouldFetchAssets || shouldFetchClasses) && !sid;
         if (needSid && npsnFromPayload) {
-          // lebih toleran: ambil id dan/atau school_id, pilih yang ada
           const { data: rows, error } = await supabase
             .from("schools")
             .select("*")
@@ -956,7 +938,6 @@ const SchoolDetailSmp = ({ schoolData }) => {
           sid = row0?.id ?? row0?.school_id ?? null;
         }
 
-        // Fetch relasi satu per satu supaya kalau salah satu gagal, yang lain tetap terisi
         if (shouldFetchRooms && sid) {
           const { data, error } = await supabase
             .from("school_rooms")
@@ -1045,7 +1026,8 @@ const SchoolDetailSmp = ({ schoolData }) => {
         return null;
       })();
 
-    const validPair = Array.isArray(coords) && coords.length === 2 && coords.every((n) => Number.isFinite(Number(n)));
+    const validPair =
+      Array.isArray(coords) && coords.length === 2 && coords.every((n) => Number.isFinite(Number(n)));
 
     if (validPair) {
       let lng = Number(coords[0]);
@@ -1078,8 +1060,14 @@ const SchoolDetailSmp = ({ schoolData }) => {
   const statusSekolah = pickStr(BASE?.status, BASE?.status_sekolah, META?.status) || "-";
 
   const desaLabel =
-    pickStr(BASE?.desa, BASE?.village, BASE?._raw?.locations?.village, BASE?.village_name, META?.desa, META?.village_name) ||
-    "-";
+    pickStr(
+      BASE?.desa,
+      BASE?.village,
+      BASE?._raw?.locations?.village,
+      BASE?.village_name,
+      META?.desa,
+      META?.village_name
+    ) || "-";
 
   const kecLabel =
     pickStr(
@@ -1096,8 +1084,14 @@ const SchoolDetailSmp = ({ schoolData }) => {
   const npsnLabel = pickStr(BASE?.npsn, BASE?.NPSN, BASE?._raw?.npsn, META?.npsn) || "-";
 
   const schoolNameLabel =
-    pickStr(BASE?.name, BASE?.namaSekolah, BASE?.nama_sekolah, BASE?.school_name, BASE?._raw?.name, META?.namaSekolah) ||
-    "Nama Sekolah Tidak Tersedia";
+    pickStr(
+      BASE?.name,
+      BASE?.namaSekolah,
+      BASE?.nama_sekolah,
+      BASE?.school_name,
+      BASE?._raw?.name,
+      META?.namaSekolah
+    ) || "Nama Sekolah Tidak Tersedia";
 
   const latLabel = pickStr(BASE?.lat, BASE?.latitude, META?.latitude, BASE?._raw?.lat);
   const lngLabel = pickStr(BASE?.lng, BASE?.longitude, META?.longitude, BASE?._raw?.lng);
@@ -1111,7 +1105,10 @@ const SchoolDetailSmp = ({ schoolData }) => {
   const siswaL = totalFromLP > 0 ? siswaLBase : toNum(siswaMetaTotals.l, 0);
   const siswaP = totalFromLP > 0 ? siswaPBase : toNum(siswaMetaTotals.p, 0);
 
-  const totalSiswa = siswaL + siswaP > 0 ? siswaL + siswaP : toNum(BASE?.student_count, toNum(siswaMetaTotals.total, 0));
+  const totalSiswa =
+    siswaL + siswaP > 0
+      ? siswaL + siswaP
+      : toNum(BASE?.student_count, toNum(siswaMetaTotals.total, 0));
 
   const abkMetaTotals = pickTotalsFromSiswaObj(META?.siswaAbk);
   const abkL = toNum(abkMetaTotals.l, 0);
@@ -1173,7 +1170,10 @@ const SchoolDetailSmp = ({ schoolData }) => {
     0
   );
 
-  const rusakTotal = toNum(pickFirstFinite(classrooms?.rusakTotal, classrooms?.rusak_total, classrooms?.total_damage), 0);
+  const rusakTotal = toNum(
+    pickFirstFinite(classrooms?.rusakTotal, classrooms?.rusak_total, classrooms?.total_damage),
+    0
+  );
 
   const kelasBaik = toNum(
     pickFirstFinite(
@@ -1197,9 +1197,15 @@ const SchoolDetailSmp = ({ schoolData }) => {
     0
   );
 
-  const kelebihanRkb = toNum(pickFirstFinite(classrooms?.kelebihan, classrooms?.kelebihanRkb, classrooms?.excess_rkb), 0);
+  const kelebihanRkb = toNum(
+    pickFirstFinite(classrooms?.kelebihan, classrooms?.kelebihanRkb, classrooms?.excess_rkb),
+    0
+  );
 
-  const rkbTambahan = toNum(pickFirstFinite(classrooms?.rkbTambahan, classrooms?.rkb_tambahan, classrooms?.need_additional_rkb), 0);
+  const rkbTambahan = toNum(
+    pickFirstFinite(classrooms?.rkbTambahan, classrooms?.rkb_tambahan, classrooms?.need_additional_rkb),
+    0
+  );
 
   // ✅ Ketersediaan lahan untuk pembangunan (wadah wajib)
   const lahanRaw = pickStr(
@@ -1227,7 +1233,10 @@ const SchoolDetailSmp = ({ schoolData }) => {
   const pembangunanKegiatan = pickNumPreferNonZero(projAgg.pembangunanKelas, intervensi.pembangunan_unit);
 
   const rehabToiletKegiatan = pickNumPreferNonZero(projAgg.rehabToilet, intervensiToilet.rehab_toilet_unit);
-  const pembangunanToiletKegiatan = pickNumPreferNonZero(projAgg.pembangunanToilet, intervensiToilet.pembangunan_toilet_unit);
+  const pembangunanToiletKegiatan = pickNumPreferNonZero(
+    projAgg.pembangunanToilet,
+    intervensiToilet.pembangunan_toilet_unit
+  );
 
   const allValues = [rusakBerat, rusakSedang, kurangRkb, rehabKegiatan, pembangunanKegiatan];
   const maxRoomValue = Math.max(...allValues, 1);
@@ -1239,18 +1248,7 @@ const SchoolDetailSmp = ({ schoolData }) => {
   };
 
   /* ===================== IV. STATUS TANAH & GEDUNG ===================== */
-  const tanahOwnershipObj =
-    (isObj(PR?.tanah_kepemilikan) && PR.tanah_kepemilikan) ||
-    (isObj(PR?.tanah?.kepemilikan) && PR.tanah.kepemilikan) ||
-    (isObj(META?.tanah_kepemilikan) && META.tanah_kepemilikan) ||
-    (isObj(META?.prasarana?.tanah_kepemilikan) && META.prasarana.tanah_kepemilikan) ||
-    null;
-
-  const tanahOwnership = findOwnershipStatus(tanahOwnershipObj, "Tidak Ada");
-
-  const buildingOwnershipObj = PR?.gedung_kepemilikan ? PR.gedung_kepemilikan : { tidak_diketahui: "Ya" };
-  const buildingOwnership = findOwnershipStatus(buildingOwnershipObj, "Tidak Diketahui");
-
+  // ✅ Kepemilikan dihapus sesuai permintaan (No IV)
   const luasTanah = pickFirstFinite(getData(PR, ["ukuran", "tanah"], 0), getData(META, ["luas_tanah"], 0), 0);
   const luasBangunan = toNum(getData(PR, ["ukuran", "bangunan"], 0), 0);
   const luasHalaman = toNum(getData(PR, ["ukuran", "halaman"], 0), 0);
@@ -1296,7 +1294,9 @@ const SchoolDetailSmp = ({ schoolData }) => {
       : "guru";
   ruangGuru = applyRoomsFallbackTotalAll(ruangGuru, roomsByType, ruangGuruTypeKey);
 
-  const ruangTU = normalizeRoom(roomsRoot?.administration_room ?? PR?.administration_room ?? PR?.ruang_tu ?? PR?.tata_usaha);
+  const ruangTU = normalizeRoom(
+    roomsRoot?.administration_room ?? PR?.administration_room ?? PR?.ruang_tu ?? PR?.tata_usaha
+  );
 
   const ruangKepsek = normalizeRoom(roomsRoot?.headmaster_room ?? PR?.headmaster_room ?? PR?.ruang_kepala_sekolah);
 
@@ -1322,7 +1322,8 @@ const SchoolDetailSmp = ({ schoolData }) => {
   const toiletSiswaMaleFromTable = toNum(roomsByType?.toilet_siswa_laki?.total_all, 0);
   const toiletSiswaFemaleFromTable = toNum(roomsByType?.toilet_siswa_perempuan?.total_all, 0);
 
-  const toiletTableTotalTyped = toiletGuruMaleFromTable + toiletGuruFemaleFromTable + toiletSiswaMaleFromTable + toiletSiswaFemaleFromTable;
+  const toiletTableTotalTyped =
+    toiletGuruMaleFromTable + toiletGuruFemaleFromTable + toiletSiswaMaleFromTable + toiletSiswaFemaleFromTable;
 
   const toiletTableAvailableTyped =
     toNum(roomsByType?.toilet_guru_laki?.available_count, 0) +
@@ -1353,14 +1354,20 @@ const SchoolDetailSmp = ({ schoolData }) => {
   const kursiFromTable = assetsByCat?.chairs || null;
 
   const meja = pickNumPreferNonZero(mejaFromTable?.total, pickFirstFinite(mejaObj?.total, mejaObj?.total_all, mejaObj?.good));
-  const kursi = pickNumPreferNonZero(kursiFromTable?.total, pickFirstFinite(kursiObj?.total, kursiObj?.total_all, kursiObj?.good));
+  const kursi = pickNumPreferNonZero(
+    kursiFromTable?.total,
+    pickFirstFinite(kursiObj?.total, kursiObj?.total_all, kursiObj?.good)
+  );
 
   const papanTulis = toNum(pickFirstFinite(papanObj?.total, papanObj?.total_all, papanObj?.good, PR?.papan_tulis), 0);
 
   const komputer = toNum(pickFirstFinite(furnitureRoot?.computer, getData(PR, ["furniture", "computer"], 0)), 0);
   const chromebook = toNum(getData(PR, ["chromebook"], 0), 0);
 
-  const kondisiAlatRumahTangga = mapPeralatan(getData(PR, ["peralatanRumahTangga"], getData(KL, ["peralatanRumahTangga"], "-")));
+  // Tetap dipakai di (IX) Furnitur -> Peralatan Rumah Tangga
+  const kondisiAlatRumahTangga = mapPeralatan(
+    getData(PR, ["peralatanRumahTangga"], getData(KL, ["peralatanRumahTangga"], "-"))
+  );
 
   const mejaDetail = mejaFromTable && toNum(mejaFromTable.total, 0) > 0 ? mejaFromTable : mejaObj;
   const kursiDetail = kursiFromTable && toNum(kursiFromTable.total, 0) > 0 ? kursiFromTable : kursiObj;
@@ -1404,8 +1411,8 @@ const SchoolDetailSmp = ({ schoolData }) => {
       ? String(Number(bopTenagaPeningkatanVal))
       : "-";
 
+  // ✅ Kondisi Alat Rumah Tangga dihapus dari KELEMBAGAAN (No XII)
   const kelembagaan = {
-    peralatanRumahTangga: kondisiAlatRumahTangga,
     pembinaan: mapSudahBelum(getData(KL, ["pembinaan"], "-")),
     asesmen: mapSudahBelum(getData(KL, ["asesmen"], "-")),
     menyelenggarakanBelajar: mapYesNo(getData(KL, ["menyelenggarakanBelajar"], "-")),
@@ -1479,28 +1486,16 @@ const SchoolDetailSmp = ({ schoolData }) => {
   const metaDalamDirect = normalizeLanjutObj(metaDalamDirectRaw, lanjutTargets);
   const metaLuarDirect = normalizeLanjutObj(metaLuarDirectRaw, lanjutTargets);
 
-  // 3) fallback flat key per target (kalau penyimpanan bentuknya: siswaLanjutDalamKabSMA, siswaLanjutLuarKab_smk, dll.)
+  // 3) fallback flat key per target
   const flatDalam = readFlatLanjutTargets(
     META,
-    [
-      "siswaLanjutDalamKab",
-      "siswa_lanjut_dalam_kab",
-      "siswaLanjutDalam_kab",
-      "lanjutDalamKab",
-      "lanjut_dalam_kab",
-    ],
+    ["siswaLanjutDalamKab", "siswa_lanjut_dalam_kab", "siswaLanjutDalam_kab", "lanjutDalamKab", "lanjut_dalam_kab"],
     lanjutTargets
   );
 
   const flatLuar = readFlatLanjutTargets(
     META,
-    [
-      "siswaLanjutLuarKab",
-      "siswa_lanjut_luar_kab",
-      "siswaLanjutLuar_kab",
-      "lanjutLuarKab",
-      "lanjut_luar_kab",
-    ],
+    ["siswaLanjutLuarKab", "siswa_lanjut_luar_kab", "siswaLanjutLuar_kab", "lanjutLuarKab", "lanjut_luar_kab"],
     lanjutTargets
   );
 
@@ -1519,7 +1514,7 @@ const SchoolDetailSmp = ({ schoolData }) => {
     flatLuar
   );
 
-  // Tidak Lanjut & Bekerja: dukung struktur lama + key meta langsung
+  // Tidak Lanjut & Bekerja
   const lanjutTidak = toNum(
     pickFirstFinite(
       lanjutObj?.tidakLanjut,
@@ -1534,25 +1529,26 @@ const SchoolDetailSmp = ({ schoolData }) => {
     0
   );
 
-  const lanjutBekerja = toNum(
-    pickFirstFinite(
-      lanjutObj?.bekerja,
-      META?.siswaBekerja,
-      META?.siswa_bekerja,
-      META?.bekerja
-    ),
-    0
-  );
+  const lanjutBekerja = toNum(pickFirstFinite(lanjutObj?.bekerja, META?.siswaBekerja, META?.siswa_bekerja, META?.bekerja), 0);
 
   const lanjutDalamRows = ensureLanjutTargets(lanjutDalamObj, lanjutTargets);
   const lanjutLuarRows = ensureLanjutTargets(lanjutLuarObj, lanjutTargets);
 
   /* ===================== XV. RENCANA KEGIATAN FISIK ===================== */
   const kf = isObj(META?.kegiatanFisik) ? META.kegiatanFisik : {};
-  const kfRehabRuangKelas = toNum(pickFirstFinite(kf?.rehab_unit, kf?.rehabRuangKelas, kf?.rehab_ruang_kelas, rehabKegiatan), 0);
-  const kfPembangunanRKB = toNum(pickFirstFinite(kf?.pembangunan_unit, kf?.pembangunanRKB, kf?.pembangunan_rkb, pembangunanKegiatan), 0);
+  const kfRehabRuangKelas = toNum(
+    pickFirstFinite(kf?.rehab_unit, kf?.rehabRuangKelas, kf?.rehab_ruang_kelas, rehabKegiatan),
+    0
+  );
+  const kfPembangunanRKB = toNum(
+    pickFirstFinite(kf?.pembangunan_unit, kf?.pembangunanRKB, kf?.pembangunan_rkb, pembangunanKegiatan),
+    0
+  );
   const kfRehabToilet = toNum(pickFirstFinite(kf?.rehabToilet, kf?.rehab_toilet, rehabToiletKegiatan), 0);
-  const kfPembangunanToilet = toNum(pickFirstFinite(kf?.pembangunanToilet, kf?.pembangunan_toilet, pembangunanToiletKegiatan), 0);
+  const kfPembangunanToilet = toNum(
+    pickFirstFinite(kf?.pembangunanToilet, kf?.pembangunan_toilet, pembangunanToiletKegiatan),
+    0
+  );
 
   return (
     <div className={styles.container}>
@@ -1751,9 +1747,7 @@ const SchoolDetailSmp = ({ schoolData }) => {
         <div className={styles.card}>
           <div className={styles.subsection}>
             <h3 className={styles.subsectionTitle}>Status Tanah</h3>
-            <div className={styles.dataRow}>
-              <span>Kepemilikan: {tanahOwnership}</span>
-            </div>
+            {/* ✅ Kepemilikan dihapus (No IV) */}
             <div className={styles.dataRow}>
               <span>
                 Luas Tanah: {luasTanah} m{"\u00B2"}
@@ -1773,9 +1767,7 @@ const SchoolDetailSmp = ({ schoolData }) => {
 
           <div className={styles.subsection}>
             <h3 className={styles.subsectionTitle}>Status Gedung</h3>
-            <div className={styles.dataRow}>
-              <span>Kepemilikan: {buildingOwnership}</span>
-            </div>
+            {/* ✅ Kepemilikan dihapus (No IV) */}
             <div className={styles.dataRow}>
               <span>Jumlah Gedung: {jumlahGedung}</span>
             </div>
@@ -2213,27 +2205,26 @@ const SchoolDetailSmp = ({ schoolData }) => {
 
           <div className={styles.subsection}>
             <h3 className={styles.subsectionTitle}>Rincian Kondisi Furnitur</h3>
+
+            {/* ✅ Rusak Sedang dihapus (No IX) */}
             <div className={styles.dataRow}>
               <span>
                 Meja — Total: {formatMaybeNumber(mejaDetail?.total ?? mejaDetail?.total_all ?? 0, 0)} | Baik:{" "}
-                {formatMaybeNumber(mejaDetail?.good ?? 0, 0)} | Rusak Sedang:{" "}
-                {formatMaybeNumber(mejaDetail?.moderate_damage ?? 0, 0)} | Rusak Berat:{" "}
+                {formatMaybeNumber(mejaDetail?.good ?? 0, 0)} | Rusak Berat:{" "}
                 {formatMaybeNumber(mejaDetail?.heavy_damage ?? 0, 0)}
               </span>
             </div>
             <div className={styles.dataRow}>
               <span>
                 Kursi — Total: {formatMaybeNumber(kursiDetail?.total ?? kursiDetail?.total_all ?? 0, 0)} | Baik:{" "}
-                {formatMaybeNumber(kursiDetail?.good ?? 0, 0)} | Rusak Sedang:{" "}
-                {formatMaybeNumber(kursiDetail?.moderate_damage ?? 0, 0)} | Rusak Berat:{" "}
+                {formatMaybeNumber(kursiDetail?.good ?? 0, 0)} | Rusak Berat:{" "}
                 {formatMaybeNumber(kursiDetail?.heavy_damage ?? 0, 0)}
               </span>
             </div>
             <div className={styles.dataRow}>
               <span>
                 Papan Tulis — Total: {formatMaybeNumber(papanDetail?.total ?? papanDetail?.total_all ?? 0, 0)} | Baik:{" "}
-                {formatMaybeNumber(papanDetail?.good ?? 0, 0)} | Rusak Sedang:{" "}
-                {formatMaybeNumber(papanDetail?.moderate_damage ?? 0, 0)} | Rusak Berat:{" "}
+                {formatMaybeNumber(papanDetail?.good ?? 0, 0)} | Rusak Berat:{" "}
                 {formatMaybeNumber(papanDetail?.heavy_damage ?? 0, 0)}
               </span>
             </div>
@@ -2311,9 +2302,7 @@ const SchoolDetailSmp = ({ schoolData }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>XII. Kelembagaan</h2>
         <div className={styles.card}>
-          <div className={styles.dataRow}>
-            <span>Kondisi Alat Rumah Tangga: {kelembagaan.peralatanRumahTangga}</span>
-          </div>
+          {/* ✅ Kondisi Alat Rumah Tangga dihapus dari sini (No XII) */}
           <div className={styles.dataRow}>
             <span>Pembinaan: {kelembagaan.pembinaan}</span>
           </div>

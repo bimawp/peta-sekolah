@@ -44,17 +44,18 @@ function buildExpandedViewBounds(bounds) {
 }
 
 /* ===== Warna polygon kecamatan (pastel) ===== */
+const PASTEL_PALETTE = [
+  "#bfdbfe", "#ddd6fe", "#fed7aa", "#bbf7d0", "#bae6fd", "#fecaca",
+  "#e9d5ff", "#fce7f3", "#a5f3fc", "#fef3c7", "#c7d2fe", "#f5d0fe",
+  "#ffe4e6", "#dcfce7", "#f9a8d4", "#e0f2fe", "#e5e7eb", "#fee2e2",
+  "#d9f99d", "#bae6fd", "#fecaca", "#fde68a", "#a7f3d0", "#c4b5fd",
+];
+
 function colorForKey(key) {
-  const palette = [
-    "#bfdbfe", "#ddd6fe", "#fed7aa", "#bbf7d0", "#bae6fd", "#fecaca",
-    "#e9d5ff", "#fce7f3", "#a5f3fc", "#fef3c7", "#c7d2fe", "#f5d0fe",
-    "#ffe4e6", "#dcfce7", "#f9a8d4", "#e0f2fe", "#e5e7eb", "#fee2e2",
-    "#d9f99d", "#bae6fd", "#fecaca", "#fde68a", "#a7f3d0", "#c4b5fd",
-  ];
-  if (!key) return palette[0];
+  if (!key) return PASTEL_PALETTE[0];
   let h = 0;
   for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return palette[h % palette.length];
+  return PASTEL_PALETTE[h % PASTEL_PALETTE.length];
 }
 
 /* ===== Tentukan kondisi prioritas sekolah ===== */
@@ -70,8 +71,7 @@ const getSchoolCondition = (s) => {
 
   const ccRaw = s?.class_condition;
   if (ccRaw) {
-    const berat_raw =
-      parseInt(ccRaw.classrooms_heavy_damage || ccRaw.heavy_damage) || 0;
+    const berat_raw = parseInt(ccRaw.classrooms_heavy_damage || ccRaw.heavy_damage) || 0;
     if (berat_raw > 0) return "berat";
 
     const sedang_raw =
@@ -109,9 +109,28 @@ const pickFilter = (filters, keys) => {
   return "";
 };
 
-/* ===== ICON PIN SVG (tidak tergantung CSS/asset) ===== */
-const schoolPinIcon = (label = "") => {
+const pickGeoName = (p) =>
+  p?.name ||
+  p?.Name ||
+  p?.kecamatan ||
+  p?.Kecamatan ||
+  p?.NAMKEC ||
+  p?.NAMKec ||
+  p?.NAMOBJ ||
+  p?.namobj ||
+  "";
+
+/* ===== ICON PIN SVG (tidak tergantung CSS/asset) =====
+   OPTIM: cache divIcon berdasarkan teks (maks 4 char) agar tidak membuat icon berulang.
+*/
+const __schoolPinIconCache = new Map();
+const getSchoolPinIconCached = (label = "") => {
   const text = String(label || "").toUpperCase().slice(0, 4);
+  const cacheKey = text || "__EMPTY__";
+
+  const cached = __schoolPinIconCache.get(cacheKey);
+  if (cached) return cached;
+
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="28" height="40" viewBox="0 0 28 40">
     <path d="M14 40s12-11.2 12-22C26 8.1 20.6 2.5 14 2.5S2 8.1 2 18c0 10.8 12 22 12 22z"
@@ -122,13 +141,16 @@ const schoolPinIcon = (label = "") => {
     </text>
   </svg>`;
 
-  return L.divIcon({
+  const icon = L.divIcon({
     html: svg,
     className: "",
     iconSize: [28, 40],
     iconAnchor: [14, 38],
     popupAnchor: [0, -32],
   });
+
+  __schoolPinIconCache.set(cacheKey, icon);
+  return icon;
 };
 
 function SimpleMap({
@@ -138,20 +160,15 @@ function SimpleMap({
   filters = {},
   statsOverride,
   kecamatanGeo,
-  desaGeo,
   onZoomChange,
-
   hasFullFilter: hasFullFilterProp,
   kecamatanRekapOverride,
 }) {
   const mapRef = useRef(null);
-
   const kecLayerRef = useRef(null);
   const labelLayerRef = useRef(null);
 
-  const [, setZoom] = useState(initialZoom ?? GARUT_ZOOM);
   const [localKecamatanGeo, setLocalKecamatanGeo] = useState(null);
-
   const [garutBounds, setGarutBounds] = useState(null);
   const [viewBounds, setViewBounds] = useState(null);
 
@@ -169,17 +186,24 @@ function SimpleMap({
     return buildExpandedViewBounds(fallbackBounds);
   }, [fallbackBounds]);
 
+  const effectiveKecGeo = useMemo(
+    () => kecamatanGeo || localKecamatanGeo,
+    [kecamatanGeo, localKecamatanGeo]
+  );
+
+  const computedMaxBounds = useMemo(() => {
+    return viewBounds || fallbackViewBounds || garutBounds || fallbackBounds || null;
+  }, [viewBounds, fallbackViewBounds, garutBounds, fallbackBounds]);
+
   /* ===== Load boundary (tetap) ===== */
   useEffect(() => {
     let cancelled = false;
+
     const loadGeo = async () => {
       try {
         const fetches = [];
-
         fetches.push(fetch("/geo/garut-boundary.geojson"));
-        if (!kecamatanGeo) {
-          fetches.push(fetch("/geo/garut-kecamatan.geojson"));
-        }
+        if (!kecamatanGeo) fetches.push(fetch("/geo/garut-kecamatan.geojson"));
 
         const resList = await Promise.all(fetches);
         if (cancelled) return;
@@ -229,29 +253,35 @@ function SimpleMap({
           return "NPSN:" + npsn;
         }
 
-        const name = (s?.namaSekolah || s?.name || "")
-          .toString()
-          .trim()
-          .toUpperCase();
-        const desa = (s?.desa || s?.village || "")
-          .toString()
-          .trim()
-          .toUpperCase();
+        const name = (s?.namaSekolah || s?.name || "").toString().trim().toUpperCase();
+        const desa = (s?.desa || s?.village || "").toString().trim().toUpperCase();
         const kk = kecKey(s?.kecamatan || "");
         return name + "::" + desa + "::" + kk;
       }),
     [schools]
   );
 
-  /* ===== Deteksi Full Filter ===== */
-  const fJenjang = pickFilter(filters, ["jenjang", "level"]);
-  const fKecamatan = pickFilter(filters, ["kecamatan", "subdistrict", "district"]);
-  const fDesa = pickFilter(filters, ["desa", "village", "kelurahan", "desaKelurahan", "desa_kelurahan"]);
+  /* ===== Deteksi Full Filter (dimemo agar tidak dihitung ulang tanpa perlu) ===== */
+  const filterTriplet = useMemo(() => {
+    const fJenjang = pickFilter(filters, ["jenjang", "level"]);
+    const fKecamatan = pickFilter(filters, ["kecamatan", "subdistrict", "district"]);
+    const fDesa = pickFilter(filters, [
+      "desa",
+      "village",
+      "kelurahan",
+      "desaKelurahan",
+      "desa_kelurahan",
+    ]);
 
-  const computedHasFullFilter =
-    !isAllValue(fJenjang) && !isAllValue(fKecamatan) && !isAllValue(fDesa);
+    const computedHasFullFilter =
+      !isAllValue(fJenjang) && !isAllValue(fKecamatan) && !isAllValue(fDesa);
 
-  const hasFullFilter = hasFullFilterProp === true ? true : computedHasFullFilter;
+    return { fJenjang, fKecamatan, fDesa, computedHasFullFilter };
+  }, [filters]);
+
+  const hasFullFilter =
+    hasFullFilterProp === true ? true : filterTriplet.computedHasFullFilter;
+
   const showSchoolDots = hasFullFilter;
 
   /* ===== Filter data ===== */
@@ -263,24 +293,12 @@ function SimpleMap({
   /* ===== Index centroid kecamatan dari GeoJSON ===== */
   const kecCentroidIndex = useMemo(() => {
     const idx = new Map();
-    const effectiveKecGeo = kecamatanGeo || localKecamatanGeo;
     if (!effectiveKecGeo || !Array.isArray(effectiveKecGeo?.features)) return idx;
-
-    const pickName = (p) =>
-      p?.name ||
-      p?.Name ||
-      p?.kecamatan ||
-      p?.Kecamatan ||
-      p?.NAMKEC ||
-      p?.NAMKec ||
-      p?.NAMOBJ ||
-      p?.namobj ||
-      "";
 
     for (const f of effectiveKecGeo.features) {
       try {
         const p = f?.properties || {};
-        const rawName = pickName(p);
+        const rawName = pickGeoName(p);
         const kk = kecKey(rawName);
         if (!kk) continue;
 
@@ -292,9 +310,9 @@ function SimpleMap({
       }
     }
     return idx;
-  }, [kecamatanGeo, localKecamatanGeo]);
+  }, [effectiveKecGeo]);
 
-  /* ===== Rekap per-kecamatan (fallback kalau tidak ada override) ===== */
+  /* ===== Rekap per-kecamatan (OPTIM: tanpa simpan coords[]; pakai running sum) ===== */
   const kecRekap = useMemo(() => {
     const group = new Map();
 
@@ -308,10 +326,15 @@ function SimpleMap({
           k: kk,
           displayName: s?.kecamatan || geo?.rawName || kk,
           total: 0,
-          coords: [],
+
+          // OPTIM: running sum (hindari coords[] + reduce kedua)
+          sumLat: 0,
+          sumLng: 0,
+          coordCount: 0,
+
           geoCenter: geo?.center || null,
           tanpaKoordinat: 0,
-          diLuarGarut: 0,
+          diLuarGarut: 0, // tetap dipertahankan seperti sebelumnya
           rusakBerat: 0,
           rusakSedang: 0,
           kurangRKB: 0,
@@ -323,8 +346,13 @@ function SimpleMap({
       g.total += 1;
 
       const ll = getLatLngSafe(s);
-      if (!ll) g.tanpaKoordinat += 1;
-      else g.coords.push(ll);
+      if (!ll) {
+        g.tanpaKoordinat += 1;
+      } else {
+        g.sumLat += ll[0];
+        g.sumLng += ll[1];
+        g.coordCount += 1;
+      }
 
       const condition = getSchoolCondition(s);
       if (condition === "berat") g.rusakBerat += 1;
@@ -336,12 +364,8 @@ function SimpleMap({
     return Array.from(group.values()).map((g) => {
       let center = g.geoCenter || null;
 
-      if (!center && g.coords.length) {
-        const sum = g.coords.reduce(
-          (acc, cur) => [acc[0] + cur[0], acc[1] + cur[1]],
-          [0, 0]
-        );
-        center = [sum[0] / g.coords.length, sum[1] / g.coords.length];
+      if (!center && g.coordCount > 0) {
+        center = [g.sumLat / g.coordCount, g.sumLng / g.coordCount];
       }
 
       if (!center) center = GARUT_CENTER;
@@ -421,7 +445,18 @@ function SimpleMap({
     });
   }, [kecamatanRekapOverride, kecRekap, kecCentroidIndex]);
 
-  /* ===== Sekolah yang bisa diplot (FULL FILTER) ===== */
+  /* ===== OPTIM: Icon kecamatan dimemo (hindari buat divIcon saat render) ===== */
+  const rekapMarkerItems = useMemo(() => {
+    if (showSchoolDots) return [];
+    return rekapForMarkers.map((kec) => ({
+      ...kec,
+      __icon: makeKecamatanNumberIcon(kec.total, kec.displayName, styles),
+    }));
+  }, [showSchoolDots, rekapForMarkers]);
+
+  /* ===== Sekolah yang bisa diplot (FULL FILTER)
+     OPTIM: simpan ll agar tidak memanggil getLatLngSafe dua kali.
+  ===== */
   const { plottableSchools, missingSchools } = useMemo(() => {
     if (!showSchoolDots) return { plottableSchools: [], missingSchools: [] };
 
@@ -439,7 +474,7 @@ function SimpleMap({
         });
         continue;
       }
-      pts.push(s);
+      pts.push({ s, ll });
     }
 
     return { plottableSchools: pts, missingSchools: missing };
@@ -461,11 +496,8 @@ function SimpleMap({
       : plottableSchools.length;
 
   /**
-   * ===== Polygon kecamatan + label
-   * - Polygon selalu digambar (warna batas kecamatan tidak berubah)
-   * - Label GeoJSON:
-   *    - Mode REKAP: label sudah ada di icon angka => label layer dimatikan agar tidak dobel / tidak jauh
-   *    - Mode SEKOLAH: label layer tetap ditampilkan seperti sebelumnya
+   * ===== Polygon kecamatan
+   * OPTIM: dipisah dari label layer agar toggle showSchoolDots tidak rebuild polygon.
    */
   useEffect(() => {
     const map = mapRef.current;
@@ -474,25 +506,11 @@ function SimpleMap({
     if (!kecLayerRef.current) kecLayerRef.current = L.layerGroup().addTo(map);
     else kecLayerRef.current.clearLayers();
 
-    if (!labelLayerRef.current) labelLayerRef.current = L.layerGroup().addTo(map);
-    else labelLayerRef.current.clearLayers();
-
-    const effectiveKecGeo = kecamatanGeo || localKecamatanGeo;
     if (effectiveKecGeo && Array.isArray(effectiveKecGeo?.features)) {
       try {
         for (const f of effectiveKecGeo.features) {
           const p = f?.properties || {};
-          const rawName =
-            p.name ||
-            p.Name ||
-            p.kecamatan ||
-            p.Kecamatan ||
-            p.NAMKEC ||
-            p.NAMKec ||
-            p.NAMOBJ ||
-            p.namobj ||
-            "";
-
+          const rawName = pickGeoName(p);
           const kk = kecKey(rawName);
 
           const gj = L.geoJSON(f, {
@@ -506,19 +524,6 @@ function SimpleMap({
             interactive: false,
           });
           gj.addTo(kecLayerRef.current);
-
-          // Label GeoJSON ditampilkan hanya saat mode sekolah (agar tidak dobel dengan label di icon angka)
-          if (showSchoolDots) {
-            const c = gj.getBounds().getCenter();
-            L.marker(c, {
-              interactive: false,
-              icon: L.divIcon({
-                className: styles.kecLabel,
-                html: `<div>${rawName}</div>`,
-              }),
-              zIndexOffset: 800,
-            }).addTo(labelLayerRef.current);
-          }
         }
       } catch (err) {
         console.error("[SimpleMap] gagal menggambar kecamatan Garut:", err);
@@ -527,35 +532,82 @@ function SimpleMap({
 
     return () => {
       kecLayerRef.current?.clearLayers();
-      labelLayerRef.current?.clearLayers();
     };
-  }, [kecamatanGeo, localKecamatanGeo, showSchoolDots]);
+  }, [effectiveKecGeo]);
 
-  /* ===== Update maxBounds ===== */
+  /**
+   * ===== Label GeoJSON
+   * OPTIM: hanya rebuild label saat mode sekolah (showSchoolDots) atau geo berubah.
+   * Gunakan kecCentroidIndex jika ada (hindari L.geoJSON() ulang untuk center).
+   */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
-    const vb = viewBounds || fallbackViewBounds || garutBounds || fallbackBounds;
-    if (!vb) return;
+    if (!labelLayerRef.current) labelLayerRef.current = L.layerGroup().addTo(map);
+    else labelLayerRef.current.clearLayers();
+
+    if (!showSchoolDots) return;
+
+    if (effectiveKecGeo && Array.isArray(effectiveKecGeo?.features)) {
+      try {
+        for (const f of effectiveKecGeo.features) {
+          const p = f?.properties || {};
+          const rawName = pickGeoName(p);
+          const kk = kecKey(rawName);
+
+          let center = kk ? kecCentroidIndex.get(kk)?.center : null;
+          if (!center) {
+            try {
+              const gj = L.geoJSON(f);
+              const c = gj.getBounds().getCenter();
+              center = [c.lat, c.lng];
+            } catch {
+              center = null;
+            }
+          }
+          if (!center) continue;
+
+          L.marker(center, {
+            interactive: false,
+            icon: L.divIcon({
+              className: styles.kecLabel,
+              html: `<div>${rawName}</div>`,
+            }),
+            zIndexOffset: 800,
+          }).addTo(labelLayerRef.current);
+        }
+      } catch (err) {
+        console.error("[SimpleMap] gagal menggambar label kecamatan Garut:", err);
+      }
+    }
+
+    return () => {
+      labelLayerRef.current?.clearLayers();
+    };
+  }, [effectiveKecGeo, showSchoolDots, kecCentroidIndex]);
+
+  /* ===== Update maxBounds ===== */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !computedMaxBounds) return;
     try {
-      map.setMaxBounds(vb);
+      map.setMaxBounds(computedMaxBounds);
     } catch {
       // ignore
     }
-  }, [viewBounds, fallbackViewBounds, garutBounds, fallbackBounds]);
+  }, [computedMaxBounds]);
 
   /* ===== Snap balik kalau keluar bounds ===== */
   useEffect(() => {
     const map = mapRef.current;
-    const bounds = viewBounds || fallbackViewBounds || garutBounds || fallbackBounds;
-    if (!map || !bounds) return;
+    if (!map || !computedMaxBounds) return;
 
     const handleMoveEnd = () => {
       try {
         const center = map.getCenter();
-        if (!bounds.contains(center)) {
-          map.fitBounds(bounds, {
+        if (!computedMaxBounds.contains(center)) {
+          map.fitBounds(computedMaxBounds, {
             paddingTopLeft: [10, 140],
             paddingBottomRight: [10, 10],
             animate: true,
@@ -569,17 +621,18 @@ function SimpleMap({
 
     map.on("moveend", handleMoveEnd);
     return () => map.off("moveend", handleMoveEnd);
-  }, [viewBounds, fallbackViewBounds, garutBounds, fallbackBounds]);
+  }, [computedMaxBounds]);
 
-  /* ===== Sync zoom ===== */
+  /* ===== Sync zoom (OPTIM: tanpa setState agar tidak memicu re-render) ===== */
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
     const handleZoom = () => {
       const z = map.getZoom();
-      setZoom(z);
       if (typeof onZoomChange === "function") onZoomChange(z);
     };
+
     map.on("zoomend", handleZoom);
     handleZoom();
     return () => map.off("zoomend", handleZoom);
@@ -592,14 +645,44 @@ function SimpleMap({
   const missingMarkerPos = useMemo(() => {
     if (!showSchoolDots || !missingSchools.length) return null;
 
-    const kk = kecKey(fKecamatan);
+    const kk = kecKey(filterTriplet.fKecamatan);
     const pos =
       (kk && kecCentroidIndex.get(kk)?.center) ||
       (rekapForMarkers.length === 1 ? rekapForMarkers[0]?.center : null) ||
       GARUT_CENTER;
 
     return pos;
-  }, [showSchoolDots, missingSchools.length, fKecamatan, kecCentroidIndex, rekapForMarkers]);
+  }, [showSchoolDots, missingSchools.length, filterTriplet.fKecamatan, kecCentroidIndex, rekapForMarkers]);
+
+  const missingMarkerIcon = useMemo(() => {
+    if (!showSchoolDots || !missingSchools.length) return null;
+    return makeKecamatanNumberIcon(missingSchools.length, "Tanpa Koordinat", styles);
+  }, [showSchoolDots, missingSchools.length]);
+
+  /* ===== OPTIM: precompute school marker payload (string ops + icon) ===== */
+  const schoolMarkerItems = useMemo(() => {
+    if (!showSchoolDots) return [];
+
+    return plottableSchools.map(({ s, ll }) => {
+      const npsn = (s?.npsn || s?.NPSN || "").toString().trim();
+      const name = s?.namaSekolah || s?.name || "Tanpa nama";
+      const jenjangLabel = (s?.jenjang || s?.level || "").toString().toUpperCase() || "-";
+      const kec = s?.kecamatan || s?.subdistrict || s?.district || "";
+      const desa = s?.desa || s?.village || s?.village_name || "";
+      const alamat = [desa, kec].filter(Boolean).join(", ");
+
+      const [lat, lng] = ll;
+      const gmUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+
+      return {
+        key: `${npsn || name}-${lat}-${lng}`,
+        position: ll,
+        icon: getSchoolPinIconCached(jenjangLabel),
+        zIndexOffset: 1200,
+        popup: { name, npsn, jenjangLabel, alamat, gmUrl },
+      };
+    });
+  }, [showSchoolDots, plottableSchools]);
 
   return (
     <div className={styles.mapRoot}>
@@ -629,15 +712,18 @@ function SimpleMap({
         keepBuffer={2}
         scrollWheelZoom={false}
         zoomControl={false}
-        maxBounds={viewBounds || fallbackViewBounds || garutBounds || fallbackBounds || undefined}
+        maxBounds={computedMaxBounds || undefined}
         maxBoundsViscosity={1.0}
         attributionControl={false}
         whenCreated={(m) => {
           mapRef.current = m;
+
           const mb = fallbackBounds;
-          const vb = viewBounds || fallbackViewBounds || mb;
+          const vb = computedMaxBounds || mb;
+
           try {
             if (vb) m.setMaxBounds(vb);
+
             if (mb) {
               m.fitBounds(mb, {
                 paddingTopLeft: [10, 140],
@@ -659,14 +745,11 @@ function SimpleMap({
             MODE 1: REKAP KECAMATAN (default)
            ========================= */}
         {!showSchoolDots &&
-          rekapForMarkers.map((kec) => {
+          rekapMarkerItems.map((kec) => {
             const center = kec.center || GARUT_CENTER;
 
-            // ICON: angka + label kecamatan di atasnya, keduanya center di kecamatan
-            const icon = makeKecamatanNumberIcon(kec.total, kec.displayName, styles);
-
             return (
-              <Marker key={kec.kecKey} position={center} icon={icon}>
+              <Marker key={kec.kecKey} position={center} icon={kec.__icon}>
                 <Popup>
                   <div className={styles.popup}>
                     <div className={styles.popupTitle}>{kec.displayName}</div>
@@ -716,68 +799,48 @@ function SimpleMap({
             MODE 2: SEKOLAH (FULL FILTER)
            ========================= */}
         {showSchoolDots &&
-          plottableSchools.map((s) => {
-            const ll = getLatLngSafe(s);
-            if (!ll) return null;
+          schoolMarkerItems.map((it) => (
+            <Marker
+              key={it.key}
+              position={it.position}
+              icon={it.icon}
+              zIndexOffset={it.zIndexOffset}
+            >
+              <Popup>
+                <div className={styles.popup}>
+                  <div className={styles.popupTitle}>{it.popup.name}</div>
 
-            const npsn = (s?.npsn || s?.NPSN || "").toString().trim();
-            const name = s?.namaSekolah || s?.name || "Tanpa nama";
-            const jenjangLabel =
-              (s?.jenjang || s?.level || "").toString().toUpperCase() || "-";
-            const kec = s?.kecamatan || s?.subdistrict || s?.district || "";
-            const desa = s?.desa || s?.village || s?.village_name || "";
-            const alamat = [desa, kec].filter(Boolean).join(", ");
-
-            const [lat, lng] = ll;
-            const gmUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
-
-            return (
-              <Marker
-                key={`${npsn || name}-${lat}-${lng}`}
-                position={ll}
-                icon={schoolPinIcon(jenjangLabel)}
-                zIndexOffset={1200}
-              >
-                <Popup>
-                  <div className={styles.popup}>
-                    <div className={styles.popupTitle}>{name}</div>
-
-                    <div className={`${styles.popupCounts} ${styles.popupDetail}`}>
-                      <div className={styles.popupDetailRow}>
-                        <span className={styles.popupDetailLabel}>NPSN</span>
-                        <span className={styles.popupDetailValue}>{npsn || "-"}</span>
-                      </div>
-                      <div className={styles.popupDetailRow}>
-                        <span className={styles.popupDetailLabel}>Jenjang</span>
-                        <span className={styles.popupDetailValue}>{jenjangLabel}</span>
-                      </div>
-                      <div className={styles.popupDetailRow}>
-                        <span className={styles.popupDetailLabel}>Lokasi</span>
-                        <span className={styles.popupDetailValue}>{alamat || "-"}</span>
-                      </div>
+                  <div className={`${styles.popupCounts} ${styles.popupDetail}`}>
+                    <div className={styles.popupDetailRow}>
+                      <span className={styles.popupDetailLabel}>NPSN</span>
+                      <span className={styles.popupDetailValue}>{it.popup.npsn || "-"}</span>
                     </div>
-
-                    <a
-                      href={gmUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.popupGmButton}
-                    >
-                      Buka di Google Maps
-                    </a>
+                    <div className={styles.popupDetailRow}>
+                      <span className={styles.popupDetailLabel}>Jenjang</span>
+                      <span className={styles.popupDetailValue}>{it.popup.jenjangLabel}</span>
+                    </div>
+                    <div className={styles.popupDetailRow}>
+                      <span className={styles.popupDetailLabel}>Lokasi</span>
+                      <span className={styles.popupDetailValue}>{it.popup.alamat || "-"}</span>
+                    </div>
                   </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+
+                  <a
+                    href={it.popup.gmUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.popupGmButton}
+                  >
+                    Buka di Google Maps
+                  </a>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {/* MODE SEKOLAH: marker agregat untuk sekolah tanpa koordinat */}
-        {showSchoolDots && missingSchools.length > 0 && missingMarkerPos && (
-          <Marker
-            position={missingMarkerPos}
-            icon={makeKecamatanNumberIcon(missingSchools.length, "Tanpa Koordinat", styles)}
-            zIndexOffset={1100}
-          >
+        {showSchoolDots && missingSchools.length > 0 && missingMarkerPos && missingMarkerIcon && (
+          <Marker position={missingMarkerPos} icon={missingMarkerIcon} zIndexOffset={1100}>
             <Popup>
               <div className={styles.popup}>
                 <div className={styles.popupTitle}>Tanpa Koordinat</div>

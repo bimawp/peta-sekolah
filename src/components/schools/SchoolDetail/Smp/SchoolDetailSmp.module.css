@@ -1,9 +1,11 @@
 /* src/components/schools/SchoolDetail/Smp/SchoolDetailSmp.module.css */
 
-:root {
-  --primary-green: #1E7F4F;
-  --dark-green: #145C3C;
-  --soft-green: #56B789;
+.container {
+  /* COLOR THEME (SMP - BIRU TUA) scoped ke komponen ini */
+  --primary-green: #1E3A8A;
+  --dark-green: #172554;
+  --soft-green: #60A5FA;
+
   --gold-yellow: #F2B705;
   --dark-yellow: #C79404;
   --bg-light: #FAFAFA;
@@ -13,24 +15,22 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: var(--bg-light);
+  color: var(--text-primary);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  .container {
     --bg-light: #1A1A1A;
     --text-primary: #F5F5F5;
     --text-secondary: #B0B0B0;
     --border-light: #333333;
   }
-}
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px 16px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background-color: var(--bg-light);
-  color: var(--text-primary);
 }
 
 .header {
@@ -44,7 +44,7 @@
 .schoolName {
   font-size: 28px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: #ffffff;
   margin: 0 0 24px 0;
   text-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
@@ -73,7 +73,7 @@
 
 .label {
   font-weight: 600;
-  color: #FFFFFF;
+  color: #ffffff;
   min-width: 130px;
   font-size: 14px;
 }
@@ -85,7 +85,7 @@
 }
 
 .value {
-  color: #FFFFFF;
+  color: #ffffff;
   font-weight: 500;
   flex: 1;
 }
@@ -94,7 +94,7 @@
   width: 100%;
   padding: 14px 24px;
   background: linear-gradient(135deg, var(--soft-green), var(--primary-green));
-  color: #FFFFFF;
+  color: #ffffff;
   border: none;
   border-radius: 12px;
   font-size: 15px;
@@ -124,7 +124,7 @@
 }
 
 .card {
-  background: #FFFFFF;
+  background: #ffffff;
   padding: 24px;
   border-radius: 16px;
   border: 1px solid var(--border-light);
@@ -133,7 +133,7 @@
 
 @media (prefers-color-scheme: dark) {
   .card {
-    background: #2A2A2A;
+    background: #2a2a2a;
   }
 }
 
@@ -175,7 +175,7 @@
 }
 
 .bar::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -214,31 +214,31 @@
 }
 
 .barGreen {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: linear-gradient(135deg, #60a5fa, #2563eb);
 }
 
 .barRed {
-  background: linear-gradient(135deg, #EF4444, #DC2626);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
 .barYellow {
-  background: linear-gradient(135deg, #F59E0B, #D97706);
+  background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
 .barBlue {
-  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  background: linear-gradient(135deg, #2563eb, #1e3a8a);
 }
 
 .barPurple {
-  background: linear-gradient(135deg, #8B5CF6, #7C3AED);
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
 }
 
 .barOrange {
-  background: linear-gradient(135deg, #F97316, #EA580C);
+  background: linear-gradient(135deg, #f97316, #ea580c);
 }
 
 .barCyan {
-  background: linear-gradient(135deg, #06B6D4, #0891B2);
+  background: linear-gradient(135deg, #06b6d4, #0891b2);
 }
 
 .subsection {
@@ -272,7 +272,7 @@
 }
 
 .dataRow:hover {
-  background: rgba(30, 127, 79, 0.05);
+  background: rgba(30, 58, 138, 0.05);
   border-color: var(--soft-green);
   transform: translateX(4px);
 }

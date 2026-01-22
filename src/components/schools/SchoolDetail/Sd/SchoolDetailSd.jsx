@@ -274,51 +274,6 @@ const normalizeRoom = (src) => {
   };
 };
 
-const normalizeToiletGender = (src) => {
-  const o =
-    typeof src === "number"
-      ? { total_all: src }
-      : src && typeof src === "object"
-      ? src
-      : {};
-
-  const good = pickMaxNumber(o.good, o.baik, 0);
-  const light = pickMaxNumber(o.light_damage, o.rusak_ringan, o.rusakRingan, 0);
-  const moderate = pickMaxNumber(o.moderate_damage, o.rusak_sedang, o.rusakSedang, 0);
-  const heavy = pickMaxNumber(o.heavy_damage, o.rusak_berat, o.rusakBerat, 0);
-  const totalDamage = pickMaxNumber(o.total_damage, o.rusak_total, o.rusakTotal, 0);
-
-  const computedTotal =
-    toNum(good, 0) + toNum(light, 0) + toNum(moderate, 0) + toNum(heavy, 0) + toNum(totalDamage, 0);
-
-  const totalAll = pickMaxNumber(o.total_all, o.total, o.jumlah, computedTotal, 0);
-  const totalMh = pickMaxNumber(
-    o.total_mh,
-    toNum(moderate, 0) + toNum(heavy, 0) + toNum(totalDamage, 0),
-    0
-  );
-
-  return {
-    good: toNum(good, 0),
-    light_damage: toNum(light, 0),
-    moderate_damage: toNum(moderate, 0),
-    heavy_damage: toNum(heavy, 0),
-    total_damage: toNum(totalDamage, 0),
-    total_all: toNum(totalAll, 0),
-    total_mh: toNum(totalMh, 0),
-  };
-};
-
-const normalizeToilet = (src) => {
-  const o = src && typeof src === "object" ? src : {};
-  const maleSrc = o.male ?? o.laki_laki ?? o.lakiLaki ?? o.lk ?? o.guru_lk ?? o.siswa_lk;
-  const femaleSrc = o.female ?? o.perempuan ?? o.pr ?? o.guru_pr ?? o.siswa_pr;
-  return {
-    male: normalizeToiletGender(maleSrc),
-    female: normalizeToiletGender(femaleSrc),
-  };
-};
-
 // ===================== fasilitas helpers (view/tabel lain) =====================
 const pickFirstObj = (...vals) => {
   for (const v of vals) {
@@ -1014,26 +969,36 @@ const SchoolDetailSd = ({ schoolData }) => {
   );
 
   const tuRoomSrc = pickFirstObj(
+    // META facilities.rooms -> administration_room (Ruang TU)
+    roomsRoot?.administration_room,
     roomsRoot?.tu_room,
+    PR?.administration_room,
     PR?.tu_room,
     PR?.ruang_tu,
-    roomByKeys(roomsAny, ["tu_room", "ruang_tu", "tu"]),
-    roomByKeys(roomsByType, ["tu", "ruang_tu", "tu_room"])
+    PR?.ruang_tata_usaha,
+    roomByKeys(roomsAny, ["administration_room", "tu_room", "ruang_tu", "tata_usaha", "tu"]),
+    roomByKeys(roomsByType, ["administration_room", "tu", "ruang_tu", "tu_room", "tata_usaha"])
   );
 
   const publicToiletRoomSrc = pickFirstObj(
+    // META facilities.rooms -> toilets (Toilet Umum)
+    roomsRoot?.toilets,
     roomsRoot?.public_toilet,
+    PR?.toilets,
     PR?.public_toilet,
     PR?.toilet_umum,
-    roomByKeys(roomsAny, ["public_toilet", "toilet_umum", "toilet_umum_sd", "toilet_umum_sekolah"]),
-    roomByKeys(roomsByType, ["toilet_umum", "public_toilet"])
+    roomByKeys(roomsAny, ["toilets", "public_toilet", "toilet_umum", "toilet_umum_sd", "toilet_umum_sekolah", "toilet"]),
+    roomByKeys(roomsByType, ["toilets", "toilet_umum", "public_toilet", "toilet"])
   );
 
   const rumahDinasRoomSrc = pickFirstObj(
+    // META facilities.rooms -> official_residences (Rumah Dinas)
+    roomsRoot?.official_residences,
     roomsRoot?.rumah_dinas,
+    PR?.official_residences,
     PR?.rumah_dinas,
-    roomByKeys(roomsAny, ["rumah_dinas", "rumahdinas", "house_dinas"]),
-    roomByKeys(roomsByType, ["rumah_dinas", "rumahdinas"])
+    roomByKeys(roomsAny, ["official_residences", "rumah_dinas", "rumahdinas", "house_dinas"]),
+    roomByKeys(roomsByType, ["official_residences", "rumah_dinas", "rumahdinas"])
   );
 
   const library = normalizeRoom(librarySrc);
@@ -1044,51 +1009,45 @@ const SchoolDetailSd = ({ schoolData }) => {
   const publicToiletRoom = normalizeRoom(publicToiletRoomSrc);
   const rumahDinasRoom = normalizeRoom(rumahDinasRoomSrc);
 
-  // Labs
-  const labsRoot = isObj(PR?.labs) ? PR.labs : {};
-  const labKomputer = normalizeRoom(
-    pickFirstObj(
-      labsRoot?.laboratory_comp,
-      PR?.laboratory_comp,
-      PR?.lab_komputer,
-      labsAny?.laboratory_comp,
-      labsAny?.lab_komputer,
-      roomByKeys(raw, ["laboratory_comp", "lab_komputer"])
-    )
-  );
-  const labIpa = normalizeRoom(
-    pickFirstObj(
-      labsRoot?.laboratory_ipa,
-      PR?.laboratory_ipa,
-      PR?.lab_ipa,
-      labsAny?.laboratory_ipa,
-      labsAny?.lab_ipa,
-      roomByKeys(raw, ["laboratory_ipa", "lab_ipa"])
-    )
-  );
-
-  // wadah lab umum (jika input Anda bentuknya "laboratorium umum")
+  // Lab Umum
   const labUmum = normalizeRoom(
     pickFirstObj(
+      // META facilities.rooms -> laboratory (Lab Umum)
+      roomsRoot?.laboratory,
+      PR?.laboratory,
+      roomByKeys(roomsAny, ["laboratory", "laboratorium", "lab_umum", "laboratorium_umum", "lab"]),
+
+      // legacy container jika ada pemisahan labs terpisah dari rooms
+      labsAny?.laboratory,
+      labsAny?.laboratorium,
       labsAny?.laboratorium_umum,
       labsAny?.lab_umum,
       PR?.laboratorium_umum,
       PR?.lab_umum,
-      roomByKeys(labsAny, ["laboratorium_umum", "lab_umum"]),
-      roomByKeys(roomsByType, ["laboratorium", "lab", "lab_umum", "laboratorium_umum"]),
-      roomByKeys(raw, ["laboratorium_umum", "lab_umum"])
+      roomByKeys(labsAny, ["laboratory", "laboratorium", "laboratorium_umum", "lab_umum"]),
+      roomByKeys(roomsByType, ["laboratory", "laboratorium", "lab", "lab_umum", "laboratorium_umum"]),
+      roomByKeys(raw, ["laboratory", "laboratorium", "laboratorium_umum", "lab_umum"])
     )
   );
 
   // Toilet ringkasan
   const toiletOverall = pickFirstObj(
+    // prioritas: ringkasan khusus jika tersedia
     PR?.toilets_overall,
     PR?.toilet_overall,
-    toiletsAny,
     raw?.toilets_overall,
     raw?.toilet_overall,
-    raw?.toilets,
     fac?.toilets_overall,
+
+    // (FIX) META facilities.rooms -> toilets (format meta Anda)
+    roomsRoot?.toilets,
+    PR?.toilets,
+    roomsAny?.toilets,
+    roomByKeys(roomsAny, ["toilets", "toilet", "toilet_umum", "public_toilet"]),
+
+    // fallback lain (format lama)
+    toiletsAny,
+    raw?.toilets,
     fac?.toilets,
     roomByKeys(roomsByType, ["toiletgurusiswa", "toilets", "toilet"])
   );
@@ -1098,33 +1057,12 @@ const SchoolDetailSd = ({ schoolData }) => {
   const toiletLight = pickMaxNumber(toiletOverall?.light_damage, toiletOverall?.rusak_ringan, toiletOverall?.rusakRingan, 0);
   const toiletMod = pickMaxNumber(toiletOverall?.moderate_damage, toiletOverall?.rusak_sedang, 0);
   const toiletHeavy = pickMaxNumber(toiletOverall?.heavy_damage, toiletOverall?.rusak_berat, 0);
-  const toiletTotalDamage = pickMaxNumber(toiletOverall?.total_damage, toiletOverall?.rusak_total, 0);
-
-  // Detail toilet guru/siswa
-  const teachersToilet = normalizeToilet(
-    pickFirstObj(
-      PR?.teachers_toilet,
-      PR?.toilet_guru,
-      PR?.toiletGuru,
-      raw?.teachers_toilet,
-      fac?.teachers_toilet,
-      BASE?.teachers_toilet
-    )
+  const toiletTotalDamage = pickMaxNumber(
+    toiletOverall?.total_damage,
+    toiletOverall?.rusak_total,
+    toiletOverall?.rusakTotal,
+    0
   );
-  const studentsToilet = normalizeToilet(
-    pickFirstObj(
-      PR?.students_toilet,
-      PR?.toilet_siswa,
-      PR?.toiletSiswa,
-      raw?.students_toilet,
-      fac?.students_toilet,
-      BASE?.students_toilet
-    )
-  );
-  const toiletGuruMale = normalizeRoom(teachersToilet.male);
-  const toiletGuruFemale = normalizeRoom(teachersToilet.female);
-  const toiletSiswaMale = normalizeRoom(studentsToilet.male);
-  const toiletSiswaFemale = normalizeRoom(studentsToilet.female);
 
   // Furniture
   const furnitureRoot = isObj(PR?.furniture)
@@ -1584,7 +1522,7 @@ const SchoolDetailSd = ({ schoolData }) => {
 
       {/* DATA SISWA (WADAH META) */}
       <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Rincian Siswa (Meta)</h2>
+        <h2 className={styles.sectionTitle}>Rincian Siswa</h2>
         <div className={styles.card}>
           <div className={styles.dataRow}>
             <span>Siswa Laki-laki (Total): {siswaL}</span>
@@ -1894,32 +1832,6 @@ const SchoolDetailSd = ({ schoolData }) => {
         </div>
       </div>
 
-      {/* LAB */}
-      <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Laboratorium (Jika Ada)</h2>
-        <div className={styles.card}>
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Lab Komputer</h3>
-            <div className={styles.dataRow}><span>Jumlah: {labKomputer.total_all}</span></div>
-            <div className={styles.dataRow}><span>Baik: {labKomputer.good}</span></div>
-            <div className={styles.dataRow}><span>Rusak Ringan: {labKomputer.light_damage}</span></div>
-            <div className={styles.dataRow}><span>Rusak Sedang: {labKomputer.moderate_damage}</span></div>
-            <div className={styles.dataRow}><span>Rusak Berat: {labKomputer.heavy_damage}</span></div>
-            <div className={styles.dataRow}><span>Rusak Total: {labKomputer.total_damage}</span></div>
-          </div>
-
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Lab IPA</h3>
-            <div className={styles.dataRow}><span>Jumlah: {labIpa.total_all}</span></div>
-            <div className={styles.dataRow}><span>Baik: {labIpa.good}</span></div>
-            <div className={styles.dataRow}><span>Rusak Ringan: {labIpa.light_damage}</span></div>
-            <div className={styles.dataRow}><span>Rusak Sedang: {labIpa.moderate_damage}</span></div>
-            <div className={styles.dataRow}><span>Rusak Berat: {labIpa.heavy_damage}</span></div>
-            <div className={styles.dataRow}><span>Rusak Total: {labIpa.total_damage}</span></div>
-          </div>
-        </div>
-      </div>
-
       {/* TOILET */}
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>Toilet (Ringkasan)</h2>
@@ -1941,42 +1853,6 @@ const SchoolDetailSd = ({ schoolData }) => {
           </div>
           <div className={styles.dataRow}>
             <span>Rusak Total: {toiletTotalDamage}</span>
-          </div>
-
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Toilet Guru (Detail)</h3>
-            <div className={styles.dataRow}>
-              <span>
-                Laki-laki — Total: {toiletGuruMale.total_all} | Baik: {toiletGuruMale.good} | Ringan:{" "}
-                {toiletGuruMale.light_damage} | Sedang: {toiletGuruMale.moderate_damage} | Berat:{" "}
-                {toiletGuruMale.heavy_damage} | Total Rusak: {toiletGuruMale.total_damage}
-              </span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>
-                Perempuan — Total: {toiletGuruFemale.total_all} | Baik: {toiletGuruFemale.good} | Ringan:{" "}
-                {toiletGuruFemale.light_damage} | Sedang: {toiletGuruFemale.moderate_damage} | Berat:{" "}
-                {toiletGuruFemale.heavy_damage} | Total Rusak: {toiletGuruFemale.total_damage}
-              </span>
-            </div>
-          </div>
-
-          <div className={styles.subsection}>
-            <h3 className={styles.subsectionTitle}>Toilet Siswa (Detail)</h3>
-            <div className={styles.dataRow}>
-              <span>
-                Laki-laki — Total: {toiletSiswaMale.total_all} | Baik: {toiletSiswaMale.good} | Ringan:{" "}
-                {toiletSiswaMale.light_damage} | Sedang: {toiletSiswaMale.moderate_damage} | Berat:{" "}
-                {toiletSiswaMale.heavy_damage} | Total Rusak: {toiletSiswaMale.total_damage}
-              </span>
-            </div>
-            <div className={styles.dataRow}>
-              <span>
-                Perempuan — Total: {toiletSiswaFemale.total_all} | Baik: {toiletSiswaFemale.good} | Ringan:{" "}
-                {toiletSiswaFemale.light_damage} | Sedang: {toiletSiswaFemale.moderate_damage} | Berat:{" "}
-                {toiletSiswaFemale.heavy_damage} | Total Rusak: {toiletSiswaFemale.total_damage}
-              </span>
-            </div>
           </div>
         </div>
       </div>

@@ -78,32 +78,49 @@ const _normKey = (k) =>
     .trim()
     .replace(/[^a-z0-9]+/g, "");
 
+/** Deteksi gender L/P dari key datar */
 const _inferGenderLP = (rawKey) => {
   const s = String(rawKey ?? "").toLowerCase();
-  // prioritas: token terpisah / suffix umum
   if (/(^|[_\-\s])(l|lk)([_\-\s]|$)/.test(s)) return "l";
   if (/(^|[_\-\s])(p|pr)([_\-\s]|$)/.test(s)) return "p";
   if (/lakilaki|laki/.test(s)) return "l";
   if (/perempuan/.test(s)) return "p";
 
   const ns = _normKey(rawKey);
-  // suffix digit + l/p (mis: tka1l, tkbl, kbp)
   if (/(?:\d+)?l$/.test(ns)) return "l";
   if (/(?:\d+)?p$/.test(ns)) return "p";
   return null;
 };
 
-const _inferLayananPaud = (rawKey) => {
+/** Canonical key layanan PAUD untuk output (tk_a, tk_b, kb, sps_tpa) */
+const _canonLayananPaud = (rawKey) => {
   const nk0 = _normKey(rawKey);
-  // buang suffix gender umum supaya "tkal" tidak dianggap bagian layanan
+
+  // buang suffix gender umum supaya "tkal/tkap" tidak mengganggu
   const nk = nk0.replace(/(lakilaki|laki|perempuan|pr|lk|l|p)$/, "");
 
-  // urutan penting agar "tkb" tidak ketangkap "kb"
-  if (nk.includes("tka") || nk.includes("tka")) return "tk_a";
-  if (nk.includes("tkb") || nk.includes("tkb")) return "tk_b";
-  if (nk.includes("spstpa") || nk.includes("sps") || nk.includes("tpa")) return "sps_tpa";
-  // kb harus terakhir (karena tkb mengandung "kb")
-  if (nk === "kb" || nk.includes("kelompokbermain") || nk.includes("kelompok") || nk.includes("kb")) return "kb";
+  // urutan penting (tkb mengandung "kb")
+  if (nk === "tka" || nk.includes("tka") || nk === "tka1" || nk === "tka2") return "tk_a";
+  if (nk === "tkb" || nk.includes("tkb") || nk === "tkb1" || nk === "tkb2") return "tk_b";
+
+  if (
+    nk.includes("spstpa") ||
+    nk.includes("spstp") ||
+    nk.includes("spstpa") ||
+    nk.includes("sps") ||
+    nk.includes("tpa")
+  )
+    return "sps_tpa";
+
+  if (nk === "kba" || nk === "kb" || nk.includes("kelompokbermain") || nk.includes("kelompok") || nk.endsWith("kb"))
+    return "kb";
+
+  // sudah canonical?
+  if (nk === "tka" || nk === "tka") return "tk_a";
+  if (nk === "tkb" || nk === "tkb") return "tk_b";
+  if (nk === "tka" || nk === "tk_a" || nk.includes("tka")) return "tk_a";
+  if (nk === "tkb" || nk === "tk_b" || nk.includes("tkb")) return "tk_b";
+  if (nk === "spstpa" || nk === "sps_tpa") return "sps_tpa";
 
   return null;
 };
@@ -111,10 +128,9 @@ const _inferLayananPaud = (rawKey) => {
 const _scanFlatLP = (obj, out) => {
   if (!isObj(obj)) return out;
   for (const [k, v] of Object.entries(obj)) {
-    const layanan = _inferLayananPaud(k);
+    const layanan = _canonLayananPaud(k);
     if (!layanan) continue;
 
-    // hanya untuk yang benar-benar LP (ada gender)
     const g = _inferGenderLP(k);
     if (!g) continue;
 
@@ -129,10 +145,9 @@ const _scanFlatABK = (obj, out) => {
     const nk = _normKey(k);
     if (!nk.includes("abk")) continue;
 
-    const layanan = _inferLayananPaud(k);
+    const layanan = _canonLayananPaud(k);
     if (!layanan) continue;
 
-    // ABK bisa angka atau {l,p,total}
     if (isObj(v)) {
       const total = num(v.total ?? (num(v.l, 0) + num(v.p, 0)), 0);
       out[layanan] = out[layanan] + total;
@@ -149,7 +164,7 @@ const _scanFlatRombel = (obj, out) => {
     const nk = _normKey(k);
     if (!nk.includes("rombel") && !nk.includes("rombonganbelajar")) continue;
 
-    const layanan = _inferLayananPaud(k);
+    const layanan = _canonLayananPaud(k);
     if (!layanan) continue;
 
     out[layanan] = out[layanan] + num(v, 0);
@@ -241,19 +256,18 @@ const createPaudOutputTemplate = () => ({
         kelebihan_kelas: 0,
         ruang_kelas_tambahan: 0,
       },
-      lahan_tersedia: null, // boolean/Ya-Tidak
+      lahan_tersedia: null,
     },
 
+    // ✅ DIHAPUS: lab_umum dan ruang_tu
     ruangPenunjang: {
       perpustakaan: ruangItem0(),
-      lab_umum: ruangItem0(),
       ruang_guru: ruangItem0(),
       ruang_kepala_sekolah: ruangItem0(),
-      ruang_tu: ruangItem0(),
       ruang_uks: ruangItem0(),
       toilet_umum: ruangItem0(),
       rumah_dinas: ruangItem0(),
-      ape: ruangItem0(), // APE khusus PAUD/TK
+      ape: ruangItem0(),
     },
 
     perabotDanAlat: {
@@ -262,7 +276,7 @@ const createPaudOutputTemplate = () => ({
       papan_tulis: baikRusak0(),
       komputer: 0,
       chromebook: 0,
-      kondisi_peralatan_rumah_tangga: null, // Tidak memiliki/baik/harus diganti/perlu rehabilitasi
+      kondisi_peralatan_rumah_tangga: null,
     },
 
     rencanaKegiatanFisik: {
@@ -313,9 +327,11 @@ const normalizeKondisi5 = (src) => {
   const rusak_sedang = num(o.rusak_sedang ?? o.moderate_damage ?? o.rusakSedang, 0);
   const rusak_berat = num(o.rusak_berat ?? o.heavy_damage ?? o.rusakBerat, 0);
   const rusak_total = num(o.rusak_total ?? o.total_damage ?? o.rusakTotal, 0);
-  const total =
-    num(o.total ?? o.total_all, NaN) ||
-    (baik + rusak_ringan + rusak_sedang + rusak_berat + rusak_total);
+
+  const rawTotal = num(o.total ?? o.total_all, NaN);
+  const total = Number.isFinite(rawTotal)
+    ? rawTotal
+    : baik + rusak_ringan + rusak_sedang + rusak_berat + rusak_total;
 
   return { baik, rusak_ringan, rusak_sedang, rusak_berat, rusak_total, total };
 };
@@ -324,51 +340,102 @@ const normalizeBaikRusak = (src) => {
   const o = isObj(src) ? src : {};
   const baik = num(o.baik ?? o.good, 0);
   const rusak = num(o.rusak ?? o.broken, 0);
-  const total = num(o.total ?? o.total_all, baik + rusak);
+
+  const rawTotal = num(o.total ?? o.total_all, NaN);
+  const total = Number.isFinite(rawTotal) ? rawTotal : baik + rusak;
+
   return { baik, rusak, total };
 };
 
 const normalizeRuangItem = (src) => {
   const o = isObj(src) ? src : {};
   const kondisi = normalizeKondisi5(o.kondisi ?? o.condition ?? o);
-  const jumlah = num(o.jumlah ?? o.count ?? o.total ?? o.total_all, kondisi.total);
+  const rawJumlah = num(o.jumlah ?? o.count ?? o.total ?? o.total_all, NaN);
+  const jumlah = Number.isFinite(rawJumlah) ? rawJumlah : kondisi.total;
   return { jumlah, kondisi };
 };
 
+/* =========================================================
+   ✅ READER PAUD (DIPERKUAT UNTUK FORMAT META ANDA)
+========================================================= */
+
+/** Ambil {l,p} dari value yang mungkin: {l,p} / {male,female} / variasi key */
+const _readLPValue = (v) => {
+  if (!isObj(v)) {
+    // jika hanya angka total (tanpa split), tetap tampil minimal di "l"
+    return { l: num(v, 0), p: 0 };
+  }
+
+  const l = num(
+    v.l ??
+      v.L ??
+      v.lk ??
+      v.lkaki ??
+      v.laki ??
+      v.laki_laki ??
+      v.lakiLaki ??
+      v.male ??
+      v.pria ??
+      v.laki2 ??
+      0,
+    0
+  );
+
+  const p = num(
+    v.p ??
+      v.P ??
+      v.pr ??
+      v.perempuan ??
+      v.wanita ??
+      v.female ??
+      v.cewe ??
+      v.perem ??
+      0,
+    0
+  );
+
+  return { l, p };
+};
+
 const readPaudServicesLP = (meta) => {
-  // sumber yang mungkin:
-  // - meta.siswa (kunci: tk_a, tk_b, kb, sps_tpa) => {l,p}
-  // - meta.students.services (kunci serupa) => {male/female}
-  // - fallback "label datar" (regex fleksibel) di root meta / folder lain
-  const out = {
-    tk_a: lp0(),
-    tk_b: lp0(),
-    kb: lp0(),
-    sps_tpa: lp0(),
-  };
+  const out = { tk_a: lp0(), tk_b: lp0(), kb: lp0(), sps_tpa: lp0() };
 
-  const siswa1 = isObj(meta?.siswa) ? meta.siswa : null;
-  const siswa2 = isObj(meta?.students?.services) ? meta.students.services : null;
+  const sources = [
+    meta?.siswa,
+    meta?.students?.services,
+    meta?.students?.siswa,
+    meta?.pesertaDidik,
+  ];
 
-  const pullLP = (obj, key) => {
-    const row = isObj(obj?.[key]) ? obj[key] : {};
-    const l = num(row.l ?? row.male ?? row.lk ?? row.laki ?? row.laki_laki, 0);
-    const p = num(row.p ?? row.female ?? row.pr ?? row.perempuan, 0);
-    return { l, p };
-  };
+  let anyStructured = false;
 
-  if (siswa1) {
-    out.tk_a = pullLP(siswa1, "tk_a");
-    out.tk_b = pullLP(siswa1, "tk_b");
-    out.kb = pullLP(siswa1, "kb");
-    out.sps_tpa = pullLP(siswa1, "sps_tpa");
-  } else if (siswa2) {
-    out.tk_a = pullLP(siswa2, "tk_a");
-    out.tk_b = pullLP(siswa2, "tk_b");
-    out.kb = pullLP(siswa2, "kb");
-    out.sps_tpa = pullLP(siswa2, "sps_tpa");
-  } else {
-    // fallback: label datar (mis: tka_L / tk_a_p / kb_l / sps_tpa_p / dll)
+  for (const src of sources) {
+    if (!isObj(src)) continue;
+
+    for (const [k, v] of Object.entries(src)) {
+      const layanan = _canonLayananPaud(k);
+      if (!layanan) continue;
+
+      const lp = _readLPValue(v);
+      out[layanan] = {
+        l: Number.isFinite(lp.l) ? lp.l : 0,
+        p: Number.isFinite(lp.p) ? lp.p : 0,
+      };
+      anyStructured = true;
+    }
+  }
+
+  const sumAll =
+    num(out.tk_a.l, 0) +
+    num(out.tk_a.p, 0) +
+    num(out.tk_b.l, 0) +
+    num(out.tk_b.p, 0) +
+    num(out.kb.l, 0) +
+    num(out.kb.p, 0) +
+    num(out.sps_tpa.l, 0) +
+    num(out.sps_tpa.p, 0);
+
+  if (!anyStructured || sumAll === 0) {
     _scanFlatLP(meta, out);
     _scanFlatLP(meta?.students, out);
     _scanFlatLP(meta?.students?.services, out);
@@ -378,33 +445,36 @@ const readPaudServicesLP = (meta) => {
 };
 
 const readPaudAbkPerLayanan = (meta) => {
-  // ABK per layanan (sesuai spek: tidak wajib dipisah L/P)
-  // sumber yang mungkin:
-  // - meta.siswaAbk.{tk_a/tk_b/kb/sps_tpa} => angka atau {l,p}
-  // - meta.students.abk.services => angka
-  // - fallback "label datar" yang memuat token "abk" (mis: abk_tka, abk_tk_a, dll)
   const out = { tk_a: 0, tk_b: 0, kb: 0, sps_tpa: 0 };
 
-  const abk1 = isObj(meta?.siswaAbk) ? meta.siswaAbk : null;
-  const abk2 = isObj(meta?.students?.abk?.services) ? meta.students.abk.services : null;
+  const sources = [
+    meta?.siswaAbk,
+    meta?.siswa_abk,
+    meta?.students?.abk?.services,
+    meta?.students?.abk,
+  ];
 
-  const pullABK = (obj, key) => {
-    const v = obj?.[key];
+  let anyStructured = false;
+
+  const readTotalABK = (v) => {
     if (isObj(v)) return num(v.total ?? (num(v.l, 0) + num(v.p, 0)), 0);
     return num(v, 0);
   };
 
-  if (abk1) {
-    out.tk_a = pullABK(abk1, "tk_a");
-    out.tk_b = pullABK(abk1, "tk_b");
-    out.kb = pullABK(abk1, "kb");
-    out.sps_tpa = pullABK(abk1, "sps_tpa");
-  } else if (abk2) {
-    out.tk_a = pullABK(abk2, "tk_a");
-    out.tk_b = pullABK(abk2, "tk_b");
-    out.kb = pullABK(abk2, "kb");
-    out.sps_tpa = pullABK(abk2, "sps_tpa");
-  } else {
+  for (const src of sources) {
+    if (!isObj(src)) continue;
+
+    for (const [k, v] of Object.entries(src)) {
+      const layanan = _canonLayananPaud(k);
+      if (!layanan) continue;
+
+      out[layanan] = readTotalABK(v);
+      anyStructured = true;
+    }
+  }
+
+  const sum = num(out.tk_a, 0) + num(out.tk_b, 0) + num(out.kb, 0) + num(out.sps_tpa, 0);
+  if (!anyStructured || sum === 0) {
     _scanFlatABK(meta, out);
     _scanFlatABK(meta?.students, out);
   }
@@ -413,38 +483,51 @@ const readPaudAbkPerLayanan = (meta) => {
 };
 
 const readPaudRombel = (meta) => {
-  // sumber yang mungkin:
-  // - meta.rombel.{tk_a,tk_b,kb,sps_tpa,total}
-  // - meta.rombels atau meta.students.rombels (variasi)
-  // - fallback "label datar" (mis: rombel_tka, rombel_tk_a, dll)
   const out = { tk_a: 0, tk_b: 0, kb: 0, sps_tpa: 0, total: 0 };
 
-  const r1 = isObj(meta?.rombel) ? meta.rombel : null;
-  const r2 = isObj(meta?.rombels) ? meta.rombels : null;
+  const sources = [
+    meta?.rombel,
+    meta?.rombels,
+    meta?.rombonganBelajar,
+    meta?.students?.rombels,
+    meta?.students?.rombel,
+  ];
 
-  const pull = (obj, key) => num(obj?.[key], 0);
+  let anyStructured = false;
 
-  const src = r1 || r2;
-  if (src) {
-    out.tk_a = pull(src, "tk_a");
-    out.tk_b = pull(src, "tk_b");
-    out.kb = pull(src, "kb");
-    out.sps_tpa = pull(src, "sps_tpa");
-    out.total = pull(src, "total") || (out.tk_a + out.tk_b + out.kb + out.sps_tpa);
-  } else {
-    // fallback: label datar
+  for (const src of sources) {
+    if (!isObj(src)) continue;
+
+    for (const [k, v] of Object.entries(src)) {
+      if (_normKey(k) === "total") {
+        out.total = num(v, out.total);
+        anyStructured = true;
+        continue;
+      }
+
+      const layanan = _canonLayananPaud(k);
+      if (!layanan) continue;
+
+      out[layanan] = num(v, 0);
+      anyStructured = true;
+    }
+  }
+
+  if (!Number.isFinite(out.total) || out.total === 0) {
+    out.total = num(out.tk_a, 0) + num(out.tk_b, 0) + num(out.kb, 0) + num(out.sps_tpa, 0);
+  }
+
+  const sum = num(out.total, 0);
+  if (!anyStructured || sum === 0) {
     _scanFlatRombel(meta, out);
     _scanFlatRombel(meta?.students, out);
-
-    out.total = out.tk_a + out.tk_b + out.kb + out.sps_tpa;
+    out.total = num(out.tk_a, 0) + num(out.tk_b, 0) + num(out.kb, 0) + num(out.sps_tpa, 0);
   }
 
   return out;
 };
 
-const readPTK = (meta, schoolData) => {
-  // sumber utama: meta.guru (yang Anda pakai di sistem)
-  // fallback: meta.teachers
+const readPTK = (meta) => {
   const g1 = isObj(meta?.guru) ? meta.guru : null;
   const g2 = isObj(meta?.teachers) ? meta.teachers : null;
   const g = g1 || g2 || {};
@@ -460,21 +543,12 @@ const readPTK = (meta, schoolData) => {
 };
 
 const readSarpras = (meta, schoolData) => {
-  // sumber yang mungkin:
-  // - meta.prasarana (punya Anda)
-  // - schoolData.facilities (punya Anda)
-  // ✅ FIX KATEGORI IV: luas_tanah & luas_bangunan ada di root meta
-  // ✅ FIX KATEGORI XV: kegiatanFisik.rehab_unit & kegiatanFisik.pembangunan_unit
   const pr1 = isObj(meta?.prasarana) ? meta.prasarana : {};
   const fac = isObj(schoolData?.facilities) ? schoolData.facilities : {};
 
   const ukuran = isObj(pr1?.ukuran) ? pr1.ukuran : isObj(fac?.ukuran) ? fac.ukuran : {};
-  const gedungJumlah = num(
-    pickFirst(pr1, [["gedung", "jumlah"]], undefined),
-    num(pickFirst(fac, [["building_count"]], 0), 0)
-  );
+  const gedungJumlah = num(pickFirst(pr1, [["gedung", "jumlah"]], undefined), num(pickFirst(fac, [["building_count"]], 0), 0));
 
-  // ruang kelas (total, kondisi, kebutuhan, lahan)
   const rk = isObj(pr1?.ruangKelas) ? pr1.ruangKelas : isObj(pr1?.classrooms) ? pr1.classrooms : {};
   const rk2 = isObj(fac?.classrooms) ? fac.classrooms : {};
 
@@ -486,7 +560,6 @@ const readSarpras = (meta, schoolData) => {
   const ruangKelasKondisi = normalizeKondisi5(rk.kondisi ?? rk.condition ?? rk);
   const ruangKelasKondisi2 = normalizeKondisi5(rk2.kondisi ?? rk2.condition ?? rk2);
 
-  // gabungkan kondisi yang paling besar per field
   const mergeMaxKondisi = (a, b) => ({
     baik: Math.max(num(a.baik, 0), num(b.baik, 0)),
     rusak_ringan: Math.max(num(a.rusak_ringan, 0), num(b.rusak_ringan, 0)),
@@ -503,16 +576,14 @@ const readSarpras = (meta, schoolData) => {
 
   const lahan = rk.lahan_tersedia ?? rk.lahan ?? rk.land_available ?? rk2.land_available ?? rk2.lahan ?? null;
 
-  // ruang penunjang
   const rooms = isObj(pr1?.rooms) ? pr1.rooms : {};
   const rooms2 = isObj(fac?.rooms) ? fac.rooms : {};
 
-  // APE khusus PAUD/TK
   const ape = rooms.ape ?? rooms2.ape ?? pr1.ape ?? fac.ape ?? null;
 
+  // ✅ DIHAPUS: lab_umum dan ruang_tu
   const ruangPenunjang = {
     perpustakaan: normalizeRuangItem(rooms.library ?? rooms.perpustakaan ?? rooms2.library ?? rooms2.perpustakaan),
-    lab_umum: normalizeRuangItem(rooms.lab_umum ?? rooms.lab ?? rooms2.lab_umum ?? rooms2.lab),
     ruang_guru: normalizeRuangItem(rooms.teacher_room ?? rooms.ruang_guru ?? rooms2.teacher_room ?? rooms2.ruang_guru),
     ruang_kepala_sekolah: normalizeRuangItem(
       rooms.headmaster_room ??
@@ -521,7 +592,6 @@ const readSarpras = (meta, schoolData) => {
         rooms2.headmaster_room ??
         rooms2.ruang_kepala
     ),
-    ruang_tu: normalizeRuangItem(rooms.tu_room ?? rooms.ruang_tu ?? rooms2.tu_room ?? rooms2.ruang_tu),
     ruang_uks: normalizeRuangItem(rooms.uks_room ?? rooms.ukS ?? rooms.ruang_uks ?? rooms2.uks_room ?? rooms2.ruang_uks),
     toilet_umum: normalizeRuangItem(rooms.toilets ?? rooms.toilet_umum ?? rooms2.toilets ?? rooms2.toilet_umum),
     rumah_dinas: normalizeRuangItem(
@@ -530,27 +600,12 @@ const readSarpras = (meta, schoolData) => {
     ape: normalizeRuangItem(ape),
   };
 
-  // perabot & alat
   const furniture = isObj(pr1?.furniture) ? pr1.furniture : {};
   const furniture2 = isObj(fac?.furniture) ? fac.furniture : {};
   const mebeulair = isObj(pr1?.mebeulair) ? pr1.mebeulair : {};
 
-  const meja = normalizeBaikRusak(
-    furniture.tables ??
-      furniture.meja ??
-      furniture2.tables ??
-      furniture2.meja ??
-      mebeulair.tables ??
-      mebeulair.meja
-  );
-  const kursi = normalizeBaikRusak(
-    furniture.chairs ??
-      furniture.kursi ??
-      furniture2.chairs ??
-      furniture2.kursi ??
-      mebeulair.chairs ??
-      mebeulair.kursi
-  );
+  const meja = normalizeBaikRusak(furniture.tables ?? furniture.meja ?? furniture2.tables ?? furniture2.meja ?? mebeulair.tables ?? mebeulair.meja);
+  const kursi = normalizeBaikRusak(furniture.chairs ?? furniture.kursi ?? furniture2.chairs ?? furniture2.kursi ?? mebeulair.chairs ?? mebeulair.kursi);
   const papan = normalizeBaikRusak(
     furniture.whiteboard ??
       furniture.board ??
@@ -583,54 +638,24 @@ const readSarpras = (meta, schoolData) => {
     meta?.kelembagaan?.alat_rumah_tangga ??
     null;
 
-  // ✅ rencana kegiatan fisik (fix rehab_unit & pembangunan_unit)
-  const keg = isObj(meta?.kegiatanFisik)
-    ? meta.kegiatanFisik
-    : isObj(meta?.kegiatan_fisik)
-    ? meta.kegiatan_fisik
-    : {};
+  const keg = isObj(meta?.kegiatanFisik) ? meta.kegiatanFisik : isObj(meta?.kegiatan_fisik) ? meta.kegiatan_fisik : {};
 
   const rencana = {
-    rehab_ruang_kelas: num(
-      keg.rehab_unit ??
-        keg.rehabUnit ??
-        keg.rehabRuangKelas ??
-        keg.rehab_ruang_kelas ??
-        keg.rehabRuang ??
-        0,
-      0
-    ),
+    rehab_ruang_kelas: num(keg.rehab_unit ?? keg.rehabUnit ?? keg.rehabRuangKelas ?? keg.rehab_ruang_kelas ?? keg.rehabRuang ?? 0, 0),
     pembangunan_rkb: num(
-      keg.pembangunan_unit ??
-        keg.pembangunanUnit ??
-        keg.pembangunanRKB ??
-        keg.pembangunan_rkb ??
-        keg.build_rkb ??
-        0,
+      keg.pembangunan_unit ?? keg.pembangunanUnit ?? keg.pembangunanRKB ?? keg.pembangunan_rkb ?? keg.build_rkb ?? 0,
       0
     ),
     rehab_toilet: num(keg.rehabToilet ?? keg.rehab_toilet ?? 0, 0),
     pembangunan_toilet: num(keg.pembangunanToilet ?? keg.pembangunan_toilet ?? keg.build_toilet ?? 0, 0),
   };
 
-  // ✅ FIX luas_tanah & luas_bangunan: prioritas root meta
-  const luasTanah = pickFirst(
-    meta,
-    [["luas_tanah"], ["luasTanah"], ["luas_tanah_m2"], ["luasTanahM2"]],
-    undefined
-  );
-  const luasBangunan = pickFirst(
-    meta,
-    [["luas_bangunan"], ["luasBangunan"], ["luas_bangunan_m2"], ["luasBangunanM2"]],
-    undefined
-  );
+  const luasTanah = pickFirst(meta, [["luas_tanah"], ["luasTanah"], ["luas_tanah_m2"], ["luasTanahM2"]], undefined);
+  const luasBangunan = pickFirst(meta, [["luas_bangunan"], ["luasBangunan"], ["luas_bangunan_m2"], ["luasBangunanM2"]], undefined);
 
-  const finalLuasTanah =
-    luasTanah !== undefined ? (Number.isFinite(Number(luasTanah)) ? Number(luasTanah) : luasTanah) : undefined;
+  const finalLuasTanah = luasTanah !== undefined ? (Number.isFinite(Number(luasTanah)) ? Number(luasTanah) : luasTanah) : undefined;
   const finalLuasBangunan =
-    luasBangunan !== undefined
-      ? (Number.isFinite(Number(luasBangunan)) ? Number(luasBangunan) : luasBangunan)
-      : undefined;
+    luasBangunan !== undefined ? (Number.isFinite(Number(luasBangunan)) ? Number(luasBangunan) : luasBangunan) : undefined;
 
   return {
     ukuranBangunan: {
@@ -675,16 +700,8 @@ const readKelembagaan = (meta) => {
   const pembinaan = pickFirst(ke1, [["pembinaan"]], pickFirst(ke2, [["administration", "pembinaan"]], null));
   const asesmen = pickFirst(ke1, [["asesmen"]], pickFirst(ke2, [["administration", "asesmen"]], null));
 
-  const menyelenggarakan = pickFirst(
-    ke1,
-    [["menyelenggarakanBelajar"]],
-    pickFirst(ke2, [["delivery_status", "menyelenggarakan_belajar"]], null)
-  );
-  const melaksanakan = pickFirst(
-    ke1,
-    [["melaksanakanRekomendasi"]],
-    pickFirst(ke2, [["delivery_status", "melaksanakan_rekomendasi"]], null)
-  );
+  const menyelenggarakan = pickFirst(ke1, [["menyelenggarakanBelajar"]], pickFirst(ke2, [["delivery_status", "menyelenggarakan_belajar"]], null));
+  const melaksanakan = pickFirst(ke1, [["melaksanakanRekomendasi"]], pickFirst(ke2, [["delivery_status", "melaksanakan_rekomendasi"]], null));
   const siap = pickFirst(ke1, [["siapDievaluasi"]], pickFirst(ke2, [["delivery_status", "siap_dievaluasi"]], null));
 
   const bop1 = isObj(ke1?.bop) ? ke1.bop : {};
@@ -717,46 +734,23 @@ const readKelembagaan = (meta) => {
 };
 
 const readLulusanPaud = (meta) => {
-  // sumber yang mungkin:
-  // - meta.lanjut.dalamKab / meta.lanjut.luarKab (dengan kunci tujuan)
-  // - meta.graduates.paud (opsional)
-  // ✅ FIX KATEGORI XIV: gunakan root meta: siswaLanjutDalamKab & siswaLanjutLuarKab (prioritas)
   const lanjut = isObj(meta?.lanjut) ? meta.lanjut : {};
-  const grad = isObj(meta?.graduates) ? meta.graduates : {};
+  const dalamLegacy = isObj(lanjut?.dalamKab) ? lanjut.dalamKab : {};
+  const luarLegacy = isObj(lanjut?.luarKab) ? lanjut.luarKab : {};
 
-  const dalamKab = isObj(lanjut?.dalamKab) ? lanjut.dalamKab : {};
-  const luarKab = isObj(lanjut?.luarKab) ? lanjut.luarKab : {};
+  const dalamRoot = pickFirst(meta, [["siswaLanjutDalamKab"], ["siswa_lanjut_dalam_kab"], ["siswaLanjutDalamKabupaten"]], {});
+  const luarRoot = pickFirst(meta, [["siswaLanjutLuarKab"], ["siswa_lanjut_luar_kab"], ["siswaLanjutLuarKabupaten"]], {});
 
-  const paudGrad = isObj(grad?.paud) ? grad.paud : {};
+  const sdDalam = isObj(dalamRoot)
+    ? num(dalamRoot.sd ?? dalamRoot.ke_sd ?? dalamRoot.to_sd ?? dalamLegacy.sd ?? dalamLegacy.ke_sd ?? 0, 0)
+    : num(dalamRoot ?? dalamLegacy.sd ?? 0, 0);
 
-  // SD: prioritas root meta (jika ada)
-  const sdDalam = num(
-    meta?.siswaLanjutDalamKab ??
-      meta?.siswa_lanjut_dalam_kab ??
-      meta?.siswaLanjutDalamKabupaten ??
-      dalamKab.sd ??
-      dalamKab.ke_sd ??
-      paudGrad?.to_sd?.in ??
-      paudGrad?.to_sd?.dalam ??
-      0,
-    0
-  );
+  const sdLuar = isObj(luarRoot)
+    ? num(luarRoot.sd ?? luarRoot.ke_sd ?? luarRoot.to_sd ?? luarLegacy.sd ?? luarLegacy.ke_sd ?? 0, 0)
+    : num(luarRoot ?? luarLegacy.sd ?? 0, 0);
 
-  const sdLuar = num(
-    meta?.siswaLanjutLuarKab ??
-      meta?.siswa_lanjut_luar_kab ??
-      meta?.siswaLanjutLuarKabupaten ??
-      luarKab.sd ??
-      luarKab.ke_sd ??
-      paudGrad?.to_sd?.out ??
-      paudGrad?.to_sd?.luar ??
-      0,
-    0
-  );
-
-  // MI: tetap gunakan jalur lama (karena root meta yang Anda sebut tidak memisahkan MI)
-  const miDalam = num(dalamKab.mi ?? dalamKab.ke_mi ?? paudGrad?.to_mi?.in ?? paudGrad?.to_mi?.dalam ?? 0, 0);
-  const miLuar = num(luarKab.mi ?? luarKab.ke_mi ?? paudGrad?.to_mi?.out ?? paudGrad?.to_mi?.luar ?? 0, 0);
+  const miDalam = isObj(dalamRoot) ? num(dalamRoot.mi ?? dalamRoot.ke_mi ?? dalamLegacy.mi ?? dalamLegacy.ke_mi ?? 0, 0) : num(dalamLegacy.mi ?? 0, 0);
+  const miLuar = isObj(luarRoot) ? num(luarRoot.mi ?? luarRoot.ke_mi ?? luarLegacy.mi ?? luarLegacy.ke_mi ?? 0, 0) : num(luarLegacy.mi ?? 0, 0);
 
   return {
     lanjut_ke_sd: { dalam_kab: sdDalam, luar_kab: sdLuar },
@@ -773,10 +767,8 @@ const buildWadahPaud = (schoolData) => {
   const detailsAsMeta = isObj(schoolData?.details) && !isObj(schoolData?.details?.meta) ? schoolData.details : {};
 
   const mergedMeta = mergeDeep(rawMeta, mergeDeep(detailsAsMeta, detailsMeta));
-
   const base = createPaudOutputTemplate();
 
-  // ✅ FIX KATEGORI I: koordinat prioritas dari META.location_detail.extra.latitude/longitude
   const lat = (() => {
     const vMeta = pickFirst(
       mergedMeta,
@@ -792,7 +784,6 @@ const buildWadahPaud = (schoolData) => {
       ],
       undefined
     );
-
     const v = vMeta ?? schoolData?.lat ?? schoolData?.latitude;
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
@@ -813,7 +804,6 @@ const buildWadahPaud = (schoolData) => {
       ],
       undefined
     );
-
     const v = vMeta ?? schoolData?.lng ?? schoolData?.longitude;
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
@@ -825,26 +815,25 @@ const buildWadahPaud = (schoolData) => {
     statusSekolah: safeText(schoolData?.status ?? schoolData?.status_sekolah ?? "", ""),
     kecamatan: safeText(schoolData?.kecamatan ?? schoolData?.kecamatan_name ?? mergedMeta?.kecamatan ?? "", ""),
     desa: safeText(schoolData?.desa ?? schoolData?.village_name ?? mergedMeta?.desa ?? "", ""),
-    alamat: safeText(getData(schoolData, ["address"], ""), ""),
+    alamat: safeText(
+      pickFirst(
+        schoolData,
+        [["address"], ["alamat"]],
+        pickFirst(mergedMeta, [["alamat"], ["address"]], getData(schoolData, ["address"], ""))
+      ),
+      ""
+    ),
     lat,
     lng,
   };
 
-  // siswa & rombel
   const siswa = readPaudServicesLP(mergedMeta);
   const abk = readPaudAbkPerLayanan(mergedMeta);
   const rombel = readPaudRombel(mergedMeta);
 
-  // PTK
-  const ptk = readPTK(mergedMeta, schoolData);
-
-  // Sarpras
+  const ptk = readPTK(mergedMeta);
   const sarpras = readSarpras(mergedMeta, schoolData);
-
-  // Kelembagaan
   const kelembagaan = readKelembagaan(mergedMeta);
-
-  // Lulusan
   const lulusanMelanjutkan = readLulusanPaud(mergedMeta);
 
   return {
@@ -861,7 +850,7 @@ const buildWadahPaud = (schoolData) => {
 };
 
 /* =========================================================
-   RENDER HELPERS (agar output sesuai format input Anda)
+   RENDER HELPERS
 ========================================================= */
 const labelLayananPaud = (k) => {
   const key = String(k || "").toLowerCase();
@@ -918,7 +907,7 @@ const renderBaikRusakBlock = (title, br) => {
 };
 
 /* =========================================================
-   ✅ VIEW: OUTPUT WADAH PAUD (sesuai modul input)
+   ✅ VIEW
 ========================================================= */
 const SchoolDetailPaudView = ({ schoolData }) => {
   const W = buildWadahPaud(schoolData);
@@ -1015,7 +1004,6 @@ const SchoolDetailPaudView = ({ schoolData }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>II. Data Siswa & Rombel (PAUD/TK)</h2>
 
-        {/* Siswa */}
         <div className={styles.card}>
           <h3 className={styles.subsectionTitle}>A. Siswa Reguler per Layanan (L/P)</h3>
 
@@ -1106,7 +1094,6 @@ const SchoolDetailPaudView = ({ schoolData }) => {
       <div className={styles.section}>
         <h2 className={styles.sectionTitle}>IV. Data Sarana & Prasarana</h2>
 
-        {/* a) Ukuran & Bangunan */}
         <div className={styles.card}>
           <h3 className={styles.subsectionTitle}>A. Ukuran & Bangunan</h3>
           <div className={styles.dataRow}>
@@ -1123,7 +1110,6 @@ const SchoolDetailPaudView = ({ schoolData }) => {
           </div>
         </div>
 
-        {/* b) Ruang Kelas */}
         <div className={styles.card}>
           <h3 className={styles.subsectionTitle}>B. Ruang Kelas</h3>
           <div className={styles.dataRow}>
@@ -1147,22 +1133,18 @@ const SchoolDetailPaudView = ({ schoolData }) => {
           </div>
         </div>
 
-        {/* c) Ruang Penunjang & (PAUD) APE */}
         <div className={styles.card}>
           <h3 className={styles.subsectionTitle}>C. Ruang Penunjang & APE (PAUD/TK)</h3>
 
           {renderKondisi5Block("Perpustakaan", O?.sarpras?.ruangPenunjang?.perpustakaan?.kondisi)}
-          {renderKondisi5Block("Laboratorium (Umum)", O?.sarpras?.ruangPenunjang?.lab_umum?.kondisi)}
           {renderKondisi5Block("Ruang Guru", O?.sarpras?.ruangPenunjang?.ruang_guru?.kondisi)}
           {renderKondisi5Block("Ruang Kepala Sekolah", O?.sarpras?.ruangPenunjang?.ruang_kepala_sekolah?.kondisi)}
-          {renderKondisi5Block("Ruang TU", O?.sarpras?.ruangPenunjang?.ruang_tu?.kondisi)}
           {renderKondisi5Block("Ruang UKS", O?.sarpras?.ruangPenunjang?.ruang_uks?.kondisi)}
           {renderKondisi5Block("Toilet Umum", O?.sarpras?.ruangPenunjang?.toilet_umum?.kondisi)}
           {renderKondisi5Block("Rumah Dinas", O?.sarpras?.ruangPenunjang?.rumah_dinas?.kondisi)}
           {renderKondisi5Block("APE (Alat Permainan Edukasi)", O?.sarpras?.ruangPenunjang?.ape?.kondisi)}
         </div>
 
-        {/* d) Perabot & Alat */}
         <div className={styles.card}>
           <h3 className={styles.subsectionTitle}>D. Perabot & Alat</h3>
           {renderBaikRusakBlock("Meja", O?.sarpras?.perabotDanAlat?.meja)}
@@ -1187,7 +1169,6 @@ const SchoolDetailPaudView = ({ schoolData }) => {
           </div>
         </div>
 
-        {/* e) Rencana Kegiatan Fisik */}
         <div className={styles.card}>
           <h3 className={styles.subsectionTitle}>E. Rencana Kegiatan Fisik</h3>
           <div className={styles.dataRow}>
