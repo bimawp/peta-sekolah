@@ -9,7 +9,6 @@ const Dashboard = lazy(() => import("../pages/Dashboard/Dashboard.jsx"));
 const SchoolDetailPage = lazy(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"));
 const NotFound = lazy(() => import("../pages/NotFound/NotFound.jsx"));
 const MapPage = lazy(() => import("../pages/Map/Map.jsx"));
-const BudgetPage = lazy(() => import("../pages/Budget/BudgetPage.jsx"));
 const FacilitiesPage = lazy(() => import("../pages/Facilities/FacilitiesPage.jsx"));
 
 import {
@@ -76,7 +75,6 @@ const prefetch = (() => {
 export const prefetchPages = {
   dashboard: () => prefetch(() => import("../pages/Dashboard/Dashboard.jsx"), "pg:dashboard"),
   map: () => prefetch(() => import("../pages/Map/Map.jsx"), "pg:map"),
-  budget: () => prefetch(() => import("../pages/Budget/BudgetPage.jsx"), "pg:budget"),
   facilities: () => prefetch(() => import("../pages/Facilities/FacilitiesPage.jsx"), "pg:facilities"),
   detail: () => prefetch(() => import("../pages/SchoolDetail/SchoolDetailPage.jsx"), "pg:detail"),
 };
@@ -283,7 +281,6 @@ export default function AppRoutes() {
     if (path === "/" || path === "/dashboard") {
       prefetchPages.map();
       prefetchPages.facilities();
-      prefetchPages.budget();
     } else if (path === "/peta" || path === "/map") {
       prefetchPages.dashboard();
       prefetchPages.facilities();
@@ -303,7 +300,6 @@ export default function AppRoutes() {
         prefetchPages.dashboard();
         prefetchPages.map();
         prefetchPages.facilities();
-        prefetchPages.budget();
         prefetchPages.detail();
       }, 1500)
     );
@@ -339,7 +335,6 @@ export default function AppRoutes() {
                 const map = {
                   dashboard: prefetchPages.dashboard,
                   peta: prefetchPages.map,
-                  anggaran: prefetchPages.budget,
                   fasilitas: prefetchPages.facilities,
                 };
                 map[key]?.();
@@ -351,7 +346,6 @@ export default function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/peta" element={<MapPage />} />
           <Route path="/map" element={<Navigate to="/peta" replace />} />
-          <Route path="/anggaran" element={<BudgetPage />} />
           <Route path="/lainnya" element={<FacilitiesPage />} />
           <Route path="/detail-sekolah" element={<SchoolDetailPage />} />
         </Route>

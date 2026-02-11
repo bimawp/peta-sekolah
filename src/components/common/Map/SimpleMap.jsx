@@ -11,6 +11,7 @@ import {
   kecKey,
   uniqueBy,
   GARUT_LEAFLET_BOUNDS,
+  shortLevel,
 } from "./mapUtils";
 
 const GARUT_CENTER = [-7.214, 107.903];

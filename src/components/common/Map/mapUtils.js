@@ -133,13 +133,49 @@ export const kecKey = (name) => {
   return x;
 };
 
-export const shortLevel = (lvl) => {
-  if (!lvl) return "Lainnya";
-  const s = lvl.toString().toUpperCase().replace(/\s+/g, "");
-  if (s.includes("PAUD") || s.includes("TK") || s.includes("KB")) return "PAUD";
-  if (s === "SD" || s.includes("SEKOLAHDASAR")) return "SD";
-  if (s === "SMP" || s.includes("SEKOLAHMENENGAHPERTAMA")) return "SMP";
-  if (s.includes("PKBM")) return "PKBM";
+export const shortLevel = (lvl, row) => {
+  // 1. Cek 'lvl' langsung (jika dikirim string "SMP")
+  // 2. Cek 'meta.jenjang' (biasanya dari inputan baru)
+  // 3. Cek 'jenjang_text' (dari view database)
+  // 4. Cek 'school_type_id' (dari tabel schools raw)
+  const raw = 
+    lvl || 
+    row?.meta?.jenjang || 
+    row?.jenjang_text || 
+    row?.school_type_id || 
+    "";
+
+  // Ubah ke string, uppercase, dan hapus spasi agar pencocokan mudah
+  const s = raw.toString().toUpperCase().replace(/\s+/g, "");
+
+  // --- LOGIKA PENCOCOKAN (ID & TEXT) ---
+
+  // 1. PAUD (ID: 1)
+  // Mencakup: Kode "1", Kata "PAUD", "TK", "KB", "Taman Kanak"
+  if (s === "1" || s.includes("PAUD") || s.includes("TK") || s.includes("KB") || s.includes("TAMAN")) {
+    return "PAUD";
+  }
+
+  // 2. PKBM (ID: 2)
+  // Mencakup: Kode "2", Kata "PKBM", "PUSAT KEGIATAN"
+  if (s === "2" || s.includes("PKBM")) {
+    return "PKBM";
+  }
+
+  // 3. SD (ID: 3)
+  // Mencakup: Kode "3", Kata "SD", "SEKOLAH DASAR"
+  // Hati-hati: "SD" bisa jadi bagian dari "SDLB", tapi biasanya tetap masuk kategori SD/Lainnya
+  if (s === "3" || s === "SD" || s.includes("SEKOLAHDASAR") || s.includes("SDNEGERI") || s.includes("SDSWASTA")) {
+    return "SD";
+  }
+
+  // 4. SMP (ID: 4)
+  // Mencakup: Kode "4", Kata "SMP", "SEKOLAH MENENGAH PERTAMA"
+  if (s === "4" || s === "SMP" || s.includes("SEKOLAHMENENGAHPERTAMA") || s.includes("SMPN") || s.includes("SMPS")) {
+    return "SMP";
+  }
+
+  // Default jika tidak dikenali
   return "Lainnya";
 };
 
@@ -228,18 +264,42 @@ export const uniqueBy = (arr = [], keyFn) => {
 export const applyFilters = (schools, filters) => {
   let { jenjang = "", kecamatan = "", desa = "" } = filters || {};
 
-  const jRaw = (jenjang || "").toString().trim();
-  const j = /^semua/i.test(jRaw) ? "" : jRaw;
+  // 1. Ambil nilai filter mentah
+  let jRaw = (jenjang || "").toString().trim();
+
+  // 2. Jika filter "Semua", kosongkan agar tidak memfilter
+  if (/^semua/i.test(jRaw)) jRaw = "";
+
+  // 3. --- NORMALISASI FILTER (BAGIAN PENTING) ---
+  // Kita ubah input filter (baik itu ID angka "2" atau teks "pkbm") 
+  // menjadi format standar ("PKBM") agar cocok dengan data sekolah.
+  let j = jRaw.toUpperCase();
+
+  if (j === "1" || j.includes("PAUD") || j.includes("TK") || j.includes("KB")) {
+    j = "PAUD";
+  } else if (j === "2" || j.includes("PKBM")) {
+    j = "PKBM"; // <-- Ini kuncinya! Mengubah "2" jadi "PKBM"
+  } else if (j === "3" || j === "SD" || j.includes("DASAR")) {
+    j = "SD";
+  } else if (j === "4" || j === "SMP" || j.includes("MENENGAH")) {
+    j = "SMP";
+  }
+  // ----------------------------------------------
 
   const k = kecKey(normalizeAnyAll(kecamatan || ""));
   const d = norm(normalizeAnyAll(desa || ""));
 
   return (schools || []).filter((s) => {
-    const sj = shortLevel(s?.jenjang);
+    // Panggil fungsi pintar kita (parameter 's' wajib ada!)
+    const sj = shortLevel(s?.jenjang, s);
+    
     const skec = kecKey(s?.kecamatan);
     const sdesa = norm(s?.desa || s?.village || "");
 
+    // 4. Perbandingan yang Aman
+    // Sekarang kita membandingkan "PKBM" (Sekolah) dengan "PKBM" (Filter)
     if (j && sj !== j) return false;
+    
     if (k && skec !== k) return false;
     if (d && sdesa !== d) return false;
     return true;
